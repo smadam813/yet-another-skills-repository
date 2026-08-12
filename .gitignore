@@ -1,0 +1,21 @@
+# OS cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Local Claude Code settings (settings.json stays tracked)
+.claude/settings.local.json
+
+# Dependencies for skills that ship scripts.
+# Lockfiles are deliberately NOT ignored: Claude Code auto-installs a plugin's
+# deps only when it finds package-lock.json / npm-shrinkwrap.json / bun.lock.
+node_modules/
+__pycache__/
+*.py[cod]
+.venv/
+venv/

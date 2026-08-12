@@ -1,0 +1,13 @@
+{
+  "name": "builder-tools",
+  "displayName": "Builder Tools",
+  "version": "0.1.1",
+  "description": "An engineering workflow for Claude: triage and spec work into tickets, implement it test-first, review the result, and keep the domain model and prose honest along the way.",
+  "author": {
+    "name": "Adam Keech",
+    "url": "https://github.com/smadam813"
+  },
+  "repository": "https://github.com/smadam813/yet-another-skills-repository",
+  "license": "MIT",
+  "keywords": ["tdd", "code-review", "triage", "planning", "domain-modeling", "writing"]
+}
