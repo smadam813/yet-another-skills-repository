@@ -12,10 +12,12 @@ metadata:
   upstream_license: MIT
   local_changes: >-
     Renamed from upstream's setup-matt-pocock-skills. GitLab tracker option
-    and issue-tracker-gitlab.md removed; triage-labels table rebranded to
-    this repository. Prose edited for plain English per the /orwell-writing
-    skill: American spelling, shorter sentences, active voice. The Agent
-    skills block, the file-selection rules, and the seed-template links are
+    and issue-tracker-gitlab.md removed. In the triage-labels.md seed
+    template, the first column header no longer names a specific repository;
+    it reads "Canonical role", so the template seeds any repo unchanged.
+    Prose edited for plain English per the /orwell-writing skill: American
+    spelling, shorter sentences, active voice. The Agent skills block, the
+    file-selection rules, the label strings, and the seed-template links are
     unchanged.
   note: >-
     See NOTICE at the repository root.

@@ -14,8 +14,9 @@ metadata:
     Setup reference retargeted to /setup-builder-tools. Prose edited for
     plain English per the /orwell-writing skill: American spelling, shorter
     sentences, active voice, decorative phrasing removed. The navigation
-    vocabulary (map, destination, frontier, fog of war, chart) is kept
-    deliberately — it is this skill's defined terminology, not decoration.
+    vocabulary (map, destination, frontier, fog of war, chart, zoom, low
+    resolution) is kept deliberately — it is this skill's defined
+    terminology, not decoration.
     Section headings are unchanged so the in-page anchors still resolve.
   note: >-
     See NOTICE at the repository root.
@@ -56,7 +57,7 @@ The whole map at low resolution, loaded once per session. It does **not** list t
 
 ## Decisions so far
 
-<!-- the index — one line per closed ticket: enough to judge relevance, then open the link for the detail the ticket holds -->
+<!-- the index — one line per closed ticket: enough to judge relevance, then zoom in via the link for the detail the ticket holds -->
 
 - [<closed ticket title>](link) — <one-line summary of the answer>
 
