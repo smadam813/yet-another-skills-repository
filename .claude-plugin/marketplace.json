@@ -5,5 +5,13 @@
     "name": "Adam Keech",
     "url": "https://github.com/smadam813"
   },
-  "plugins": []
+  "plugins": [
+    {
+      "name": "builder-tools",
+      "source": "./plugins/builder-tools",
+      "description": "Working habits for building software with Claude: plain-English prose discipline and rigorous handling of code review feedback.",
+      "license": "MIT",
+      "keywords": ["writing", "code-review", "style", "prose"]
+    }
+  ]
 }
