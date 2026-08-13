@@ -12,17 +12,18 @@ metadata:
   upstream_license: MIT
   local_changes: >-
     Points at /review-changes, this plugin's name for upstream's code-review
-    skill.
+    skill. Prose edited for plain English per the /orwell-writing skill:
+    active voice and direct instructions.
   note: >-
     See NOTICE at the repository root.
 ---
 
-Implement the work described by the user in the spec or tickets.
+Build the work the user described in the spec or tickets.
 
-Use /tdd where possible, at pre-agreed seams.
+Use `/tdd` where you can, at seams agreed in advance.
 
-Run typechecking regularly, single test files regularly, and the full test suite once at the end.
+Run the typechecker often. Run single test files often. Run the full test suite once, at the end.
 
-Once done, use /review-changes to review the work.
+When the work is done, use `/review-changes` to review it.
 
 Commit your work to the current branch.

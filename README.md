@@ -101,14 +101,18 @@ provenance in its `SKILL.md` frontmatter under `metadata`.
 
 | Author | Project | Skills |
 |---|---|---|
-| Matt Pocock | [mattpocock/skills](https://github.com/mattpocock/skills) | 16 — eight verbatim, eight modified |
+| Matt Pocock | [mattpocock/skills](https://github.com/mattpocock/skills) | 16 — all modified |
 | Jesse Vincent | [obra/superpowers](https://github.com/obra/superpowers) | `receiving-code-review`, verbatim |
 | Tam Nguyen | [tamdogood/builder-essential-skills](https://github.com/tamdogood/builder-essential-skills) | `orwell-writing`, verbatim |
 
-The modifications to Matt Pocock's skills are narrow: two skills renamed
-(`code-review` → `review-changes`, `setup-matt-pocock-skills` → `setup-builder-tools`)
-with the references that point at them retargeted, and GitLab issue-tracker
-support removed. Each skill's `metadata.local_changes` says exactly what changed.
+The modifications to Matt Pocock's skills fall into two groups. Structural: two
+skills renamed (`code-review` → `review-changes`, `setup-matt-pocock-skills` →
+`setup-builder-tools`) with the references that point at them retargeted, and
+GitLab issue-tracker support removed. Editorial: every body has been run through
+`orwell-writing`, which switched spelling to American English, shortened
+sentences, made passive constructions active, and cut decorative idiom. Code
+blocks, commands, templates, label strings, and each skill's defined vocabulary
+were left alone. Each skill's `metadata.local_changes` says exactly what changed.
 
 Superpowers asks that its skill wording not be reworded without evidence, since
 it is tuned against their eval harness. `receiving-code-review` is therefore

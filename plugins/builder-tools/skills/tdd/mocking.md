@@ -2,24 +2,24 @@
 
 Mock at **system boundaries** only:
 
-- External APIs (payment, email, etc.)
-- Databases (sometimes - prefer test DB)
-- Time/randomness
-- File system (sometimes)
+- External APIs, such as payment and email
+- Databases (sometimes — prefer a test DB)
+- Time and randomness
+- The file system (sometimes)
 
-Don't mock:
+Do not mock:
 
-- Your own classes/modules
+- Your own classes or modules
 - Internal collaborators
 - Anything you control
 
 ## Designing for Mockability
 
-At system boundaries, design interfaces that are easy to mock:
+At system boundaries, design interfaces that are easy to mock.
 
 **1. Use dependency injection**
 
-Pass external dependencies in rather than creating them internally:
+Pass external dependencies in rather than creating them inside:
 
 ```typescript
 // Easy to mock
@@ -36,7 +36,7 @@ function processPayment(order) {
 
 **2. Prefer SDK-style interfaces over generic fetchers**
 
-Create specific functions for each external operation instead of one generic function with conditional logic:
+Create a specific function for each external operation, instead of one generic function with conditional logic inside:
 
 ```typescript
 // GOOD: Each function is independently mockable
@@ -53,7 +53,8 @@ const api = {
 ```
 
 The SDK approach means:
+
 - Each mock returns one specific shape
-- No conditional logic in test setup
-- Easier to see which endpoints a test exercises
+- No conditional logic in the test setup
+- You can see which endpoints a test exercises
 - Type safety per endpoint

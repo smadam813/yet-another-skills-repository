@@ -25,18 +25,19 @@ Upstream paths are relative to that repository's skills/ directory.
 
   Taken verbatim
   --------------
+  (none)
+
+  Modified
+  --------
   codebase-design                <- engineering/codebase-design
   domain-modeling                <- engineering/domain-modeling
   grill-with-docs                <- engineering/grill-with-docs
   grilling                       <- productivity/grilling
+  implement                      <- engineering/implement
   improve-codebase-architecture  <- engineering/improve-codebase-architecture
   prototype                      <- engineering/prototype
   research                       <- engineering/research
   resolving-merge-conflicts      <- engineering/resolving-merge-conflicts
-
-  Modified
-  --------
-  implement                      <- engineering/implement
   review-changes                 <- engineering/code-review
   setup-builder-tools            <- engineering/setup-matt-pocock-skills
   tdd                            <- engineering/tdd
@@ -45,10 +46,20 @@ Upstream paths are relative to that repository's skills/ directory.
   triage                         <- engineering/triage
   wayfinder                      <- engineering/wayfinder
 
-Modifications are limited to renaming two skills and retargeting the references
-that point at them, removing GitLab issue-tracker support, and rebranding
-identifiers that named the upstream project. See each SKILL.md's
-`metadata.local_changes` for the specifics.
+Modifications fall into two groups.
+
+Structural changes: renaming two skills and retargeting the references that
+point at them, removing GitLab issue-tracker support, and rebranding
+identifiers that named the upstream project.
+
+Editorial changes: every skill body listed above has been rewritten for plain
+English, applying George Orwell's six rules and the ASD-STE100 Simplified
+Technical English baseline. That pass changed spelling to American English,
+shortened sentences, converted passive constructions to active ones, and
+removed decorative idiom. It preserved code blocks, commands, identifiers,
+templates, label strings, and each skill's defined vocabulary.
+
+See each SKILL.md's `metadata.local_changes` for the specifics.
 
 MIT License
 
