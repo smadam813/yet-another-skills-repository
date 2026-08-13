@@ -1,6 +1,18 @@
 ---
 name: receiving-code-review
 description: Use when receiving code review feedback, before implementing suggestions, especially if feedback seems unclear or technically questionable - requires technical rigor and verification, not performative agreement or blind implementation
+license: MIT
+metadata:
+  vendored: verbatim
+  upstream_source: https://github.com/obra/superpowers
+  upstream_path: skills/receiving-code-review/SKILL.md
+  upstream_author: Jesse Vincent
+  upstream_copyright: Copyright (c) 2025 Jesse Vincent
+  upstream_license: MIT
+  note: >-
+    Body is a verbatim copy. Upstream treats its wording as eval-tuned and asks
+    that it not be reworded without evidence, so edit deliberately. See NOTICE
+    at the repository root.
 ---
 
 # Code Review Reception

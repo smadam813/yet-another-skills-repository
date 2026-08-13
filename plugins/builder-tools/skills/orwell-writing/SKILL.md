@@ -1,6 +1,16 @@
 ---
 name: orwell-writing
 description: Use when an agent is asked to draft, rewrite, edit, review, polish, copyedit, simplify, humanize, or create written prose, including creative writing, essays, posts, scripts, speeches, emails, documentation, product copy, and other style-sensitive text. Apply George Orwell's six rules and ASD-STE100 Simplified Technical English as a plain-English discipline while preserving the user's intended meaning, audience, tone, and explicit constraints.
+license: MIT
+metadata:
+  vendored: verbatim
+  upstream_source: https://github.com/tamdogood/builder-essential-skills
+  upstream_path: skills/orwell-writing/SKILL.md
+  upstream_author: Tam Nguyen
+  upstream_copyright: Copyright (c) 2026 Tam Nguyen
+  upstream_license: MIT
+  note: >-
+    Body is a verbatim copy. See NOTICE at the repository root.
 ---
 
 # Orwell Writing
