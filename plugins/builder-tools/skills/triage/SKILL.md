@@ -50,7 +50,7 @@ Five **state** roles:
 - `needs-info` — waiting on the reporter for more information
 - `ready-for-agent` — fully specified, ready for an AFK agent
 - `ready-for-human` — needs a human to implement it
-- `wontfix` — will not be actioned
+- `wontfix` — will not be acted on
 
 For a PR, the same states read against the attached code. `ready-for-agent` means a brief is attached and an agent should take the next step on the diff. `ready-for-human` means a human can merge it.
 
