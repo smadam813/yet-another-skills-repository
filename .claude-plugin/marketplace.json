@@ -5,5 +5,20 @@
     "name": "Adam Keech",
     "url": "https://github.com/smadam813"
   },
-  "plugins": []
+  "plugins": [
+    {
+      "name": "engineering",
+      "source": "./plugins/engineering",
+      "description": "Skills for software engineering workflows",
+      "license": "MIT",
+      "keywords": ["code-review", "code-quality", "engineering", "workflow"]
+    },
+    {
+      "name": "productivity",
+      "source": "./plugins/productivity",
+      "description": "Skills for everyday productivity",
+      "license": "MIT",
+      "keywords": ["writing", "editing", "productivity", "workflow"]
+    }
+  ]
 }
