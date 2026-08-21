@@ -1,0 +1,29 @@
+name: Validate
+
+# No paths: filter here on purpose. A required status check that never runs stays
+# pending forever and blocks the merge, so this job runs on every pull request.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # The job name is what you mark as the required status check on main.
+  validate:
+    name: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          # Pinned rather than lts/*, which would move to Node 26 on its own in October.
+          # No cache: input — the checker has no dependencies, and setup-node fails the
+          # step when it looks for a lockfile that isn't there.
+          node-version: '24'
+      - name: Check both marketplaces
+        run: node scripts/check-marketplace.mjs

@@ -1,6 +1,6 @@
 {
   "name": "yet-another-skills-repository",
-  "description": "A collection of Claude Code skills, packaged as helpful docs and installable plugins.",
+  "description": "A collection of agent skills, packaged as helpful docs and installable plugins.",
   "owner": {
     "name": "Adam Keech",
     "url": "https://github.com/smadam813"
