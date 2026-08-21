@@ -1,0 +1,24 @@
+{
+  "name": "yet-another-skills-repository",
+  "description": "A collection of agent skills, packaged as helpful docs and installable plugins.",
+  "owner": {
+    "name": "Adam Keech",
+    "url": "https://github.com/smadam813"
+  },
+  "plugins": [
+    {
+      "name": "engineering",
+      "source": "./plugins/engineering",
+      "description": "Skills for software engineering workflows",
+      "license": "MIT",
+      "keywords": ["code-review", "code-quality", "engineering", "workflow"]
+    },
+    {
+      "name": "productivity",
+      "source": "./plugins/productivity",
+      "description": "Skills for everyday productivity",
+      "license": "MIT",
+      "keywords": ["writing", "editing", "productivity", "workflow"]
+    }
+  ]
+}
