@@ -5,8 +5,6 @@ A collection of agent skills, packaged as helpful docs and installable plugins.
 This repository is a plugin marketplace for **both Claude Code and Cursor** — the same
 skills, installed from whichever one you use. Neither install path needs the other tool.
 
-There are no plugins in it yet.
-
 ## Claude Code
 
 ```

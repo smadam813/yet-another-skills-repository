@@ -7,5 +7,16 @@
     "description": "A collection of agent skills, packaged as helpful docs and installable plugins.",
     "pluginRoot": "plugins"
   },
-  "plugins": []
+  "plugins": [
+    {
+      "name": "engineering",
+      "source": "engineering",
+      "description": "Skills for software engineering workflows"
+    },
+    {
+      "name": "productivity",
+      "source": "productivity",
+      "description": "Skills for everyday productivity"
+    }
+  ]
 }
