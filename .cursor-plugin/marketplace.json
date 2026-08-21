@@ -1,0 +1,11 @@
+{
+  "name": "yet-another-skills-repository",
+  "owner": {
+    "name": "Adam Keech"
+  },
+  "metadata": {
+    "description": "A collection of agent skills, packaged as helpful docs and installable plugins.",
+    "pluginRoot": "plugins"
+  },
+  "plugins": []
+}
