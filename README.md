@@ -7,9 +7,9 @@ install the same skills. Neither install path needs the other tool.
 
 ## Plugins
 
-- [**engineering**](plugins/engineering/README.md) — 19 skills for software engineering
+- [**engineering**](plugins/engineering/README.md) — skills for software engineering
   workflows: design, diagnosis, review, and ticket flow.
-- [**productivity**](plugins/productivity/README.md) — 8 skills for everyday work:
+- [**productivity**](plugins/productivity/README.md) — skills for everyday work:
   writing, teaching, handoffs, and stress-testing ideas.
 
 ## Claude Code
