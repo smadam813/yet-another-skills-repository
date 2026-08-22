@@ -119,11 +119,13 @@ for (const name of [...claudeNames].sort()) {
       err(`${join(cDir, 'skills', entry)}: no SKILL.md`)
       continue
     }
-    const fm = frontmatter(readFileSync(md, 'utf8'))
+    const badScalars = []
+    const fm = frontmatter(readFileSync(md, 'utf8'), badScalars)
     if (!fm) {
       err(`${rel}: no YAML frontmatter; both tools need a --- block`)
       continue
     }
+    for (const k of badScalars) err(`${rel}: "${k}" has an unquoted ":" inside its value; strict YAML parsers reject the block — quote the whole value`)
     // Cursor requires name, and requires it to equal the folder name. Claude Code does not.
     if (!fm.name) err(`${rel}: no "name"; Cursor requires it. Add "name: ${entry}".`)
     else if (fm.name !== entry) err(`${rel}: "name" is "${fm.name}" but the directory is "${entry}"; Cursor rejects the mismatch`)
@@ -136,14 +138,18 @@ for (const name of [...claudeNames].sort()) {
 }
 
 // Reads top-level scalar keys out of the leading --- block. Enough for name and description.
-function frontmatter(text) {
+function frontmatter(text, badScalars = []) {
   const lines = text.replace(/^﻿/, '').split(/\r?\n/)
   if (lines[0]?.trim() !== '---') return null
   const out = {}
   for (let i = 1; i < lines.length; i++) {
     if (lines[i].trim() === '---') return out
     const m = /^([A-Za-z_][A-Za-z0-9_-]*):[ \t]*(.*)$/.exec(lines[i])
-    if (m) out[m[1]] = m[2].trim().replace(/^["'](.*)["']$/, '$1')
+    if (!m) continue
+    const raw = m[2].trim()
+    // YAML forbids ": " (or a trailing ":") inside an unquoted plain scalar.
+    if (raw && !/^["'].*["']$/.test(raw) && /:(\s|$)/.test(raw)) badScalars.push(m[1])
+    out[m[1]] = raw.replace(/^["'](.*)["']$/, '$1')
   }
   return null // unterminated block
 }
