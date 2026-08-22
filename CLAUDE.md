@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-A plugin marketplace of agent skills, installable by **both Claude Code and Cursor** from the same directories. The content is Markdown. There is no application code, no `package.json`, and no test suite; the only executable is the marketplace checker.
+This repo is a plugin marketplace of agent skills. Claude Code and Cursor both install those skills from the same directories.
+
+The content is Markdown. The repo holds no application code, no `package.json`, and no test suite. The marketplace checker is the only program in it.
 
 ## Validate
 
@@ -12,32 +14,36 @@ A plugin marketplace of agent skills, installable by **both Claude Code and Curs
 node scripts/check-marketplace.mjs
 ```
 
-Plain Node, no dependencies. `.github/workflows/validate.yml` runs this same command on every push and pull request, and its `validate` job is the required status check on `main`. Run it after any change to a manifest, a skill directory name, or a SKILL.md frontmatter block.
+The checker runs on plain Node and needs no dependencies. `.github/workflows/validate.yml` runs the same command on every push and pull request. Its `validate` job is the required status check on `main`. Run the checker after you change a manifest, a skill directory name, or a SKILL.md frontmatter block.
 
-## Dual-tool packaging
+## Packaging for both tools
 
-Four manifests describe the two plugins, and the checker fails on drift between them:
+Four manifests describe the two plugins. The checker fails when they disagree:
 
 - `.claude-plugin/marketplace.json` — each `source` is a path from the repo root (`./plugins/engineering`).
-- `.cursor-plugin/marketplace.json` — each `source` is relative to `metadata.pluginRoot` (`engineering`). Both must resolve to the same directory.
-- `plugins/<plugin>/.claude-plugin/plugin.json` and `plugins/<plugin>/.cursor-plugin/plugin.json` — `description`, `version`, `license`, and `keywords` must match between them, and each `description` must match the one in its marketplace entry. Cursor's manifest also carries `"skills": "./skills/"`.
+- `.cursor-plugin/marketplace.json` — each `source` is a path from `metadata.pluginRoot` (`engineering`). Both paths must point to the same directory.
+- `plugins/<plugin>/.claude-plugin/plugin.json` and `plugins/<plugin>/.cursor-plugin/plugin.json` — `description`, `version`, `license`, and `keywords` must match between the two files, and each `description` must match the one in its marketplace entry. Cursor's manifest also carries `"skills": "./skills/"`.
 
-So a version bump or a description edit is a four-file change, and a new plugin listed in only one marketplace is an error, not a partial install.
+A new version number, or a new description, therefore changes four files. List a new plugin in both marketplaces: the checker fails on a plugin that only one marketplace names.
 
-Skills are the one thing both tools read identically, from `plugins/<plugin>/skills/<name>/SKILL.md`.
+Both tools read a skill from the same path, in the same format: `plugins/<plugin>/skills/<name>/SKILL.md`.
 
 ## Adding or editing a skill
 
-- The directory name is lowercase letters, numbers, and hyphens, and frontmatter `name` must equal it. Cursor rejects a mismatch that Claude Code tolerates.
-- `description` is required; Cursor will not load a skill without one.
-- Keep skill names unique across plugins. A collision is only a warning, because Claude Code namespaces skills per plugin, but Cursor does not and one skill then shadows the other.
-- List the skill in `plugins/<plugin>/README.md`. That index is maintained by hand.
-- Supporting material sits beside the SKILL.md: `references/` for Markdown reached by a pointer, `scripts/` for templates the skill emits.
+- Name the directory with lowercase letters, numbers, and hyphens. Frontmatter `name` must match the directory name. Cursor rejects a mismatch that Claude Code accepts.
+- Give the skill a `description`. Cursor does not load a skill without one.
+- Keep skill names unique across plugins. The checker only warns about a repeated name, because Claude Code gives each plugin its own namespace. Cursor does not, so one skill there hides the other.
+- List the skill by hand in `plugins/<plugin>/README.md`. Nothing generates that index.
+- Put supporting material beside the SKILL.md: `references/` for Markdown that a pointer reaches, `scripts/` for templates the skill copies.
 
 ## Invocation choice
 
-`disable-model-invocation: true` makes a skill **user-invoked**: only a human typing its name starts it, no other skill can reach it, and its `description` is a one-line human summary with the trigger phrases stripped. Omitting the field keeps the skill **model-invoked**, and its description stays in context on every turn as the trigger, so it carries the "Use when ..." branches. Pick model invocation only when the agent or another skill has to reach the skill on its own. `ask-builder` is the router that lets a human find the user-invoked engineering skills.
+`disable-model-invocation: true` makes a skill **user-invoked**. Only a human who types its name can start it, and no other skill can reach it. Its `description` then faces that human: a one-line summary, without the trigger phrases.
+
+Leave the field out, and the skill stays **model-invoked**. Its description sits in context on every turn and works as the trigger, so it must carry the "Use when ..." branches. Choose model invocation only when the agent, or another skill, has to reach the skill on its own.
+
+`ask-builder` is the router that helps a human find the user-invoked engineering skills.
 
 ## Writing standard
 
-The skills here are written to the repo's own rules. Before writing or editing a SKILL.md, a `CLAUDE.md`, or an `AGENTS.md`, read `plugins/productivity/skills/writing-for-agents/SKILL.md` and its `references/SKILL-MECHANICS.md`. For prose style, read `plugins/productivity/skills/orwell-writing/SKILL.md`.
+The skills here follow the repo's own rules. Read `plugins/productivity/skills/writing-for-agents/SKILL.md` and its `references/SKILL-MECHANICS.md` before you write or edit a SKILL.md, a `CLAUDE.md`, or an `AGENTS.md`. For prose style, read `plugins/productivity/skills/orwell-writing/SKILL.md`.
