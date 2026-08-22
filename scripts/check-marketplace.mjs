@@ -138,7 +138,7 @@ for (const name of [...claudeNames].sort()) {
 }
 
 // Reads top-level scalar keys out of the leading --- block. Enough for name and description.
-function frontmatter(text, badScalars = []) {
+function frontmatter(text, badScalars) {
   const lines = text.replace(/^﻿/, '').split(/\r?\n/)
   if (lines[0]?.trim() !== '---') return null
   const out = {}
@@ -148,7 +148,7 @@ function frontmatter(text, badScalars = []) {
     if (!m) continue
     const raw = m[2].trim()
     // YAML forbids ": " (or a trailing ":") inside an unquoted plain scalar.
-    if (raw && !/^["'].*["']$/.test(raw) && /:(\s|$)/.test(raw)) badScalars.push(m[1])
+    if (!/^["'].*["']$/.test(raw) && /:(\s|$)/.test(raw)) badScalars.push(m[1])
     out[m[1]] = raw.replace(/^["'](.*)["']$/, '$1')
   }
   return null // unterminated block
