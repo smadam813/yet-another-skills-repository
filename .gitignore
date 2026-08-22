@@ -11,6 +11,9 @@ desktop.ini
 # Local Claude Code settings (settings.json stays tracked)
 .claude/settings.local.json
 
+# Local git worktrees created by Claude Code sessions.
+.claude/worktrees/
+
 # Dependencies for skills that ship scripts.
 # Lockfiles are deliberately NOT ignored: Claude Code auto-installs a plugin's
 # deps only when it finds package-lock.json / npm-shrinkwrap.json / bun.lock.
