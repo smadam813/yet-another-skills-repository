@@ -1,6 +1,6 @@
 ---
 name: code-deslop
-description: Remove AI-generated slop from the branch diff and match the surrounding code style. Use when a branch reads like an AI wrote it: redundant comments, defensive scaffolding, or naming that does not match the repo.
+description: "Remove AI-generated slop from the branch diff and match the surrounding code style. Use when a branch reads like an AI wrote it: redundant comments, defensive scaffolding, or naming that does not match the repo."
 ---
 
 # Remove AI slop
