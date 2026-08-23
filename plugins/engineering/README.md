@@ -23,6 +23,8 @@ Skills for software engineering workflows.
   pick.
 - [`prototype`](skills/prototype/SKILL.md) — build a throwaway prototype to answer a design
   question.
+- [`receiving-code-review`](skills/receiving-code-review/SKILL.md) — check each review
+  claim against the code before you implement it.
 - [`research`](skills/research/SKILL.md) — investigate a question with primary sources and
   write the findings to Markdown.
 - [`resolving-merge-conflicts`](skills/resolving-merge-conflicts/SKILL.md) — resolve an
