@@ -1,7 +1,5 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## What this repo is
 
 This repo is a plugin marketplace of agent skills. Claude Code and Cursor both install those skills from the same directories.
