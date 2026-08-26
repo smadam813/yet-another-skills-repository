@@ -4,8 +4,6 @@ description: Break a plan, spec, or the current conversation into a set of trace
 disable-model-invocation: true
 ---
 
-# To Tickets
-
 Break a plan, spec, or conversation into **tickets**: tracer-bullet vertical slices, each declaring the tickets that **block** it.
 
 You need the issue tracker and the triage label vocabulary before you start. If you do not have them, tell the user to run `/setup-builder-skills`.

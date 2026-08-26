@@ -119,8 +119,9 @@ for (const name of [...claudeNames].sort()) {
       err(`${join(cDir, 'skills', entry)}: no SKILL.md`)
       continue
     }
+    const text = readFileSync(md, 'utf8')
     const badScalars = []
-    const fm = frontmatter(readFileSync(md, 'utf8'), badScalars)
+    const fm = frontmatter(text, badScalars)
     if (!fm) {
       err(`${rel}: no YAML frontmatter; both tools need a --- block`)
       continue
@@ -131,6 +132,9 @@ for (const name of [...claudeNames].sort()) {
     else if (fm.name !== entry) err(`${rel}: "name" is "${fm.name}" but the directory is "${entry}"; Cursor rejects the mismatch`)
     if (!/^[a-z0-9-]+$/.test(entry)) err(`${rel}: directory "${entry}" must be lowercase letters, numbers and hyphens`)
     if (!fm.description) err(`${rel}: no "description"; Cursor requires it`)
+    // The frontmatter name already titles the skill; an opening H1 restates it and can drift after a rename.
+    const first = body(text).split(/\r?\n/).find((l) => l.trim() !== '')
+    if (first?.startsWith('# ')) err(`${rel}: body opens with the heading "${first.trim()}"; the frontmatter name already titles the skill — start the body at its first real line`)
     const owner = skillNames.get(fm.name ?? entry)
     if (owner) warn(`skill "${fm.name ?? entry}" is defined by both "${owner}" and "${name}"; Claude Code namespaces skills per plugin, Cursor does not`)
     else skillNames.set(fm.name ?? entry, name)
@@ -152,6 +156,13 @@ function frontmatter(text, badScalars) {
     out[m[1]] = raw.replace(/^["'](.*)["']$/, '$1')
   }
   return null // unterminated block
+}
+
+// The text after the frontmatter's closing ---.
+function body(text) {
+  const lines = text.replace(/^﻿/, '').split(/\r?\n/)
+  const end = lines[0]?.trim() === '---' ? lines.findIndex((l, i) => i > 0 && l.trim() === '---') : -1
+  return end === -1 ? '' : lines.slice(end + 1).join('\n')
 }
 
 for (const w of warnings) console.log(`WARN  ${w}`)

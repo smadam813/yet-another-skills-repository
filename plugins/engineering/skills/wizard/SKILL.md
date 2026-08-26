@@ -3,8 +3,6 @@ name: wizard
 description: Generate an interactive bash wizard that walks a human through steps only they can perform. Use when provisioning infrastructure, setting up credentials or CI secrets, working through an unfamiliar third-party dashboard, or running a one-off migration or cutover. Do not invoke this for steps the agent can perform itself.
 ---
 
-# Wizard
-
 A **wizard** is a bash script that walks a human, step by step, through a manual procedure that is tedious to do by hand and tedious to re-explain to an AI every time. It opens each URL, says what to click and copy, captures the values, and writes them where they belong, such as `.env` or GitHub secrets. It confirms at every stage and shows how many stages are left. A wizard might configure third-party services, run a one-off migration, or move the project from one state to another.
 
 [template.sh](references/template.sh) already provides the user experience: stage-by-stage progress, confirmation gates, cross-platform URL opening that includes WSL, hidden secret entry, repeatable `.env` writes, `gh secret` and `gh variable` writes, and a closing summary. **Your job is only to scope the procedure and write its stages.** The library above the `STAGES` marker is identical in every wizard. That consistency is the point, so never hand-edit it.

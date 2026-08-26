@@ -3,8 +3,6 @@ name: prototype
 description: Build a throwaway prototype to answer a design question. Use when the user wants to sanity-check whether a state model or logic feels right, or explore what a UI should look like.
 ---
 
-# Prototype
-
 A prototype is **throwaway code that answers a question**. The question decides the shape.
 
 ## Pick a branch

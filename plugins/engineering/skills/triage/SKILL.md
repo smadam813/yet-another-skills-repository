@@ -4,8 +4,6 @@ description: Move issues and external PRs through a state machine of triage role
 disable-model-invocation: true
 ---
 
-# Triage
-
 Move issues on the project issue tracker through a state machine of triage roles.
 
 If this repo treats external pull requests as another way to file a request (see the issue-tracker config), triage covers them too: **a PR is an issue with code attached**. Same roles, same states, same machine, with the few differences marked "for a PR" below. Use the tracker config to resolve a bare `#42` to an issue or a PR.

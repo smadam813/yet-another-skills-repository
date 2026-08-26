@@ -4,8 +4,6 @@ description: Ask which skill or flow fits your situation. A router over the skil
 disable-model-invocation: true
 ---
 
-# Ask Odin
-
 You do not remember every skill, so ask.
 
 A **flow** is a path through the skills. Most paths run along one **main flow**, and two **on-ramps** merge onto it. Everything else is standalone, or a vocabulary layer that runs underneath.

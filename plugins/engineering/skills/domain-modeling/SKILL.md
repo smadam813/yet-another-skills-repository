@@ -3,8 +3,6 @@ name: domain-modeling
 description: Build and sharpen a project's domain model. Use when discussing codebase terminology, writing or editing a CONTEXT.md, or recording or editing an ADR.
 ---
 
-# Domain Modeling
-
 Build and sharpen the project's domain model as you design: challenge terms, invent edge-case scenarios, and write the glossary and the decisions down as they settle. (Reading `CONTEXT.md` for vocabulary is not this skill; any skill can do that. This skill is for changing the model, not consuming it.)
 
 ## File structure
