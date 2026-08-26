@@ -3,6 +3,8 @@ name: receiving-code-review
 description: "Use when you receive code review feedback — a PR review, inline comments, or notes from the user — before you implement any of it."
 ---
 
+# Receiving Code Review
+
 Every review comment is a **claim** about the code. A claim holds until you check it against the codebase. Your job is to check it, not to agree with it.
 
 ## The loop
