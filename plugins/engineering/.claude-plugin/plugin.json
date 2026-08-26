@@ -1,7 +1,7 @@
 {
   "name": "engineering",
   "description": "Skills for software engineering workflows",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "license": "MIT",
   "keywords": ["code-review", "code-quality", "engineering", "workflow"],
   "author": { "name": "Adam Keech", "url": "https://github.com/smadam813" }

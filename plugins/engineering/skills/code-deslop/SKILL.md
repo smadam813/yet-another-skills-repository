@@ -3,8 +3,6 @@ name: code-deslop
 description: "Remove AI-generated slop from the branch diff and match the surrounding code style. Use when a branch reads like an AI wrote it: redundant comments, defensive scaffolding, or naming that does not match the repo."
 ---
 
-# Remove AI slop
-
 Read the diff against main. Remove the AI slop the branch introduced. Slop is code that works but does not match how the rest of the codebase is written.
 
 ## What to remove

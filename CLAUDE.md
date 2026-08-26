@@ -30,6 +30,7 @@ Both tools read a skill from the same path, in the same format: `plugins/<plugin
 
 - Name the directory with lowercase letters, numbers, and hyphens. Frontmatter `name` must match the directory name. Cursor rejects a mismatch that Claude Code accepts.
 - Give the skill a `description`. Cursor does not load a skill without one.
+- Start the body at its first real sentence. The frontmatter `name` already titles the skill, so the checker errors on a body that opens with an H1.
 - Keep skill names unique across plugins. The checker only warns about a repeated name, because Claude Code gives each plugin its own namespace. Cursor does not, so one skill there hides the other.
 - List the skill by hand in `plugins/<plugin>/README.md`. Nothing generates that index.
 - Put supporting material beside the SKILL.md: `references/` for Markdown that a pointer reaches, `scripts/` for templates the skill copies.

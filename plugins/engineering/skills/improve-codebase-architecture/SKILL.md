@@ -4,8 +4,6 @@ description: Scan a codebase for deepening opportunities, present them as a visu
 disable-model-invocation: true
 ---
 
-# Improve Codebase Architecture
-
 Find architectural friction and propose **deepening opportunities**: refactors that turn shallow modules into deep ones. The aim is testability and AI-navigability.
 
 This command reads the project's domain model and uses a shared design vocabulary:

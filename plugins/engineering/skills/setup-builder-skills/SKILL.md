@@ -4,8 +4,6 @@ description: "Configure this repo for the engineering skills: set up its issue t
 disable-model-invocation: true
 ---
 
-# Setup Builder Skills
-
 Create the per-repo configuration that the engineering skills read:
 
 - **Issue tracker**: where issues live. GitHub by default; GitLab and local markdown also have templates.
