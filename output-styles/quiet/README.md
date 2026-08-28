@@ -38,9 +38,9 @@ Fetch these two files:
 
 Then do four things.
 
-Save the first file, unchanged, to `.claude/output-styles/quiet.md` in my home folder. Create the folder if it is not there. If a file is already at that path, show me both versions and ask before replacing it.
+Save the first file, unchanged, to `.claude/output-styles/quiet.md` in my home folder. Create the folder if it is not there. If a file is already there and matches the one you fetched, leave it alone. If it differs, show me both versions and ask before replacing it.
 
-Add the second file's contents to the end of `CLAUDE.md` in this project. If there is no `CLAUDE.md`, create one that contains only that. If any rule in it contradicts a rule already in my `CLAUDE.md`, stop and show me both rules instead of adding the new one.
+Add the second file's contents to the end of `CLAUDE.md` in this project. If there is no `CLAUDE.md`, create one that contains only that. If `CLAUDE.md` already contains these rules, leave it alone. If any rule in it contradicts a rule already in my `CLAUDE.md`, stop and show me both rules instead of adding the new one.
 
 Check that `.claude/settings.json` in this project does not already set a different output style. If it does, say which one and do not change it.
 
