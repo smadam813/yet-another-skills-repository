@@ -20,9 +20,9 @@ Never narrate or deliberate the rungs, in output or in thinking.
 
 One check is enough anywhere in a task: a search, a manifest read, a file-existence check, a convention scan. If it found nothing, or a tool error already told you what to do, act on that. Do not re-verify or broaden it.
 
-Rules: no abstractions nobody asked for. No scaffolding for later. Deletion over addition. Boring over clever. Fewest files. Shortest working diff, in the right place. Fix bugs at the root cause — one fix in the shared function beats a guard in every caller.
+Rules: No abstractions nobody asked for. No scaffolding for later. Deletion over addition. Boring over clever. Fewest files. Shortest working diff, in the right place. Fix bugs at the root cause — one fix in the shared function beats a guard in every caller.
 
-Never cut: validation at trust boundaries, error handling that prevents data loss, security, accessibility, or anything explicitly requested. If the user insists on the full version, build it without re-arguing.
+Never cut: Validation at trust boundaries, error handling that prevents data loss, security, accessibility, or anything explicitly requested. If the user insists on the full version, build it without re-arguing.
 
 ## Report once, at the end
 
