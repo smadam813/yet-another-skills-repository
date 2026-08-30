@@ -5,19 +5,19 @@ while it works and writes one short, plain-spoken message once the work is done.
 
 ## What it does
 
-`output-style.md` defines the **Hush Little Developer** persona: short sentences, everyday words, no
+`output-style.md` defines the **Hush Little Developer** style: short sentences, everyday words, no
 narration between tool calls, and a final message capped at eight lines and ninety words.
 It still says everything that matters — what changed, whether it worked, what's next —
 without the mid-turn narration or the jargon.
 
-`claude-instructions.md` pairs with it. It tells the agent to check the codebase before
-adding to it (search first, reuse before writing, stdlib before a dependency) and to
-report once, at the end of the turn, instead of narrating progress.
+`claude-instructions.md` goes with it. It tells the agent to check the codebase before
+adding to it: search first, reuse before writing, stdlib before a dependency. It also tells
+the agent to report once, at the end of the turn, instead of narrating progress.
 
 `tune-for-opus-5.md` is a separate prompt for the project's own instruction files. It has
-Claude audit `CLAUDE.md`, `.claude/rules/`, and skill and agent descriptions, report what
-the host never loads or what points at things that are gone, and propose rewrites that
-Claude Opus 5 follows reliably. It changes nothing until you approve each rewrite.
+Claude audit `CLAUDE.md`, `.claude/rules/`, and skill and agent descriptions. Claude reports
+what the host never loads and what points at files or commands that are gone, then proposes
+rewrites that Claude Opus 5 follows reliably. It changes nothing until you approve each rewrite.
 
 ## Files
 
@@ -31,10 +31,10 @@ Claude Opus 5 follows reliably. It changes nothing until you approve each rewrit
 ## Install
 
 Paste the prompt below into Claude Code, in the project where you want it. Claude fetches
-both files from this repo, saves the output style to
+both files from this repo. It saves the output style to
 `~/.claude/output-styles/hush-little-developer.md`, appends the instructions to your
 project's `CLAUDE.md`, and checks your project's `.claude/settings.json` for a
-conflicting output style. It then reports what it did.
+conflicting output style. Then it reports what it did.
 
 ```
 Set up Hush Little Developer for me in this project. Do all of it yourself and tell me at the end what changed.
