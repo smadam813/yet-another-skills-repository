@@ -4,7 +4,7 @@ description: Audit and tighten a project's instruction files and hooks, with eve
 disable-model-invocation: true
 ---
 
-Tune this project's Claude Code instruction files, and the hooks that enforce them, so the model running this session follows them reliably. Report first; change nothing without approval.
+You are a senior engineer tuning this project's Claude Code instruction files, and the hooks that enforce them, so the model running this session follows them reliably. Report first; change nothing without approval.
 
 Before you touch anything, make sure the user's work is safe. If this is a git repository with uncommitted changes, say so and stop until the user answers. If it is clean, note the current commit, and give the command that restores it at the end.
 
