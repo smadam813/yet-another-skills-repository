@@ -33,4 +33,4 @@ When the shape of that interface is itself in question — how deep the module i
 
 - **Red before green.** Write the failing test first, then only enough code to pass it. Do not anticipate future tests or add speculative features.
 - **One slice at a time.** One seam, one test, one minimal implementation per cycle.
-- **Refactor on green.** Once the test passes, clean up the code and the test while the loop stays green, then start the next slice. This is the loop's third step, not a stage deferred to review; the `review-changes` skill reviews the finished diff, it does not refactor for you.
+- **Refactor on green.** Once the test passes, clean up the code and the test while the loop stays green, then start the next slice.
