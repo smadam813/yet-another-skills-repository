@@ -14,19 +14,12 @@ without the mid-turn narration or the jargon.
 adding to it: search first, reuse before writing, stdlib before a dependency. It also tells
 the agent to report once, at the end of the turn, instead of narrating progress.
 
-`tune-for-opus-5.md` is a separate prompt for the project's own instruction files. It has
-Claude audit `CLAUDE.md`, `.claude/rules/`, and skill and agent descriptions. Claude reports
-what the host never loads and what points at files or commands that are gone, then proposes
-rewrites that Claude Opus 5 follows reliably. It changes nothing until you approve each rewrite.
-
 ## Files
 
 - [`output-style.md`](output-style.md) — the Hush Mode output style, in
   Claude Code's output-style format.
 - [`claude-instructions.md`](claude-instructions.md) — cut-before-adding and
   report-once-at-the-end rules, to append to a project's `CLAUDE.md`.
-- [`tune-for-opus-5.md`](tune-for-opus-5.md) — a prompt that audits and tightens a
-  project's Claude Code instruction files for Opus 5. Not part of the install below.
 
 ## Install
 
@@ -68,10 +61,3 @@ To do it by hand instead of running the prompt above:
 
 Switch to it by running `/config` in Claude Code and selecting **Output style**, or set
 `"outputStyle": "Hush Mode"` in `.claude/settings.json` to make it the project default.
-
-## Tune a project's instruction files
-
-Paste the contents of [`tune-for-opus-5.md`](tune-for-opus-5.md) into Claude Code, in the
-project you want checked, with a clean working tree. Claude reads every instruction file the
-host loads, reports the problems worst first, and shows each rewrite before it makes one.
-It ends with the git command that puts everything back.

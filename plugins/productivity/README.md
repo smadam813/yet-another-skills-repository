@@ -14,6 +14,8 @@ Skills for everyday productivity.
 - [`teach`](skills/teach/SKILL.md) — teach a new skill or concept in the workspace.
 - [`to-questionnaire`](skills/to-questionnaire/SKILL.md) — turn a decision you cannot answer
   alone into a questionnaire for someone else.
+- [`tune-instructions`](skills/tune-instructions/SKILL.md) — audit and tighten a project's
+  instruction files and hooks, with every change confirmed.
 - [`wait-what`](skills/wait-what/SKILL.md) — stop and re-pitch an unclear message.
 - [`writing-for-agents`](skills/writing-for-agents/SKILL.md) — write documents that agents
   read: skills, `AGENTS.md`, and `CLAUDE.md`.
