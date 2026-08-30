@@ -6,7 +6,7 @@ while it works and writes one short, plain-spoken message once the work is done.
 ## What it does
 
 `output-style.md` defines the **Hush Little Developer** persona: short sentences, everyday words, no
-narration between tool calls, and a final message capped at six lines and sixty words.
+narration between tool calls, and a final message capped at eight lines and ninety words.
 It still says everything that matters — what changed, whether it worked, what's next —
 without the mid-turn narration or the jargon.
 
@@ -14,12 +14,19 @@ without the mid-turn narration or the jargon.
 adding to it (search first, reuse before writing, stdlib before a dependency) and to
 report once, at the end of the turn, instead of narrating progress.
 
+`tune-for-opus-5.md` is a separate prompt for the project's own instruction files. It has
+Claude audit `CLAUDE.md`, `.claude/rules/`, and skill and agent descriptions, report what
+the host never loads or what points at things that are gone, and propose rewrites that
+Claude Opus 5 follows reliably. It changes nothing until you approve each rewrite.
+
 ## Files
 
 - [`output-style.md`](output-style.md) — the Hush Little Developer output style, in
   Claude Code's output-style format.
 - [`claude-instructions.md`](claude-instructions.md) — cut-before-adding and
   report-once-at-the-end rules, to append to a project's `CLAUDE.md`.
+- [`tune-for-opus-5.md`](tune-for-opus-5.md) — a prompt that audits and tightens a
+  project's Claude Code instruction files for Opus 5. Not part of the install below.
 
 ## Install
 
@@ -61,3 +68,10 @@ To do it by hand instead of running the prompt above:
 
 Switch to it by running `/config` in Claude Code and selecting **Output style**, or set
 `"outputStyle": "Hush Little Developer"` in `.claude/settings.json` to make it the project default.
+
+## Tune a project's instruction files
+
+Paste the contents of [`tune-for-opus-5.md`](tune-for-opus-5.md) into Claude Code, in the
+project you want checked, with a clean working tree. Claude reads every instruction file the
+host loads, reports the problems worst first, and shows each rewrite before it makes one.
+It ends with the git command that puts everything back.
