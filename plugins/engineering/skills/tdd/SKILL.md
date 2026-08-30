@@ -1,9 +1,9 @@
 ---
 name: tdd
-description: Test-driven development. Use when the user wants to build features or fix bugs test-first, mentions "red-green-refactor", or wants integration tests.
+description: Test-driven development. Use when the user wants to build features test-first, fix a bug whose cause is already understood, mentions "red-green-refactor", or wants integration tests. When something is broken and the cause is still unknown, use `diagnosing-bugs` instead.
 ---
 
-TDD is the red → green loop. This skill covers what makes that loop produce tests worth keeping: what a good test is, where tests go, the anti-patterns, and the rules of the loop. Every section applies on every cycle. Read them before and during the loop, not after.
+TDD is the red → green → refactor loop. This skill covers what makes that loop produce tests worth keeping: what a good test is, where tests go, the anti-patterns, and the rules of the loop. Every section applies on every cycle. Read them before and during the loop, not after.
 
 When you explore the codebase, read `CONTEXT.md` if it exists, so that test names and interface vocabulary match the project's domain language. Respect the ADRs in the area you touch.
 
@@ -33,4 +33,4 @@ When the shape of that interface is itself in question — how deep the module i
 
 - **Red before green.** Write the failing test first, then only enough code to pass it. Do not anticipate future tests or add speculative features.
 - **One slice at a time.** One seam, one test, one minimal implementation per cycle.
-- **Refactoring is not part of the loop.** It belongs to the review stage; see the `review-changes` skill.
+- **Refactor on green.** Once the test passes, clean up the code and the test while the loop stays green, then start the next slice. This is the loop's third step, not a stage deferred to review; the `review-changes` skill reviews the finished diff, it does not refactor for you.

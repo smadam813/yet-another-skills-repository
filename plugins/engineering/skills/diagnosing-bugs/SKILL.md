@@ -1,6 +1,6 @@
 ---
 name: diagnosing-bugs
-description: Diagnosis loop for hard bugs and performance regressions. Use when the user says "diagnose"/"debug this", or reports something broken/throwing/failing/slow.
+description: Diagnosis loop for hard bugs and performance regressions. Use when the user says "diagnose"/"debug this", or reports something broken/throwing/failing/slow and the cause is not yet known. Once the cause is understood and the user wants the fix built test-first, that is `tdd`.
 ---
 
 A discipline for hard bugs. Skip phases only when explicitly justified.
@@ -46,11 +46,11 @@ A 30-second flaky loop is barely better than no loop. A 2-second deterministic o
 
 ### Non-deterministic bugs
 
-The goal is not a clean repro but a **higher reproduction rate**. Loop the trigger 100×, parallelise, add stress, narrow timing windows, inject sleeps. A 50%-flake bug is debuggable; a 1% one is not. Keep raising the rate until you can debug against it.
+The goal is not a clean repro but a **higher reproduction rate**. Loop the trigger 100×, parallelize, add stress, narrow timing windows, inject sleeps. A 50%-flake bug is debuggable; a 1% one is not. Keep raising the rate until you can debug against it.
 
 ### When you genuinely cannot build a loop
 
-Stop and say so explicitly. List what you tried. Ask the user for: (a) access to whatever environment reproduces it, (b) a redacted captured artifact (HAR file, log dump, core dump, screen recording with timestamps), or (c) permission to add temporary production instrumentation. Do **not** proceed to hypothesise without a loop.
+Stop and say so explicitly. List what you tried. Ask the user for: (a) access to whatever environment reproduces it, (b) a redacted captured artifact (HAR file, log dump, core dump, screen recording with timestamps), or (c) permission to add temporary production instrumentation. Do **not** proceed to hypothesize without a loop.
 
 ### Completion criterion: a tight loop that goes red
 
@@ -83,7 +83,7 @@ Done when **every remaining element is load-bearing**: removing any one of them 
 
 Do not proceed until you have reproduced **and** minimized.
 
-## Phase 3: Hypothesise
+## Phase 3: Hypothesize
 
 Generate **3–5 ranked hypotheses** before testing any of them. Single-hypothesis generation anchors on the first plausible idea.
 
@@ -115,7 +115,7 @@ Write the regression test **before the fix**, but only if there is a **correct s
 
 A correct seam is one where the test exercises the **real bug pattern** as it occurs at the call site. If the only seam available is too shallow (a single-caller test when the bug needs multiple callers, a unit test that cannot replicate the chain that triggered the bug), a regression test there gives false confidence.
 
-**If no correct seam exists, that itself is the finding.** Note it: the architecture is preventing the bug from being locked down. Flag it for the next phase.
+**If no correct seam exists, that itself is the finding.** Note it: the architecture is preventing the bug from being locked down. Flag it for the next phase, and suggest the user run `/improve-codebase-architecture` afterwards: the missing seam is a deepening opportunity.
 
 If a correct seam exists:
 

@@ -76,7 +76,7 @@ Every ticket is either **HITL** or **AFK**. A HITL ticket (human in the loop) is
 
 - **Research** (AFK): Read documentation, third-party APIs, or local resources such as knowledge bases to surface a fact that a decision waits on. A subagent resolves it by calling the Skill tool with "research". Use this type when you need knowledge from outside the current working directory.
 - **Prototype** (HITL): Raise the fidelity of the discussion. Make a cheap, rough, concrete artifact for the human to react to: an outline, a rough take, a stub, or UI or logic code. Call the Skill tool with "prototype", then link the prototype as an asset. Use this type when "how should it look" or "how should it behave" is the key question.
-- **Grilling** (HITL): Conversation. This is the default type. Always call the Skill tool twice, for "grilling" and "domain-modeling".
+- **Grilling** (HITL): Conversation. This is the default type. Always call the Skill tool twice, for "productivity:grilling" and "domain-modeling" (if "productivity:grilling" does not resolve, run the interview inline in numbered rounds).
 - **Task** (HITL or AFK): Manual work that must happen before anyone can make a _decision_. There is nothing to decide, prototype, or research, but the discussion stays blocked until the work is done. Examples: signing up for a service so you can judge its API, provisioning access, or moving data so you can see its shape. This is the one type that _does_ rather than decides, and it earns its place by unblocking a decision, not by delivering the destination. The agent drives the task alone where it can (AFK). Otherwise it hands the human a precise checklist (HITL). The ticket resolves when the work is done. The answer records what was done, plus any resulting facts that later tickets depend on, such as where the credentials live, new URLs, or row counts.
 
 ## Fog of war
@@ -108,7 +108,7 @@ Two modes. In both, **never resolve more than one ticket per session**. Research
 
 The user invokes this mode with a loose idea.
 
-1. **Name the destination.** Call the Skill tool twice, for "grilling" and "domain-modeling", to pin down what this map is finding its way to: the spec, decision, or change. The destination fixes the scope, so settle it first.
+1. **Name the destination.** Call the Skill tool twice, for "productivity:grilling" and "domain-modeling", to pin down what this map is finding its way to: the spec, decision, or change. The destination fixes the scope, so settle it first.
 2. **Map the frontier.** Grill again, **breadth-first** this time. Fan out across the whole space instead of going deep on any one thread, and surface both the open decisions and the first steps you can take now. **If this surfaces no fog**, the way to the destination is already clear and the whole journey fits in one session, so you do not need a map. Stop and ask the user how they want to proceed.
 3. **Create the map** with the label `wayfinder:map`. Fill in Destination and Notes, leave Decisions-so-far empty, and sketch the fog into **Not yet specified**.
 4. **Create the tickets you can specify now** as child issues of the map. Then wire the blocking edges in a **second pass**, because issues need ids before they can reference each other. Wiring sorts the tickets into the frontier and the blocked. Everything you cannot yet specify stays in the fog, in the **Not yet specified** section.
@@ -121,7 +121,7 @@ The user invokes this mode with a map, given as a URL or a number. A ticket is *
 
 1. Load the **map**: the low-resolution view, not every ticket body.
 2. Choose the ticket. If the user named one, use it. Otherwise take the first frontier ticket in order. **Claim it**: assign it to yourself before any work.
-3. Resolve it. **Zoom in as needed**: fetch the full body of any related or closed ticket on demand, and call the Skill tool for whichever skills the `## Notes` block names. If in doubt, call the Skill tool twice, for "grilling" and "domain-modeling".
+3. Resolve it. **Zoom in as needed**: fetch the full body of any related or closed ticket on demand, and call the Skill tool for whichever skills the `## Notes` block names. If in doubt, call the Skill tool twice, for "productivity:grilling" and "domain-modeling".
 4. Record the resolution: post the answer as a **resolution comment**, **close** the issue, and **append a context pointer** to the map's Decisions-so-far.
 5. Add any newly-surfaced tickets, create-then-wire. Graduate any fog that the answer has made specifiable, and clear each graduated patch from **Not yet specified** so that it lives only as its new ticket. If the answer reveals that a ticket, this one or another, sits beyond the destination, **rule it out of scope** instead of resolving it on the route. If the decision invalidates other parts of the map, update or delete those tickets.
 

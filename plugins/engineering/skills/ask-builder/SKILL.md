@@ -37,7 +37,7 @@ A starting situation that generates work, then merges onto the main flow.
 
   Triage is only for issues **you did not create**: bug reports, incoming feature requests, anything that arrives raw. Tickets that `/to-tickets` produced are already agent-ready, so **do not triage them**.
 
-- **Something is broken** → **`/diagnosing-bugs`**. For the hard ones: the bug that resists a first glance, the intermittent flake, the regression that crept in between two known-good states. It refuses to theorize until it has a **tight feedback loop**, one command that already goes red on *this* bug, then fixes the bug with a regression test. Its post-mortem hands off to **`/improve-codebase-architecture`** when the real finding is that there is no good seam to lock the bug down.
+- **Something is broken** → **`/diagnosing-bugs`**. For the hard ones: the bug that resists a first glance, the intermittent flake, the regression that crept in between two known-good states. It refuses to theorize until it has a **tight feedback loop**, one command that already goes red on *this* bug, then fixes the bug with a regression test. When it finds no good seam to lock the bug down, it documents that as the finding and suggests **`/improve-codebase-architecture`**, where you design the missing seam.
 
 - **A huge, foggy effort: a greenfield project, or a feature build too big for one session** → **`/wayfinder`**, the most demanding flow here. Use it when the way from here to the destination is not visible yet. It charts a **shared map** of **decision tickets** on the issue tracker and resolves them one at a time, producing **decisions, not deliverables**, until the fog is pushed back and the way is clear. **`/grill-with-docs`** sharpens an idea you can hold in one session; wayfinder is for the idea you cannot. It is slower and denser, so save it for exactly that, and never for a well-scoped feature.
 
@@ -58,7 +58,7 @@ Two model-invoked references run *beneath* the other skills, each the single sou
 
 ## Phase boundaries
 
-A **phase** is a chunk of work inside a session: the grilling, the implementation, the QA. At the **boundary** between two phases you have five options, and choosing between them is the hardest judgement call in this whole map:
+A **phase** is a chunk of work inside a session: the grilling, the implementation, the QA. At the **boundary** between two phases you have five options, and choosing between them is the hardest judgment call in this whole map:
 
 - **Continue**: stay put. Costs nothing, loses nothing.
 - **`/clear`**: empty the window, when nothing here matters to what comes next.

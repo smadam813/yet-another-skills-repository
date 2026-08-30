@@ -36,7 +36,7 @@ Apply the **deletion test** to anything you suspect is shallow: would deleting i
 
 Write a self-contained HTML file to the OS temp directory so nothing lands in the repo. Read the temp directory from `$TMPDIR`, falling back to `/tmp` (or `%TEMP%` on Windows), and write to `<tmpdir>/architecture-review-<timestamp>.html` so each run gets a fresh file. Open it for the user (`xdg-open <path>` on Linux, `open <path>` on macOS, `start <path>` on Windows) and tell them the absolute path.
 
-The report uses **Tailwind via CDN** for layout and styling, and **Mermaid via CDN** for diagrams where a graph, flow, or sequence shows the structure reliably. Mix Mermaid with hand-crafted CSS and SVG: use Mermaid when relationships are graph-shaped (call graphs, dependencies, sequences), and hand-built divs and SVG when you want something more editorial (mass diagrams, cross-sections, collapse animations). Each candidate gets a **before/after visualisation**. Be visual.
+The report uses **Tailwind via CDN** for layout and styling, and **Mermaid via CDN** for diagrams where a graph, flow, or sequence shows the structure reliably. Mix Mermaid with hand-crafted CSS and SVG: use Mermaid when relationships are graph-shaped (call graphs, dependencies, sequences), and hand-built divs and SVG when you want something more editorial (mass diagrams, cross-sections, collapse animations). Each candidate gets a **before/after visualization**. Be visual.
 
 For each candidate, render a card with:
 
@@ -59,7 +59,7 @@ Do NOT propose interfaces yet. After you write the file, ask the user: "Which of
 
 ### 3. Grilling loop
 
-Once the user picks a candidate, call the Skill tool with "grilling" to walk the decision tree with them: constraints, dependencies, the shape of the deepened module, what sits behind the seam, what tests survive.
+Once the user picks a candidate, call the Skill tool with "productivity:grilling" (if it does not resolve, run the interview inline in numbered rounds) to walk the decision tree with them: constraints, dependencies, the shape of the deepened module, what sits behind the seam, what tests survive.
 
 Make the changes below inline as decisions firm up; call the Skill tool with "domain-modeling" to keep the domain model current as you go:
 

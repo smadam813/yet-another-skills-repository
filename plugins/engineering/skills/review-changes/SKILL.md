@@ -38,7 +38,7 @@ Anything in the repo that documents how to write code, such as `CODING_STANDARDS
 On top of whatever the repo documents, the Standards axis always carries the **smell baseline** below: a fixed set of Fowler code smells (_Refactoring_, ch.3) that applies even when a repo documents nothing. Two rules apply:
 
 - **The repo overrides.** A documented repo standard always wins. If it endorses something the baseline would flag, drop the smell.
-- **Always a judgement call.** Each smell is a label you propose ("possible Feature Envy"), never a hard violation. As with any standard here, skip anything tooling already enforces.
+- **Always a judgment call.** Each smell is a label you propose ("possible Feature Envy"), never a hard violation. As with any standard here, skip anything tooling already enforces.
 
 Each smell below reads *what it is* → *how to fix it*. Match each one against the diff:
 
@@ -61,7 +61,7 @@ Include in the **Standards subagent** prompt:
 
 - The full diff command and the commit list.
 - The standards-source files you found in step 3, plus **the smell baseline from step 3 pasted in full**: the subagent cannot see it otherwise.
-- The brief: "Report, per file or hunk where relevant, (a) every place the diff breaks a documented standard — cite the standard by file and rule; and (b) every baseline smell you spot — name it and quote the hunk. Separate hard violations from judgement calls: a broken documented standard can be hard, but a baseline smell is always a judgement call, and a documented repo standard overrides the baseline. Skip anything tooling enforces. Under 400 words."
+- The brief: "Report, per file or hunk where relevant, (a) every place the diff breaks a documented standard — cite the standard by file and rule; and (b) every baseline smell you spot — name it and quote the hunk. Separate hard violations from judgment calls: a broken documented standard can be hard, but a baseline smell is always a judgment call, and a documented repo standard overrides the baseline. Skip anything tooling enforces. Under 400 words."
 
 Include in the **Spec subagent** prompt:
 

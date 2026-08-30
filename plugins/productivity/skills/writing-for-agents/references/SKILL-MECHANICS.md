@@ -19,4 +19,4 @@ The invocation cut of splitting, where the sequence cut lives in `../SKILL.md`: 
 
 ## Router skills
 
-When user-invoked skills grow past the number you can remember, a **router skill** cures that piled-up cognitive load. The router is one user-invoked skill that names the others and says when to reach for each, so the human remembers one skill instead of many. A router can only hint at the skills it names; it can never fire them. User-invoked skills have no description, so nothing but the human can reach them.
+When user-invoked skills grow past the number you can remember, a **router skill** cures that piled-up cognitive load. The router is one user-invoked skill that names the others and says when to reach for each, so the human remembers one skill instead of many. A router can only hint at the skills it names; it can never fire them. A user-invoked skill's description never enters the agent's context, so nothing but the human can reach it.
