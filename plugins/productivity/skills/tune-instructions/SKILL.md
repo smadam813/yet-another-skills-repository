@@ -18,7 +18,7 @@ Find what the host loads. Look for all of these, and report which exist:
 - every `.claude/agents/*.md`, same
 - `.claude/settings.json`, and every hook it wires
 
-Read each one in full. Then tell the user in a few lines what you found: how many files, how many separate rules, how many hooks, roughly how many words load into every session, and anything that surprised you — a file nothing loads, a rule written for a different model, a duty a wired hook already enforces.
+Read each one in full, except the skill and agent files: there the `description:` line is all this audit needs. Then tell the user in a few lines what you found: how many files, how many separate rules, how many hooks, roughly how many words load into every session, and anything that surprised you — a file nothing loads, a rule written for a different model, a duty a wired hook already enforces.
 
 Before grading anything, set aside what is not a rule. Instruction files collect things that only look like instructions: a note about a decision someone made last quarter, an example, a description of what the project does, a lesson learned. If Claude wrote it about the project rather than the user writing it for Claude, it is a note, not an instruction. Say which lines you set aside and why, in a few words each. Grading a note as if it were a rule wastes everyone's time.
 
@@ -26,7 +26,7 @@ Before grading anything, set aside what is not a rule. Instruction files collect
 
 A rule is one instruction: a sentence or bullet that asks for something. Judge each against these questions, and say which ones it fails.
 
-Does it name a moment the agent can recognize? "When you change a file under `src/`" is a moment. "Keep things tidy" is not, and neither is "when possible". The agent does not follow a rule with no moment late. The agent never follows it.
+Does it name a moment the agent can recognize? "When you change a file under `src/`" is a moment. "Keep things tidy" is not, and neither is "when possible". A rule with no moment does not fire late; it never fires.
 
 Does it ask for anything at all? A rule needs an instruction verb — add, run, use, never, always. A line that reads as a description of how things are is not a rule even when it sounds like policy. "CHANGELOG entries are short and user-facing" describes a state of affairs. "Keep each `CHANGELOG.md` entry under 3 lines, written for the user" asks for something. Hedges do the same damage from the other side: "try to", "where possible", "prefer when you can" leave the model free to decide it was not possible.
 
@@ -63,14 +63,14 @@ Tell the user which rules need real judgment and are right to stay prose, so the
 
 ## Report, then change
 
-Report everything before changing anything. Order it worst first: rules the host never loads, then rules and hooks pointing at things that are gone, then rules in the wrong file, then contradictions and duplicates, then wording. A rule that never loads is broken for every model.
+Report everything before changing anything. Order it worst first: rules the host never loads, then rules and hooks pointing at things that are gone, then rules in the wrong file, then contradictions and duplicates, then prose duties a hook would hold better, then wording. A rule that never loads is broken for every model.
 
 Then propose changes one at a time, and apply only what the user approves:
 
 - **A rewrite**: old line, new line, one sentence on what changed. Sharpen how a rule asks; never change what it asks for. The shape: Before: "Keep the changelog updated." No moment, no artifact, so the agent skips it. After: "When you change any file under `src/`, add a line to `CHANGELOG.md` under Unreleased in the same commit."
 - **A move to a scoped file**: show the new file, its scope pattern, and the line as it will read once the scope carries the when-clause — and confirm that `CLAUDE.md` keeps no trace.
 - **A hook**: show the exact `settings.json` fragment — event, matcher, command — and any script it runs. Creating, editing, and deleting a hook all get the same treatment: show it, wait for a yes.
-- **A hook that replaces a prose rule**: show the pair — the hook going in, the prose line coming out. This is the only path that removes a rule. Everywhere else, never delete or deactivate a rule; if you believe one is obsolete, that is a finding to report, not a change to make.
+- **A hook that replaces a prose rule**: show the pair — the hook, whether it is new or already wired, and the prose line coming out. This is the only path that removes a rule. Everywhere else, never delete or deactivate a rule; if you believe one is obsolete, that is a finding to report, not a change to make.
 
 Where two rules disagree, name both sides and leave the choice to the user.
 
@@ -82,6 +82,6 @@ Review these by a different test. A description is the only thing that decides w
 
 ## Limits
 
-Do not touch source code, tests, or CI configuration. Do not edit instruction files outside this repository. Do not add a dependency or install anything.
+Do not touch source code, tests, or CI configuration. A hook's script is the one exception, and only as part of a hook change the user approved. Do not edit instruction files outside this repository. Do not add a dependency or install anything.
 
-When you are done, tell the user: what you found, what you changed, what you deliberately left alone and why, and the exact git command that puts everything back.
+When you are done, tell the user: what you found, what you changed, which prose duties would hold better as hooks, what you deliberately left alone and why, and the exact git command that puts everything back.
