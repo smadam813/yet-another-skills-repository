@@ -1,6 +1,6 @@
 ---
 name: tune-instructions
-description: Audit and tighten a project's instruction files and hooks. Every change is shown before it is made.
+description: Audit and tighten a project's instruction files and hooks, with every change confirmed.
 disable-model-invocation: true
 ---
 
@@ -26,13 +26,13 @@ Before grading anything, set aside what is not a rule. Instruction files collect
 
 A rule is one instruction: a sentence or bullet that asks for something. Judge each against these questions, and say which ones it fails.
 
-Does it name a moment the agent can recognize? "When you change a file under `src/`" is a moment. "Keep things tidy" is not, and neither is "when possible". An agent does not follow a rule with no moment late. It never follows it.
+Does it name a moment the agent can recognize? "When you change a file under `src/`" is a moment. "Keep things tidy" is not, and neither is "when possible". The agent does not follow a rule with no moment late. The agent never follows it.
 
 Does it ask for anything at all? A rule needs an instruction verb — add, run, use, never, always. A line that reads as a description of how things are is not a rule even when it sounds like policy. "CHANGELOG entries are short and user-facing" describes a state of affairs. "Keep each `CHANGELOG.md` entry under 3 lines, written for the user" asks for something. Hedges do the same damage from the other side: "try to", "where possible", "prefer when you can" leave the model free to decide it was not possible.
 
 Does it name something concrete? A path, a command, an identifier, a number with a unit. Suspect the words that leave the standard to the reader: clean, proper, appropriate, reasonable, careful, maintainable. "Write clean, maintainable code" gives the agent nothing to act on. "Keep functions under 40 lines; extract a helper rather than nesting a third `if`" does. Quote the vague words back to the user when they are the reason a rule fails.
 
-Not every rule needs a path. Some need a threshold, some need one worked example, and a few genuinely need judgment — those last ones are fine as they are, and say so rather than invent a number for them.
+Not every rule needs a path. Some need a threshold, some need one worked example, and a few genuinely need judgment — those last ones are fine as they are. Say so rather than invent a number for them.
 
 Does it only forbid? A rule that says never do X, with no alternative and no escape hatch, can stall a whole session when the task needs X. Pair it with what to do instead, or with "stop and ask".
 
