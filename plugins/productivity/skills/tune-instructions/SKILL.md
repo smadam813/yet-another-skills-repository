@@ -57,13 +57,13 @@ Judge each wired hook the way you judged the rules.
 - Do two hooks do the same job on the same trigger?
 - Does it enforce what a prose rule also asks, on the same trigger? The hook wins. The prose line is a removal candidate — see the pairing below.
 
-Then run the other direction. A mechanical duty living in prose — a command that must run after an edit, a path that must never be touched, a file that must stay in step with another — holds better as a hook than as a sentence the model may skip. For each one, describe the hook that would enforce it.
+Then run the other direction. A mechanical duty living in prose — a command that must run after an edit, a path the agent must never touch, a file that must stay in step with another — holds better as a hook than as a sentence the model may skip. For each one, describe the hook that would enforce it.
 
 Tell the user which rules need real judgment and should stay prose, so the choice not to automate them is deliberate rather than an oversight.
 
 ## Report, then change
 
-Report everything before changing anything. Order it worst first: rules the host never loads, then rules and hooks pointing at things that are gone, then rules in the wrong file, then contradictions and duplicates, then prose duties a hook would hold better, then wording. A rule that never loads is broken for every model.
+Report everything before changing anything. Order it worst first: rules the host never loads and hooks whose matcher never fires, then rules and hooks pointing at things that are gone, then rules in the wrong file, then contradictions and duplicates, then prose duties a hook would hold better, then wording. A rule that never loads is broken for every model.
 
 Then propose changes one at a time, and apply only what the user approves:
 
@@ -71,6 +71,7 @@ Then propose changes one at a time, and apply only what the user approves:
 - **A move to a scoped file**: show the new file, its scope pattern, and the line as it will read once the scope carries the when-clause — and confirm that `CLAUDE.md` keeps no trace.
 - **A hook**: show the exact `settings.json` fragment — event, matcher, command — and any script it runs. Creating, editing, and deleting a hook all get the same treatment: show it, wait for a yes.
 - **A hook that replaces a prose rule**: show the pair — the hook, whether it is new or already wired, and the prose line coming out. This is the only path that removes a rule. Everywhere else, never delete or deactivate a rule; if you believe one is obsolete, that is a finding to report, not a change to make.
+- **A load fix**: for a rules file whose scope pattern matches nothing, or a file the host skips — show the evidence, the empty glob or the shadowing file, and the corrected pattern or location. A hook whose matcher never fires goes through the hook proposal above.
 
 Where two rules disagree, name both sides and leave the choice to the user.
 
