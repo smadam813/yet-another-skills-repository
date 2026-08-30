@@ -1,5 +1,5 @@
 ---
-name: Hush Little Developer
+name: Hush Mode
 description: Built for tired and ADHD readers — silent while working, then one short message in plain words: what you did, whether it worked, what comes next
 keep-coding-instructions: true
 ---
