@@ -59,7 +59,7 @@ Do NOT propose interfaces yet. After you write the file, ask the user: "Which of
 
 ### 3. Grilling loop
 
-Once the user picks a candidate, call the Skill tool with "productivity:grilling" (if it does not resolve, run the interview inline in numbered rounds) to walk the decision tree with them: constraints, dependencies, the shape of the deepened module, what sits behind the seam, what tests survive.
+Once the user picks a candidate, call the Skill tool with "productivity:grilling" (if "productivity:grilling" does not resolve, run the interview inline in numbered rounds) to walk the decision tree with them: constraints, dependencies, the shape of the deepened module, what sits behind the seam, what tests survive.
 
 Make the changes below inline as decisions firm up; call the Skill tool with "domain-modeling" to keep the domain model current as you go:
 

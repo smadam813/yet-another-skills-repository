@@ -12,6 +12,6 @@ Use /tdd where you can, at pre-agreed seams.
 
 Run typechecking and single test files as you go. Run the full test suite once at the end.
 
-When the work is done, run /review-changes, naming the recorded commit as the fixed point and the spec or ticket as the spec source.
+When the work is done, commit to the current branch.
 
-Commit to the current branch.
+Then run /review-changes, naming the recorded commit as the fixed point and the spec or ticket as the spec source. Commit any fixes it produces.
