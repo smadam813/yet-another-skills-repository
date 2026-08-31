@@ -33,8 +33,7 @@ Skills for software engineering workflows.
   on two axes: standards and spec.
 - [`setup-builder-skills`](skills/setup-builder-skills/SKILL.md) — set up the repo once:
   issue tracker, triage labels, and domain doc layout.
-- [`tdd`](skills/tdd/SKILL.md) — build features test-first, red-green-refactor; fix a bug
-  this way once its cause is known.
+- [`tdd`](skills/tdd/SKILL.md) — build features and fix bugs test-first, red-green-refactor.
 - [`to-spec`](skills/to-spec/SKILL.md) — turn the current conversation into a spec and
   publish it to the tracker.
 - [`to-tickets`](skills/to-tickets/SKILL.md) — break a plan into tracer-bullet tickets with

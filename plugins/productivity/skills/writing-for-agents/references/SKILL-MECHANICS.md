@@ -11,15 +11,11 @@ Two choices, trading the two loads:
 
 Pick model invocation only when the agent must reach the skill on its own, or another skill must. When the skill only ever fires by hand, make it user-invoked and pay no context load.
 
-Shared reference that two user-invoked skills both need can live in neither one: their descriptions never enter the agent's context, so neither can fire the other. Push that reference to a plain file outside the skill system, as external reference any skill can point at.
+Shared reference that two user-invoked skills both need can live in neither one: with no descriptions, neither can fire the other. Push that reference to a plain file outside the skill system, as external reference any skill can point at.
 
 ## Splitting by invocation
 
 The invocation cut of splitting, where the sequence cut lives in `../SKILL.md`: split off a model-invoked skill when it has a distinct leading word that should trigger it on its own, a word you actually use in your prompts, or when another skill must reach it. You pay context load for the new always-loaded description, so that independent reach has to be worth the cost.
-
-## Reaching across plugins
-
-A bare name in a Skill tool call resolves only within the calling skill's own plugin. Inside the plugin, keep the bare name. Across plugins, write `plugin:skill`: "productivity:grilling", not "grilling". Even prefixed, the call can fail, because the other plugin may not be installed and Cursor has no plugin namespace. So give every cross-plugin call site an inline fallback that tells the agent what to do when the name does not resolve: `(if "productivity:grilling" does not resolve, run the interview inline in numbered rounds)`.
 
 ## Router skills
 

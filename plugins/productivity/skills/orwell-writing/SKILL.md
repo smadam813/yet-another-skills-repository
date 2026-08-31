@@ -1,6 +1,6 @@
 ---
 name: orwell-writing
-description: Use when asked to draft, revise, review, polish, copyedit, simplify, or humanize prose — creative writing, essays, posts, scripts, speeches, emails, documentation, product copy, or other style-sensitive text.
+description: Use when asked to draft or revise prose — creative writing, essays, posts, scripts, speeches, emails, documentation, product copy, or other style-sensitive text.
 ---
 
 Use Orwell's rules and ASD-STE100 Simplified Technical English (STE) as practical filters for clear, direct, and honest prose. Use STE by default for technical, instructional, business, and product prose. Apply the rules to both drafting and revision, but do not erase deliberate voice, character, rhythm, humor, or genre when the user clearly wants them.
