@@ -1,9 +1,7 @@
 ---
 name: orwell-writing
-description: Use when an agent is asked to draft, rewrite, edit, review, polish, copyedit, simplify, humanize, or create written prose, including creative writing, essays, posts, scripts, speeches, emails, documentation, product copy, and other style-sensitive text. Apply George Orwell's six rules and ASD-STE100 Simplified Technical English as a plain-English discipline while preserving the user's intended meaning, audience, tone, and explicit constraints.
+description: Use when asked to create, draft, edit, revise, review, polish, copyedit, simplify, or humanize prose — creative writing, essays, posts, scripts, speeches, emails, documentation, product copy, or other style-sensitive text — or to apply ASD-STE100 Simplified Technical English.
 ---
-
-## Overview
 
 Use Orwell's rules and ASD-STE100 Simplified Technical English (STE) as practical filters for clear, direct, and honest prose. Use STE by default for technical, instructional, business, and product prose. Apply the rules to both drafting and revision, but do not erase deliberate voice, character, rhythm, humor, or genre when the user clearly wants them.
 
@@ -19,6 +17,8 @@ Remember these rules from "Politics and the English Language":
 4. Never use the passive where you can use the active.
 5. Never use a foreign phrase, a scientific word, or a jargon word if you can think of an everyday English equivalent.
 6. Break any of these rules sooner than say anything outright barbarous.
+
+In documents written for agents (a SKILL.md, `AGENTS.md`, `CLAUDE.md`), a deliberate **leading word** — a pretrained figure of speech such as "fog of war" that the `writing-for-agents` skill prescribes — is a sanctioned rule 6 break of rule 1, and the same sanction exempts it from baseline rule 4's ban on figurative language. Keep it; do not flatten it to plain English in either pass.
 
 ## ASD-STE100 baseline
 

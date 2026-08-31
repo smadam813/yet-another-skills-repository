@@ -79,7 +79,7 @@ Apply approved changes one file at a time.
 
 ## Skill and agent descriptions
 
-Review these by a different test. The description alone decides whether the agent ever uses the skill. It must say when to use it, in the words someone would type, and when not to. A description that reads as a summary of what the skill does will never fire.
+Review these by a different test, and check the frontmatter first. A skill with `disable-model-invocation: true` is user-invoked: its description faces the human who types its name, so grade it as a one-line summary and flag a trigger list there as noise. For every other skill, the description alone decides whether the agent ever uses it. It must say when to use it, in the words someone would type, and when not to. A model-invoked description that reads as a summary of what the skill does will never fire.
 
 ## Limits
 

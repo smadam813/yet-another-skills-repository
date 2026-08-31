@@ -4,4 +4,4 @@ description: Sharpen a plan or design in a relentless interview, writing ADRs an
 disable-model-invocation: true
 ---
 
-Call the Skill tool twice, for "grilling" and "domain-modeling".
+Call the Skill tool twice, for "productivity:grilling" and "domain-modeling" (if "productivity:grilling" does not resolve, run the interview inline in numbered rounds).
