@@ -15,8 +15,8 @@ Find what each host loads. Report which of these exist:
 - `CLAUDE.md` in the project root, and any `CLAUDE.md` in subdirectories. Claude Code loads the root file into every session and a nested one when it works under that directory. Cursor loads the root file into every session; its docs say nothing about nested ones.
 - `AGENTS.md` in the project root, and any `AGENTS.md` in subdirectories. Cursor loads the root file into every session and a nested one when it works under that directory. Claude Code never reads `AGENTS.md`; it reaches one only through a `CLAUDE.md` that holds the import line `@AGENTS.md`.
 - `.cursorrules` in the project root. Cursor still loads it and calls it legacy.
-- every file under `.claude/rules/`, which Claude Code loads
-- every `.mdc` file under `.cursor/rules/`, which Cursor loads. A `.md` file there loads in neither host.
+- every file under `.claude/rules/`, for Claude Code
+- every `.mdc` file under `.cursor/rules/`, for Cursor; a `.md` file there loads in neither host
 - every `SKILL.md` under `.claude/skills/`, `.cursor/skills/`, and `.agents/skills/`, specifically the `description:` line and `disable-model-invocation:` in its frontmatter. Claude Code reads the first directory; Cursor reads all three.
 - every `.md` under `.claude/agents/` and `.cursor/agents/`, same. Claude Code reads the first directory; Cursor reads both.
 - `.claude/settings.json` and every hook it wires, for Claude Code
@@ -108,7 +108,7 @@ Then propose changes one at a time, and apply only what the user approves:
 - **A legacy move**: the lines of `.cursorrules`, moved into `AGENTS.md` as they stand, and the legacy file removed once the user confirms the copy.
 - **A hook**: show the exact fragment — `.claude/settings.json` for Claude Code, `.cursor/hooks.json` for Cursor — with event, matcher, command, and any script it runs. Creating, editing, and deleting a hook all get the same treatment: show it, wait for a yes.
 - **A hook that replaces a prose rule**: show the pair — the hook, whether it is new or already wired, and the prose line coming out. When both hosts load the line, the pair holds one hook per host, and the line comes out only once every one of those hooks is wired; until then the hook goes in, the line stays, and the report calls it a partial replacement. This is the only path that removes a rule. Everywhere else, never delete or deactivate a rule; if you believe one is obsolete, that is a finding to report, not a change to make.
-- **A load fix**: for a rules file whose scope pattern matches nothing, a file the host skips, a `.md` under `.cursor/rules/`, or an `AGENTS.md` with no `CLAUDE.md` — show the evidence, the empty glob, the shadowing file, the wrong extension, or the missing file, and the corrected pattern, location, name, or the one-line `CLAUDE.md` to add. A hook whose matcher never fires goes through the hook proposal above.
+- **A load fix**: for a rules file whose scope pattern matches nothing, a file the host skips, a `.md` under `.cursor/rules/`, or an `AGENTS.md` with no `CLAUDE.md` — show the evidence and its correction: the empty glob and the pattern that matches, the shadowing file and the new location, the `.md` name and its `.mdc` rename, the missing `CLAUDE.md` and its one line. A hook whose matcher never fires goes through the hook proposal above.
 
 Where two rules disagree, name both sides and leave the choice to the user.
 
@@ -116,7 +116,7 @@ Apply approved changes one file at a time.
 
 ## Skill and agent descriptions
 
-Review these by a different test, and check the frontmatter first. Both hosts honor `disable-model-invocation`. A skill with `disable-model-invocation: true` is user-invoked: its description faces the human who types its name, so grade it as a one-line summary and flag a trigger list there as noise. For every other skill, the description alone decides whether the agent ever uses it. It must say when to use it, in the words someone would type, and when not to. A model-invoked description that reads as a summary of what the skill does will never fire.
+Review these by a different test, and check the frontmatter first. A skill with `disable-model-invocation: true` is user-invoked: its description faces the human who types its name, so grade it as a one-line summary and flag a trigger list there as noise. For every other skill, the description alone decides whether the agent ever uses it. It must say when to use it, in the words someone would type, and when not to. A model-invoked description that reads as a summary of what the skill does will never fire.
 
 ## Limits
 
