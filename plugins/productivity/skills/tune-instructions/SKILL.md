@@ -18,11 +18,13 @@ Find what each host loads. Report which of these exist:
 - every file under `.claude/rules/`, for Claude Code
 - every `.mdc` file under `.cursor/rules/`, for Cursor; a `.md` file there loads in neither host
 - every `SKILL.md` under `.claude/skills/`, `.cursor/skills/`, and `.agents/skills/`, specifically the `description:` line and `disable-model-invocation:` in its frontmatter. Claude Code reads the first directory; Cursor reads all three.
-- every `.md` under `.claude/agents/` and `.cursor/agents/`, same. Claude Code reads the first directory; Cursor reads both.
+- every `.md` under `.claude/agents/` and `.cursor/agents/`, specifically the `description:` line. Claude Code reads the first directory; Cursor reads both.
 - `.claude/settings.json` and every hook it wires, for Claude Code
 - `.cursor/hooks.json` and every hook it wires, for Cursor
 
-Read each one in full, except the skill and agent files: there the `description:` line is all this audit needs. Then tell the user in a few lines what you found: how many files, how many separate rules, how many hooks, roughly how many words load into every session in each host, and anything that surprised you — a file nothing loads, a line one host loads and the other never reaches, a rule written for a different model, a duty a wired hook already enforces.
+Cursor loads `CLAUDE.md`, `.claude/skills/`, and `.claude/agents/` only while its setting "Include third-party Plugins, Skills and other configs" is on. That setting lives in the editor, not in the repository, so ask the user whether it is on. When it is off, those files never load in Cursor: report them that way, and leave their words out of Cursor's count.
+
+Read each one in full, except the skill and agent files: there the frontmatter lines named above are all this audit needs. Then tell the user in a few lines what you found: how many files, how many separate rules, how many hooks, roughly how many words load into every session in each host, and anything that surprised you — a file nothing loads, a line one host loads and the other never reaches, a rule written for a different model, a duty a wired hook already enforces.
 
 Before grading anything, set aside what is not a rule. Instruction files collect things that only look like instructions: a note about a decision someone made last quarter, an example, a description of what the project does, a lesson learned. The test: did the user write the line for the agent, or did the agent write it about the project? The second is a note, not an instruction. Say which lines you set aside and why, in a few words each.
 
@@ -42,7 +44,7 @@ Does it only forbid? A rule that says never do X, with no alternative and no esc
 
 ## Check where each rule lives
 
-Each host loads its always-on files into every session in this project, whether the rule applies or not: `CLAUDE.md` in both hosts, `AGENTS.md` and `.cursorrules` in Cursor. That is what they are for: things that are true of all work here. A rule that only applies to some of the code does not belong in them. "When editing TypeScript files, prefer named exports" costs context in every Python session, every documentation session, every session that never opens a `.ts` file. Move that rule into its own scoped rules file, and it loses the when-clause because the scope now says it: "Use named exports."
+Each host loads its always-on files into every session in this project, whether the rule applies or not: `CLAUDE.md` in Claude Code and, with the third-party setting on, in Cursor; `AGENTS.md` and `.cursorrules` in Cursor. That is what they are for: things that are true of all work here. A rule that only applies to some of the code does not belong in them. "When editing TypeScript files, prefer named exports" costs context in every Python session, every documentation session, every session that never opens a `.ts` file. Move that rule into its own scoped rules file, and it loses the when-clause because the scope now says it: "Use named exports."
 
 For each rule, tell the user which of these it is. It applies to all work here, so an always-on file is right. Or it applies to one language, one folder, or one kind of file, so it belongs in a scoped rules file — and name the pattern it should be scoped to.
 
@@ -69,7 +71,7 @@ Each host has its own scoped file, and the frontmatter differs:
 
 A rule that leaves an always-on file needs a scoped file in every host that loaded it, or one host loses the rule. A line from `CLAUDE.md` therefore moves into both files; a line from `AGENTS.md` moves into the Cursor file alone.
 
-A move is complete only when the always-on file keeps nothing: no pointer to the new file, no index of rules files. The scope pattern is the trigger. A leftover reference pays the always-loaded cost the move was meant to end, and loads the rule twice in the sessions the scope matches.
+A move is complete only when every always-on file that held the rule keeps nothing: no pointer to the new file, no index of rules files. The scope pattern is the trigger. A leftover reference pays the always-loaded cost the move was meant to end, and loads the rule twice in the sessions the scope matches.
 
 An `.mdc` rule carries its own trigger in its frontmatter, so grade each one by its mode. `alwaysApply: true` loads into every session: give it the always-on test above. A `globs:` pattern scopes it: check that the pattern matches files here. A `description:` with no `globs:` loads when the agent judges the description relevant: grade that description by the model-invoked test under "Skill and agent descriptions" below. With neither field, the rule loads only when a human names it in chat: report it as never loading unless a rule or a doc names it.
 
@@ -79,10 +81,11 @@ More placement problems to look for, and all are worse than any wording problem 
 - A file shadowed by another one, or sitting past a read limit, so the host skips it.
 - A `.md` file under `.cursor/rules/`, which Cursor ignores.
 - An `AGENTS.md` with no `CLAUDE.md` beside it, which Claude Code never loads.
+- A `CLAUDE.md`, skill, or agent under `.claude/` in a project where Cursor's third-party setting is off, which Cursor never loads.
 
 Then check three mechanical things that have nothing to do with wording. A rule pointing at a file, function, or command that no longer exists — verify each path and each command; do not assume. Two rules asking for the same thing in different words. Two rules that contradict each other.
 
-When `CLAUDE.md` and `AGENTS.md` sit in the same directory, compare them line by line. Cursor loads both into every session, so a shared line loads twice there, and a line only in `AGENTS.md` never reaches Claude Code. Report the overlap as duplication. The fix to propose is one canonical file: `AGENTS.md` holds the content, and `CLAUDE.md` holds the single line `@AGENTS.md`, which Claude Code expands and Cursor reads as one extra line. Name the symlink from `CLAUDE.md` to `AGENTS.md` as the alternative, with its two costs: a Windows checkout without symlink support turns it into a one-word file, and Cursor loads the whole content twice.
+When `CLAUDE.md` and `AGENTS.md` sit in the same directory, compare them line by line, from what you read in the inventory. Cursor loads both into every session, so a shared line loads twice there, and a line only in `AGENTS.md` never reaches Claude Code. Report the overlap as duplication. The fix to propose is one canonical file: `AGENTS.md` holds the content, and `CLAUDE.md` holds the single line `@AGENTS.md`, which Claude Code expands and Cursor reads as one extra line. Name the symlink from `CLAUDE.md` to `AGENTS.md` as the alternative, with its two costs: a Windows checkout without symlink support turns it into a one-word file, and Cursor loads the whole content twice.
 
 ## Grade every hook
 
@@ -104,11 +107,11 @@ Report everything before changing anything. Order it worst first: rules a host n
 Then propose changes one at a time, and apply only what the user approves:
 
 - **A rewrite**: old line, new line, one sentence on what changed. Sharpen how a rule asks; never change what it asks for. The shape: Before: "Keep the changelog updated." No moment, no artifact, so the agent skips it. After: "When you change any file under `src/`, add a line to `CHANGELOG.md` under Unreleased in the same commit."
-- **A move to a scoped file**: show each new file with its host's frontmatter, its scope pattern, and the line as it will read once the scope carries the when-clause — and confirm that the always-on file keeps no trace.
+- **A move to a scoped file**: show each new file with its host's frontmatter, its scope pattern, and the line as it will read once the scope carries the when-clause — and confirm that every always-on file that held it keeps no trace.
 - **A legacy move**: the lines of `.cursorrules`, moved into `AGENTS.md` as they stand, and the legacy file removed once the user confirms the copy.
 - **A hook**: show the exact fragment — `.claude/settings.json` for Claude Code, `.cursor/hooks.json` for Cursor — with event, matcher, command, and any script it runs. Creating, editing, and deleting a hook all get the same treatment: show it, wait for a yes.
 - **A hook that replaces a prose rule**: show the pair — the hook, whether it is new or already wired, and the prose line coming out. When both hosts load the line, the pair holds one hook per host. The line comes out only once every one of those hooks is wired. Until then the hook goes in, the line stays, and the report calls it a partial replacement. This is the only path that removes a rule. Everywhere else, never delete or deactivate a rule; if you believe one is obsolete, that is a finding to report, not a change to make.
-- **A load fix**: for a rules file whose scope pattern matches nothing, a file the host skips, a `.md` under `.cursor/rules/`, or an `AGENTS.md` with no `CLAUDE.md` — show the evidence and its correction: the empty glob and the pattern that matches, the shadowing file and the new location, the `.md` name and its `.mdc` rename, the missing `CLAUDE.md` and its one line. A hook whose matcher never fires goes through the hook proposal above.
+- **A load fix**: for a rules file whose scope pattern matches nothing, a file the host skips, a `.md` under `.cursor/rules/`, an `AGENTS.md` with no `CLAUDE.md`, or a `.claude/` file Cursor's setting shuts out — show the evidence and its correction: the empty glob and the pattern that matches, the shadowing file and the new location, the `.md` name and its `.mdc` rename, the missing `CLAUDE.md` and its one line, the setting that is off and the Cursor-native path that loads without it. A hook whose matcher never fires goes through the hook proposal above.
 
 Where two rules disagree, name both sides and leave the choice to the user.
 
@@ -116,7 +119,7 @@ Apply approved changes one file at a time.
 
 ## Skill and agent descriptions
 
-Review these by a different test, and check the frontmatter first. A skill with `disable-model-invocation: true` is user-invoked: its description faces the human who types its name, so grade it as a one-line summary and flag a trigger list there as noise. For every other skill, the description alone decides whether the agent ever uses it. It must say when to use it, in the words someone would type, and when not to. A model-invoked description that reads as a summary of what the skill does will never fire.
+Review these by a different test, and check the frontmatter first. A skill with `disable-model-invocation: true` is user-invoked: its description faces the human who types its name, so grade it as a one-line summary and flag a trigger list there as noise. For every other skill, the description alone decides whether the agent ever uses it. It must say when to use it, in the words someone would type, and when not to. A model-invoked description that reads as a summary of what the skill does will never fire. An agent file has no invocation field: the host delegates to it by its description alone, so grade every agent description by that model-invoked test.
 
 ## Limits
 
