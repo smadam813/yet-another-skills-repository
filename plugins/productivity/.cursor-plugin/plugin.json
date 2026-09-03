@@ -1,7 +1,7 @@
 {
   "name": "productivity",
   "description": "Skills for everyday productivity",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "license": "MIT",
   "keywords": ["writing", "editing", "productivity", "workflow"],
   "author": { "name": "Adam Keech", "url": "https://github.com/smadam813" },
