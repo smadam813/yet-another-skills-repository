@@ -44,7 +44,7 @@ Does it only forbid? A rule that says never do X, with no alternative and no esc
 
 ## Check where each rule lives
 
-Each host loads its always-on files into every session in this project, whether the rule applies or not: `CLAUDE.md` in Claude Code and, with the third-party setting on, in Cursor; `AGENTS.md` and `.cursorrules` in Cursor. That is what they are for: things that are true of all work here. A rule that only applies to some of the code does not belong in them. "When editing TypeScript files, prefer named exports" costs context in every Python session, every documentation session, every session that never opens a `.ts` file. Move that rule into its own scoped rules file, and it loses the when-clause because the scope now says it: "Use named exports."
+Each host loads its always-on files into every session in this project, whether the rule applies or not: `CLAUDE.md` in Claude Code, and in Cursor while the third-party setting is on; `AGENTS.md` and `.cursorrules` in Cursor. That is what they are for: things that are true of all work here. A rule that only applies to some of the code does not belong in them. "When editing TypeScript files, prefer named exports" costs context in every Python session, every documentation session, every session that never opens a `.ts` file. Move that rule into its own scoped rules file, and it loses the when-clause because the scope now says it: "Use named exports."
 
 For each rule, tell the user which of these it is. It applies to all work here, so an always-on file is right. Or it applies to one language, one folder, or one kind of file, so it belongs in a scoped rules file — and name the pattern it should be scoped to.
 
@@ -81,7 +81,7 @@ More placement problems to look for, and all are worse than any wording problem 
 - A file shadowed by another one, or sitting past a read limit, so the host skips it.
 - A `.md` file under `.cursor/rules/`, which Cursor ignores.
 - An `AGENTS.md` with no `CLAUDE.md` beside it, which Claude Code never loads.
-- A `CLAUDE.md`, skill, or agent under `.claude/` in a project where Cursor's third-party setting is off, which Cursor never loads.
+- A `CLAUDE.md`, or a skill or agent under `.claude/`, when Cursor's third-party setting is off, which Cursor never loads.
 
 Then check three mechanical things that have nothing to do with wording. A rule pointing at a file, function, or command that no longer exists — verify each path and each command; do not assume. Two rules asking for the same thing in different words. Two rules that contradict each other.
 
@@ -111,7 +111,7 @@ Then propose changes one at a time, and apply only what the user approves:
 - **A legacy move**: the lines of `.cursorrules`, moved into `AGENTS.md` as they stand, and the legacy file removed once the user confirms the copy.
 - **A hook**: show the exact fragment — `.claude/settings.json` for Claude Code, `.cursor/hooks.json` for Cursor — with event, matcher, command, and any script it runs. Creating, editing, and deleting a hook all get the same treatment: show it, wait for a yes.
 - **A hook that replaces a prose rule**: show the pair — the hook, whether it is new or already wired, and the prose line coming out. When both hosts load the line, the pair holds one hook per host. The line comes out only once every one of those hooks is wired. Until then the hook goes in, the line stays, and the report calls it a partial replacement. This is the only path that removes a rule. Everywhere else, never delete or deactivate a rule; if you believe one is obsolete, that is a finding to report, not a change to make.
-- **A load fix**: for a rules file whose scope pattern matches nothing, a file the host skips, a `.md` under `.cursor/rules/`, an `AGENTS.md` with no `CLAUDE.md`, or a `.claude/` file Cursor's setting skips — show the evidence and its correction: the empty glob and the pattern that matches, the shadowing file and the new location, the `.md` name and its `.mdc` rename, the missing `CLAUDE.md` and its one line, the setting that is off and the Cursor-native path that loads without it. A hook whose matcher never fires goes through the hook proposal above.
+- **A load fix**: for a rules file whose scope pattern matches nothing, a file the host skips, a `.md` under `.cursor/rules/`, an `AGENTS.md` with no `CLAUDE.md`, or a file Cursor's third-party setting skips — show the evidence and its correction: the empty glob and the pattern that matches, the shadowing file and the new location, the `.md` name and its `.mdc` rename, the missing `CLAUDE.md` and its one line, the setting that is off and the path Cursor reads without it. A hook whose matcher never fires goes through the hook proposal above.
 
 Where two rules disagree, name both sides and leave the choice to the user.
 
