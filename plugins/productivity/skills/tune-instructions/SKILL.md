@@ -12,8 +12,8 @@ If this is a git repository with uncommitted changes, say so and stop; let the u
 
 Find what each host loads. Report which of these exist:
 
-- `CLAUDE.md` in the project root, and any `CLAUDE.md` in subdirectories. Claude Code loads the root file into every session and a nested one when it works under that directory. Cursor loads the root file into every session; its docs say nothing about nested ones.
-- `AGENTS.md` in the project root, and any `AGENTS.md` in subdirectories. Cursor loads the root file into every session and a nested one when it works under that directory. Claude Code never reads `AGENTS.md`; it reaches one only through a `CLAUDE.md` that holds the import line `@AGENTS.md`.
+- `CLAUDE.md` in the project root, and any `CLAUDE.md` in subdirectories
+- `AGENTS.md` in the project root, and any `AGENTS.md` in subdirectories; Claude Code never reads it, and reaches one only through a `CLAUDE.md` that holds the import line `@AGENTS.md`
 - `.cursorrules` in the project root. Cursor still loads it and calls it legacy.
 - every file under `.claude/rules/`, for Claude Code
 - every `.mdc` file under `.cursor/rules/`, for Cursor; a `.md` file there loads in neither host
