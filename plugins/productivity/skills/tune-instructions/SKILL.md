@@ -61,7 +61,7 @@ Each host has its own scoped file, and the frontmatter differs:
 
   ```
   ---
-  description: <one line saying what the rule covers>
+  description: Export style for TypeScript files
   globs: src/**/*.ts
   alwaysApply: false
   ---
