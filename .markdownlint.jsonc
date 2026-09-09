@@ -1,0 +1,16 @@
+{
+  // Markdown lint rules for this repo. Run: npx markdownlint-cli2
+  "default": true,
+  // Prose wraps by hand at whatever width reads well; tables and code blocks run long.
+  "MD013": false,
+  // A SKILL.md body starts at its first sentence: the frontmatter name is the title.
+  "MD041": false,
+  // Skills wrap templates in XML-style tags and use <placeholder> slots on purpose.
+  "MD033": false,
+  // Bare fences hold commands and templates, not code in one language.
+  "MD040": false,
+  // _underscores_ mark leading words and **asterisks** mark emphasis; both styles are deliberate.
+  "MD049": false,
+  // Templates repeat a heading per example section.
+  "MD024": { "siblings_only": true }
+}

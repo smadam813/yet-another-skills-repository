@@ -1,8 +1,16 @@
 # CLAUDE.md
 
+## Response length and verbosity
+
+Keep responses focused, brief, and concise. Keep disclaimers and caveats short, and spend most of the response on the main answer. When asked to explain something, give a high-level summary unless an in-depth explanation is specifically requested.
+
+## Self-correction
+
+Only correct an earlier statement when the error would change the user's code, conclusions, or decisions. State corrections plainly and briefly, then continue the task. For slips that change nothing for the user, make the fix and move on without noting it.
+
 ## What this repo is
 
-This repo is a plugin marketplace of agent skills. Claude Code and Cursor both install those skills from the same directories.
+A plugin marketplace of agent skills. Claude Code and Cursor both install the skills from the same directories.
 
 The content is Markdown. The repo holds no application code, no `package.json`, and no test suite. The marketplace checker is the only program in it.
 
@@ -12,27 +20,33 @@ The content is Markdown. The repo holds no application code, no `package.json`, 
 node scripts/check-marketplace.mjs
 ```
 
-The checker runs on plain Node and needs no dependencies. `.github/workflows/validate.yml` runs the same command on every push and pull request. Its `validate` job is the required status check on `main`. Run the checker after you change a manifest, a skill directory name, or a SKILL.md frontmatter block.
+The checker runs on plain Node and needs no dependencies. `.github/workflows/validate.yml` runs the same command on every push and pull request, and its `validate` job is the required status check on `main`. Run the checker after you change a manifest, a skill directory name, a SKILL.md frontmatter block, or a plugin README.
+
+Lint Markdown with `npx markdownlint-cli2` (rules in `.markdownlint.jsonc`). CI runs it as the `lint` job, which advises and does not gate the merge.
 
 ## Packaging for both tools
 
-Four manifests describe the two plugins. The checker fails when they disagree:
+Four manifests describe each plugin. The checker fails when they disagree:
 
 - `.claude-plugin/marketplace.json` — each `source` is a path from the repo root (`./plugins/engineering`).
 - `.cursor-plugin/marketplace.json` — each `source` is a path from `metadata.pluginRoot` (`engineering`). Both paths must point to the same directory.
 - `plugins/<plugin>/.claude-plugin/plugin.json` and `plugins/<plugin>/.cursor-plugin/plugin.json` — `description`, `version`, `license`, and `keywords` must match between the two files, and each `description` must match the one in its marketplace entry. Cursor's manifest also carries `"skills": "./skills/"`.
 
-A new version number, or a new description, therefore changes four files. List a new plugin in both marketplaces: the checker fails on a plugin that only one marketplace names.
+A new description therefore changes four files, and a new version changes both plugin.json files. List a new plugin in both marketplaces: the checker fails on a plugin that only one marketplace names.
 
 Both tools read a skill from the same path, in the same format: `plugins/<plugin>/skills/<name>/SKILL.md`.
+
+## Versions
+
+Bump a plugin's version in the same PR that changes its skills, as a separate commit: minor when a skill is added or removed, patch when an existing skill changes. The `bump-plugin-version` skill does the edit.
 
 ## Adding or editing a skill
 
 - Name the directory with lowercase letters, numbers, and hyphens. Frontmatter `name` must match the directory name. Cursor rejects a mismatch that Claude Code accepts.
-- Give the skill a `description`. Cursor does not load a skill without one.
+- Give the skill a `description`. Cursor does not load a skill without one. Quote the value when it contains a colon.
 - Start the body at its first real sentence. The frontmatter `name` already titles the skill, so the checker errors on a body that opens with an H1.
 - Keep skill names unique across plugins. The checker only warns about a repeated name, because Claude Code gives each plugin its own namespace. Cursor does not, so one skill there hides the other.
-- List the skill by hand in `plugins/<plugin>/README.md`. Nothing generates that index.
+- Link the skill from `plugins/<plugin>/README.md` in alphabetical order. Nothing generates that index, and the checker errors on a skill directory the README does not link.
 - Put supporting material beside the SKILL.md: `references/` for Markdown that a pointer reaches, `scripts/` for templates the skill copies.
 
 ## Invocation choice
@@ -46,3 +60,11 @@ Leave the field out, and the skill stays **model-invoked**. Its description sits
 ## Writing standard
 
 The skills here follow the repo's own rules. Read `plugins/productivity/skills/writing-for-agents/SKILL.md` and its `references/SKILL-MECHANICS.md` before you write or edit a SKILL.md, a `CLAUDE.md`, or an `AGENTS.md`. For prose style, read `plugins/productivity/skills/orwell-writing/SKILL.md`.
+
+## Branches and PRs
+
+Work on a branch and open a pull request. Commits never land on `main` directly. PRs squash-merge, so the PR title becomes the commit subject: imperative mood, sentence case, no type prefix, no trailing period. Name the version bump in the PR body.
+
+<tone_preference>
+Keep outputs reasonably concise.
+</tone_preference>

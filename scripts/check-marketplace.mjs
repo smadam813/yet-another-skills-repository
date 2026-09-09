@@ -110,6 +110,11 @@ for (const name of [...claudeNames].sort()) {
   // Skills are the one thing both tools read from the same path, in the same format.
   const skillsDir = join(cResolved, 'skills')
   if (!existsSync(skillsDir)) continue
+  // The plugin README is a hand-written index; nothing generates it, so the checker keeps it complete.
+  const readmeRel = join(cDir, 'README.md')
+  const readmeAbs = join(cResolved, 'README.md')
+  const readme = existsSync(readmeAbs) ? readFileSync(readmeAbs, 'utf8') : null
+  if (readme === null) err(`${readmeRel}: missing; it indexes the plugin's skills`)
   for (const entry of readdirSync(skillsDir)) {
     const dir = join(skillsDir, entry)
     if (!statSync(dir).isDirectory()) continue
@@ -118,6 +123,9 @@ for (const name of [...claudeNames].sort()) {
     if (!existsSync(md)) {
       err(`${join(cDir, 'skills', entry)}: no SKILL.md`)
       continue
+    }
+    if (readme !== null && !readme.includes(`skills/${entry}/SKILL.md`)) {
+      err(`${readmeRel}: does not link skills/${entry}/SKILL.md; add the skill to the index`)
     }
     const text = readFileSync(md, 'utf8')
     const badScalars = []
