@@ -20,7 +20,7 @@ One file per **concept**, not per issue. Group every issue that asks for the sam
 
 Write the file in a relaxed, readable style, more like a short design document than a database entry. Use paragraphs, code samples, and examples so the reasoning is clear and useful to someone reading it for the first time.
 
-```markdown
+````markdown
 # Dark Mode
 
 This project does not support dark mode or user-facing theming.
@@ -51,7 +51,7 @@ interface ThemeConfig {
 - #42: "Add dark mode support"
 - #87: "Night theme for accessibility"
 - #134: "Dark theme option"
-```
+````
 
 ### Naming the file
 

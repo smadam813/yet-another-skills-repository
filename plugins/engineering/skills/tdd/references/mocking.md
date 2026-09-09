@@ -17,7 +17,7 @@ Do not mock:
 
 At system boundaries, design interfaces that are easy to mock.
 
-**1. Use dependency injection**
+### 1. Use dependency injection
 
 Pass external dependencies in instead of creating them inside the function:
 
@@ -34,7 +34,7 @@ function processPayment(order) {
 }
 ```
 
-**2. Prefer SDK-style interfaces over generic fetchers**
+### 2. Prefer SDK-style interfaces over generic fetchers
 
 Write one specific function for each external operation instead of one generic function with conditional logic:
 
