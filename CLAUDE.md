@@ -4,6 +4,10 @@
 
 Keep responses focused, brief, and concise. Keep disclaimers and caveats short, and spend most of the response on the main answer. When asked to explain something, give a high-level summary unless an in-depth explanation is specifically requested.
 
+## Self-correction
+
+Only correct an earlier statement when the error would change the user's code, conclusions, or decisions. State corrections plainly and briefly, then continue the task. For slips that change nothing for the user, make the fix and move on without noting it.
+
 ## What this repo is
 
 A plugin marketplace of agent skills. Claude Code and Cursor both install the skills from the same directories.
