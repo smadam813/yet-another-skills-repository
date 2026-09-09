@@ -1,6 +1,8 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## Response length and verbosity
+
+Keep responses focused, brief, and concise. Keep disclaimers and caveats short, and spend most of the response on the main answer. When asked to explain something, give a high-level summary unless an in-depth explanation is specifically requested.
 
 ## What this repo is
 
@@ -58,3 +60,7 @@ The skills here follow the repo's own rules. Read `plugins/productivity/skills/w
 ## Branches and PRs
 
 Work on a branch and open a pull request. Commits never land on `main` directly. PRs squash-merge, so the PR title becomes the commit subject: imperative mood, sentence case, no type prefix, no trailing period. Name the version bump in the PR body.
+
+<tone_preference>
+Keep outputs reasonably concise.
+</tone_preference>
