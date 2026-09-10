@@ -81,7 +81,6 @@ Off the main flow entirely.
 - **`/wizard`** is for the steps only a **human** can take: provisioning infrastructure, setting up credentials or CI secrets, clicking through an unfamiliar third-party dashboard, running a one-off migration or cutover. It generates an interactive bash script that opens each URL, captures each value, and writes it into `.env` and GitHub secrets, so the procedure stops being something you re-explain to an agent every time. It is model-invoked, so the agent reaches for it the moment it hits a wall only you can pass. If the agent could do the step itself, it should; this is for where a human is genuinely in the loop.
 - **`/wait-what`** corrects a message that did not land. Use it mid-conversation, inside any other skill, and the agent re-pitches what it just said in plain English, with the context you were missing, using the `CONTEXT.md` vocabulary. It works after the fact. `/grill-with-docs` is the upfront cure, because a shared language agreed early is what stops the jargon arriving at all.
 - **`/teach`**: learn a concept over multiple sessions, using the current directory as a stateful workspace.
-- **`/writing-for-agents`** is the reference for writing documents agents consume: skills, AGENTS.md, pointed-at docs.
 
 ## Precondition
 

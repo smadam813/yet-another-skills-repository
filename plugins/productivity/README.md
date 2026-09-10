@@ -15,5 +15,3 @@ Skills for everyday productivity.
 - [`to-questionnaire`](skills/to-questionnaire/SKILL.md) — turn a decision you cannot answer
   alone into a questionnaire for someone else.
 - [`wait-what`](skills/wait-what/SKILL.md) — stop and re-pitch an unclear message.
-- [`writing-for-agents`](skills/writing-for-agents/SKILL.md) — write documents that agents
-  read: skills, `AGENTS.md`, and `CLAUDE.md`.
