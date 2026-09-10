@@ -73,10 +73,6 @@ Leave the field out, and the skill stays **model-invoked**. Its description sits
 
 `ask-builder` is the router that helps a human find the user-invoked engineering skills.
 
-## Writing standard
-
-The skills here follow the repo's own rules. For prose style, read `plugins/productivity/skills/orwell-writing/SKILL.md`.
-
 ## Branches and PRs
 
 Work on a branch and open a pull request. Commits never land on `main` directly. PRs squash-merge, so the PR title becomes the commit subject: imperative mood, sentence case, no type prefix, no trailing period. Name the version bump in the PR body.
