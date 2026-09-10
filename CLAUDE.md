@@ -1,12 +1,28 @@
 # CLAUDE.md
 
-## Response length and verbosity
+## Agent behaviors
 
-Keep responses focused, brief, and concise. Keep disclaimers and caveats short, and spend most of the response on the main answer. When asked to explain something, give a high-level summary unless an in-depth explanation is specifically requested.
+### Writing style
 
-## Self-correction
+Applies to all prose the agent writes: responses, commit messages, PR descriptions, issue comments, and docs. Quoted Oracle text, rules text, and API contracts keep their original wording. Lead with the answer, keep caveats short, and give a summary unless asked for depth.
 
-Only correct an earlier statement when the error would change the user's code, conclusions, or decisions. State corrections plainly and briefly, then continue the task. For slips that change nothing for the user, make the fix and move on without noting it.
+Follow ASD-STE100 (Simplified Technical English):
+
+- Write one instruction per sentence. Keep instructions under 20 words and descriptions under 25.
+- Use the active voice and the present tense. Write instructions as commands.
+- Use one word for one thing, and the same word every time. Do not vary terms for style.
+- Keep articles and connectors. Do not stack more than three nouns in a row.
+- Keep paragraphs to one topic and no more than six sentences.
+- Put a warning or caution before the step it applies to.
+
+Follow Orwell's six rules:
+
+1. Never use a figure of speech you are used to seeing in print.
+2. Never use a long word where a short one will do.
+3. If it is possible to cut a word out, cut it out.
+4. Never use the passive where you can use the active.
+5. Never use a foreign phrase, a scientific word, or jargon if there is an everyday English equivalent.
+6. Break any of these rules sooner than say anything outright barbarous.
 
 ## What this repo is
 
@@ -59,12 +75,8 @@ Leave the field out, and the skill stays **model-invoked**. Its description sits
 
 ## Writing standard
 
-The skills here follow the repo's own rules. Read `plugins/productivity/skills/writing-for-agents/SKILL.md` and its `references/SKILL-MECHANICS.md` before you write or edit a SKILL.md, a `CLAUDE.md`, or an `AGENTS.md`. For prose style, read `plugins/productivity/skills/orwell-writing/SKILL.md`.
+The skills here follow the repo's own rules. For prose style, read `plugins/productivity/skills/orwell-writing/SKILL.md`.
 
 ## Branches and PRs
 
 Work on a branch and open a pull request. Commits never land on `main` directly. PRs squash-merge, so the PR title becomes the commit subject: imperative mood, sentence case, no type prefix, no trailing period. Name the version bump in the PR body.
-
-<tone_preference>
-Keep outputs reasonably concise.
-</tone_preference>
