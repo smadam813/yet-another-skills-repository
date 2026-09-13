@@ -44,7 +44,7 @@ When a reviewer asks you to "implement this properly", grep for callers first. W
 3. Fix what is small: typos, imports, names.
 4. Fix what is large: logic, refactors.
 5. Run the tests after each fix, and run the whole suite at the end.
-6. Call the Skill tool with "code-deslop" if you changed any code.
+6. If you changed any code, call the Skill tool with "code-deslop".
 
 ## Push back
 
