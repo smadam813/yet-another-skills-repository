@@ -32,7 +32,7 @@ Skills for software engineering workflows.
 - [`review-changes`](skills/review-changes/SKILL.md) — review changes since a fixed point
   on three axes: standards, spec, and style.
 - [`setup-builder-skills`](skills/setup-builder-skills/SKILL.md) — set up the repo once:
-  issue tracker, triage labels, and domain doc layout.
+  issue tracker, triage labels, domain doc layout, and writing style.
 - [`tdd`](skills/tdd/SKILL.md) — build features test-first, red-green-refactor; fix a bug
   this way once its cause is known.
 - [`to-spec`](skills/to-spec/SKILL.md) — turn the current conversation into a spec and

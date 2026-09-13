@@ -84,4 +84,4 @@ Off the main flow entirely.
 
 ## Precondition
 
-**`/setup-builder-skills`**: run it before your first engineering flow. It configures the issue tracker, the triage labels, and the doc layout the other skills assume. Custom issue trackers also work.
+**`/setup-builder-skills`**: run it before your first engineering flow. It configures the issue tracker, the triage labels, the doc layout, and the writing-style rules the other skills assume. Custom issue trackers also work.

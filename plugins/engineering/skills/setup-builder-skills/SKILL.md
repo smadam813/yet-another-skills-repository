@@ -1,6 +1,6 @@
 ---
 name: setup-builder-skills
-description: "Configure this repo for the engineering skills: set up its issue tracker, triage label vocabulary, and domain doc layout. Run this once before you use the other engineering skills."
+description: "Configure this repo for the engineering skills: set up its issue tracker, triage label vocabulary, domain doc layout, and writing-style rules. Run this once before you use the other engineering skills."
 disable-model-invocation: true
 ---
 
@@ -9,6 +9,7 @@ Create the per-repo configuration that the engineering skills read:
 - **Issue tracker**: where issues live. GitHub by default; GitLab and local markdown also have templates.
 - **Triage labels**: the label strings for the five triage roles
 - **Domain docs**: where `CONTEXT.md` and ADRs live, and the rules for reading them
+- **Writing style**: whether to add the standard prose rules (ASD-STE100 and Orwell) to the repo's `## Agent behaviors` section
 
 This skill is a prompt, not a script. Explore the repo, present what you found, confirm with the user, then write the files.
 
@@ -20,6 +21,7 @@ Read the repo's current state. Check each item; do not assume:
 
 - `git remote -v` and `.git/config`: is this a GitHub repo? Which one?
 - `AGENTS.md` and `CLAUDE.md` at the repo root: does either exist? Does either already have an `## Agent skills` section?
+- `## Agent behaviors` and `### Writing style` in whichever of the two files exists: is a Writing style section already there? If so, does it carry a `<!-- setup-builder-skills:writing-style vN -->` marker? A marked section may match its version's stored text in this skill's `references/` folder exactly, or differ from it. Record which case applies; step 2 needs it.
 - `CONTEXT.md` and `CONTEXT-MAP.md` at the repo root
 - `docs/adr/` and any `src/*/docs/adr/` directories
 - `docs/agents/`: did an earlier run of this skill already write here?
@@ -58,12 +60,27 @@ The defaults are the five roles, where each label string is the same as the role
 
 Offer **multi-context**, a root `CONTEXT-MAP.md` that points to one `CONTEXT.md` per context, only when exploration found monorepo signals. Then ask the user which layout they want.
 
+**Section D: Writing style.** Ask this question for every repo; it does not depend on which other engineering skills are installed.
+
+If exploration found no existing Writing style section, ask exactly one question:
+
+> Add the standard writing-style rules (ASD-STE100 and Orwell) to this repo's `## Agent behaviors` section? (recommended: **yes**)
+
+If the user answers yes, draft the section from [writing-style-v1.md](references/writing-style-v1.md) in step 3. If the user answers no, skip Section D and write nothing.
+
+If exploration found an existing Writing style section, its marker state decides what to ask:
+
+- **No marker.** The section is the repo's own, not this skill's output. Show the user the existing content and the standard template side by side. Ask whether to keep theirs, replace it with the template, or merge by hand. Take no action until they choose.
+- **Marker present, content matches that version's stored text exactly.** This skill wrote it, untouched. If a newer template version exists, offer the upgrade (recommended: yes). If the marker already names the latest version, tell the user it is current and do nothing.
+- **Marker present, content does not match that version's stored text.** The user edited what this skill generated. Show the diff between their edit and the current template. Ask whether to keep their edit, take the current template, or merge by hand.
+
 ### 3. Confirm and edit
 
 Show the user a draft of:
 
 - The `## Agent skills` block to add to whichever of `CLAUDE.md` / `AGENTS.md` you are editing (see step 4 for the selection rules)
 - The contents of `docs/agents/issue-tracker.md`, `docs/agents/domain.md`, and `docs/agents/triage-labels.md`. Draft the last file only when `triage` is installed.
+- The `### Writing style` content to add under `## Agent behaviors`, when Section D said to add or replace it
 
 Let them edit before you write.
 
@@ -99,6 +116,20 @@ The block:
 
 Include the `### Triage labels` sub-block, and write `docs/agents/triage-labels.md`, only when `triage` is installed and Section B ran. If `triage` is not installed, omit both.
 
+**If Section D said to add or replace the Writing style section**, write it into the same file, as its own top-level section, separate from `## Agent skills`:
+
+```markdown
+## Agent behaviors
+
+### Writing style
+
+<!-- setup-builder-skills:writing-style v1 -->
+
+[content of writing-style-v1.md]
+```
+
+Copy the version's content from `references/writing-style-v1.md` in full; do not paraphrase it. Place the marker comment on its own line, directly after the `### Writing style` heading. If `## Agent behaviors` already exists with other subsections, add `### Writing style` to it; do not create a second `## Agent behaviors` heading. If Section D said to keep the user's existing section, or the user chose "keep theirs" or "merge by hand" during the diff step, write nothing here.
+
 Then write the docs files. Start from the templates in this skill folder:
 
 - [issue-tracker-github.md](references/issue-tracker-github.md): GitHub issue tracker
@@ -111,4 +142,4 @@ For an "other" issue tracker, write `docs/agents/issue-tracker.md` from the user
 
 ### 5. Done
 
-Tell the user that setup is complete, and name the engineering skills that now read these files. Tell them they can edit `docs/agents/*.md` later. They need to run this skill again only to change issue trackers or to start again.
+Tell the user that setup is complete, and name the engineering skills that now read these files. Tell them they can edit `docs/agents/*.md` later, and the `## Agent behaviors` section directly. They need to run this skill again only to change issue trackers, to pick up a newer Writing style template, or to start again.
