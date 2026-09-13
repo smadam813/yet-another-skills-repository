@@ -21,7 +21,7 @@ Read the repo's current state. Check each item; do not assume:
 
 - `git remote -v` and `.git/config`: is this a GitHub repo? Which one?
 - `AGENTS.md` and `CLAUDE.md` at the repo root: does either exist? Does either already have an `## Agent skills` section?
-- `## Agent behaviors` and `### Writing style`: check `CLAUDE.md` first, then `AGENTS.md` if `CLAUDE.md` does not exist — the same order step 4 uses to pick which file to edit. Is a Writing style section already there? Step 2 needs to know.
+- `## Agent behaviors` and `### Writing style`: check `CLAUDE.md` first, then `AGENTS.md` if `CLAUDE.md` does not exist. This matches step 4's own file order. Is a Writing style section already there? Step 2 needs to know.
 - `CONTEXT.md` and `CONTEXT-MAP.md` at the repo root
 - `docs/adr/` and any `src/*/docs/adr/` directories
 - `docs/agents/`: did an earlier run of this skill already write here?
@@ -70,7 +70,7 @@ Default to **no**, keep the existing one, when exploration found a Writing style
 
 > This repo already has a Writing style section. Replace it with the standard template? (recommended: **no**, keep the existing one)
 
-A "yes" answer drafts the section, new or replacement, from [writing-style.md](references/writing-style.md) in step 3. A "no" answer skips Section D; anything existing stays untouched.
+A "yes" answer drafts the section, new or replacement, from [writing-style.md](references/writing-style.md) in step 3. A "no" answer skips Section D. Anything existing stays untouched.
 
 ### 3. Confirm and edit
 
