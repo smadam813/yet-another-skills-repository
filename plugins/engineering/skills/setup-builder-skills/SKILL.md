@@ -21,7 +21,7 @@ Read the repo's current state. Check each item; do not assume:
 
 - `git remote -v` and `.git/config`: is this a GitHub repo? Which one?
 - `AGENTS.md` and `CLAUDE.md` at the repo root: does either exist? Does either already have an `## Agent skills` section?
-- `## Agent behaviors` and `### Writing style` in whichever of the two files exists: is a Writing style section already there? If so, does it carry a `<!-- setup-builder-skills:writing-style vN -->` marker? A marked section may match its version's stored text in this skill's `references/` folder exactly, or differ from it. Record which case applies; step 2 needs it.
+- `## Agent behaviors` and `### Writing style` in whichever of the two files exists: is a Writing style section already there? Step 2 needs to know.
 - `CONTEXT.md` and `CONTEXT-MAP.md` at the repo root
 - `docs/adr/` and any `src/*/docs/adr/` directories
 - `docs/agents/`: did an earlier run of this skill already write here?
@@ -66,13 +66,13 @@ If exploration found no existing Writing style section, ask exactly one question
 
 > Add the standard writing-style rules (ASD-STE100 and Orwell) to this repo's `## Agent behaviors` section? (recommended: **yes**)
 
-If the user answers yes, draft the section from [writing-style-v1.md](references/writing-style-v1.md) in step 3. If the user answers no, skip Section D and write nothing.
+If the user answers yes, draft the section from [writing-style.md](references/writing-style.md) in step 3. If the user answers no, skip Section D and write nothing.
 
-If exploration found an existing Writing style section, its marker state decides what to ask:
+If exploration found an existing Writing style section, ask instead:
 
-- **No marker.** The section is the repo's own, not this skill's output. Show the user the existing content and the standard template side by side. Ask whether to keep theirs, replace it with the template, or merge by hand. Take no action until they choose.
-- **Marker present, content matches that version's stored text exactly.** This skill wrote it, untouched. If a newer template version exists, offer the upgrade (recommended: yes). If the marker already names the latest version, tell the user it is current and do nothing.
-- **Marker present, content does not match that version's stored text.** The user edited what this skill generated. Show the diff between their edit and the current template. Ask whether to keep their edit, take the current template, or merge by hand.
+> This repo already has a Writing style section. Replace it with the standard template? (recommended: **no**, keep the existing one)
+
+If they answer no, skip Section D and leave the existing section untouched. If they answer yes, draft the replacement from [writing-style.md](references/writing-style.md) in step 3.
 
 ### 3. Confirm and edit
 
@@ -123,12 +123,10 @@ Include the `### Triage labels` sub-block, and write `docs/agents/triage-labels.
 
 ### Writing style
 
-<!-- setup-builder-skills:writing-style v1 -->
-
-[content of writing-style-v1.md]
+[content of writing-style.md]
 ```
 
-Copy the version's content from `references/writing-style-v1.md` in full; do not paraphrase it. Place the marker comment on its own line, directly after the `### Writing style` heading. If `## Agent behaviors` already exists with other subsections, add `### Writing style` to it; do not create a second `## Agent behaviors` heading. If Section D said to keep the user's existing section, or the user chose "keep theirs" or "merge by hand" during the diff step, write nothing here.
+Copy the content from `references/writing-style.md` in full; do not paraphrase it. If `## Agent behaviors` already exists with other subsections, add `### Writing style` to it; do not create a second `## Agent behaviors` heading. If Section D said to keep the user's existing section, write nothing here.
 
 Then write the docs files. Start from the templates in this skill folder:
 
@@ -142,4 +140,4 @@ For an "other" issue tracker, write `docs/agents/issue-tracker.md` from the user
 
 ### 5. Done
 
-Tell the user that setup is complete, and name the engineering skills that now read these files. Tell them they can edit `docs/agents/*.md` later, and the `## Agent behaviors` section directly. They need to run this skill again only to change issue trackers, to pick up a newer Writing style template, or to start again.
+Tell the user that setup is complete, and name the engineering skills that now read these files. Tell them they can edit `docs/agents/*.md` later, and the `## Agent behaviors` section directly. They need to run this skill again only to change issue trackers, to update the Writing style section, or to start again.
