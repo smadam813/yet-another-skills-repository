@@ -1,13 +1,13 @@
 ---
 name: review-changes
-description: "Review the changes since a fixed point (commit, branch, tag, or merge-base) along three axes: Standards (does the code follow this repo's documented coding standards?), Spec (does the code match what the originating issue/spec asked for?), and Style (does the diff follow the agent-behavior rules in CLAUDE.md?). Runs all three reviews in parallel subagents and reports them side by side. Use when the user wants to review a branch, a PR, work-in-progress changes, or asks to \"review since X\"."
+description: "Review the changes since a fixed point (commit, branch, tag, or merge-base) along three axes: Standards (does the code follow this repo's documented coding standards?), Spec (does the code match what the originating issue/spec asked for?), and Style (does the diff follow the agent-behavior rules in AGENTS.md or CLAUDE.md?). Runs all three reviews in parallel subagents and reports them side by side. Use when the user wants to review a branch, a PR, work-in-progress changes, or asks to \"review since X\"."
 ---
 
 Three-axis review of the diff between `HEAD` and a fixed point the user supplies:
 
 - **Standards**: does the code follow this repo's documented coding standards?
 - **Spec**: does the code faithfully implement the originating issue or spec?
-- **Style**: does the diff follow the agent-behavior rules in CLAUDE.md?
+- **Style**: does the diff follow the agent-behavior rules in AGENTS.md or CLAUDE.md?
 
 Each axis runs as its own **parallel subagent**, so none of them sees another's context. This skill then combines their findings.
 
@@ -56,11 +56,11 @@ Each smell below reads *what it is* → *how to fix it*. Match each one against 
 - **Middle Man**: a class or function that mostly delegates onward. → cut it, call the real target directly.
 - **Refused Bequest**: a subclass or implementer that ignores or overrides most of what it inherits. → drop the inheritance, use composition.
 
-### 4. Identify the CLAUDE.md agent-behavior rules
+### 4. Identify the AGENTS.md or CLAUDE.md agent-behavior rules
 
-Look for a `CLAUDE.md` at the repo root, plus any nested `CLAUDE.md` in directories the diff touches.
+For the repo root, and for any directory the diff touches, look for an `AGENTS.md`. Where a directory has none, look for a `CLAUDE.md` there instead. A directory with both uses its `AGENTS.md` and ignores its `CLAUDE.md`.
 
-From each one you find, pull the section that governs how the agent writes or behaves — in this repo that is "Agent behaviors", but another repo may name or shape it differently. If no `CLAUDE.md` exists, or none of them has this kind of content, the **Style** subagent skips its review and reports "no agent-behavior rules documented".
+From each file you find this way, pull the section that governs how the agent writes or behaves — in this repo's `CLAUDE.md` that is "Agent behaviors", but another repo may name or shape it differently. If you find no such file, or none of them has this kind of content, the **Style** subagent skips its review and reports "no agent-behavior rules documented".
 
 ### 5. Spawn all three subagents in parallel
 
@@ -81,7 +81,7 @@ If there is no spec, skip the Spec subagent and say so in the final report.
 Include in the **Style subagent** prompt:
 
 - The diff command and the commit list.
-- The agent-behavior sections you found in step 4, pasted in full, one per source `CLAUDE.md`: the subagent cannot see them otherwise.
+- The agent-behavior sections you found in step 4, pasted in full, one per source file: the subagent cannot see them otherwise.
 - The brief: "Report every place the diff's prose — comments, docs, commit messages, whatever the pasted rules govern — breaks a stated rule. Cite the rule and the file it came from. Each of these rules is explicit and documented, so treat every finding as a violation, not a judgment call. Under 400 words."
 
 If there is no agent-behavior content to check, skip the Style subagent and say so in the final report.
@@ -98,6 +98,6 @@ A change can pass one axis and fail another:
 
 - Code that follows every standard but implements the wrong thing → **Standards pass, Spec fail.**
 - Code that does exactly what the issue asked but breaks the project's conventions → **Spec pass, Standards fail.**
-- Code that passes both but writes a comment CLAUDE.md's agent-behavior rules forbid → **Standards and Spec pass, Style fail.**
+- Code that passes both but writes a comment the repo's agent-behavior rules forbid → **Standards and Spec pass, Style fail.**
 
 Reporting them separately stops one axis from masking another.
