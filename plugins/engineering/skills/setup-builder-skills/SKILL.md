@@ -21,7 +21,7 @@ Read the repo's current state. Check each item; do not assume:
 
 - `git remote -v` and `.git/config`: is this a GitHub repo? Which one?
 - `AGENTS.md` and `CLAUDE.md` at the repo root: does either exist? Does either already have an `## Agent skills` section?
-- `## Agent behaviors` and `### Writing style` in whichever of the two files exists: is a Writing style section already there? Step 2 needs to know.
+- `## Agent behaviors` and `### Writing style`: check `CLAUDE.md` first, then `AGENTS.md` if `CLAUDE.md` does not exist — the same order step 4 uses to pick which file to edit. Is a Writing style section already there? Step 2 needs to know.
 - `CONTEXT.md` and `CONTEXT-MAP.md` at the repo root
 - `docs/adr/` and any `src/*/docs/adr/` directories
 - `docs/agents/`: did an earlier run of this skill already write here?
@@ -62,17 +62,15 @@ Offer **multi-context**, a root `CONTEXT-MAP.md` that points to one `CONTEXT.md`
 
 **Section D: Writing style.** Ask this question for every repo; it does not depend on which other engineering skills are installed.
 
-If exploration found no existing Writing style section, ask exactly one question:
+Ask whether to write the standard template (ASD-STE100 and Orwell) into `## Agent behaviors`. Default to **yes** when exploration found no existing Writing style section:
 
 > Add the standard writing-style rules (ASD-STE100 and Orwell) to this repo's `## Agent behaviors` section? (recommended: **yes**)
 
-If the user answers yes, draft the section from [writing-style.md](references/writing-style.md) in step 3. If the user answers no, skip Section D and write nothing.
-
-If exploration found an existing Writing style section, ask instead:
+Default to **no**, keep the existing one, when exploration found a Writing style section already there:
 
 > This repo already has a Writing style section. Replace it with the standard template? (recommended: **no**, keep the existing one)
 
-If they answer no, skip Section D and leave the existing section untouched. If they answer yes, draft the replacement from [writing-style.md](references/writing-style.md) in step 3.
+A "yes" answer drafts the section, new or replacement, from [writing-style.md](references/writing-style.md) in step 3. A "no" answer skips Section D; anything existing stays untouched.
 
 ### 3. Confirm and edit
 
@@ -116,7 +114,7 @@ The block:
 
 Include the `### Triage labels` sub-block, and write `docs/agents/triage-labels.md`, only when `triage` is installed and Section B ran. If `triage` is not installed, omit both.
 
-**If Section D said to add or replace the Writing style section**, write it into the same file, as its own top-level section, separate from `## Agent skills`:
+**If Section D said to add or replace the Writing style section**, write it into the same file. Give it its own top-level section, separate from `## Agent skills`:
 
 ```markdown
 ## Agent behaviors
@@ -126,7 +124,7 @@ Include the `### Triage labels` sub-block, and write `docs/agents/triage-labels.
 [content of writing-style.md]
 ```
 
-Copy the content from `references/writing-style.md` in full; do not paraphrase it. If `## Agent behaviors` already exists with other subsections, add `### Writing style` to it; do not create a second `## Agent behaviors` heading. If Section D said to keep the user's existing section, write nothing here.
+Copy the content from `references/writing-style.md` in full. Do not paraphrase it. If `## Agent behaviors` already exists with other subsections, add `### Writing style` to it. Do not create a second `## Agent behaviors` heading. If a `### Writing style` subsection already exists, replace its content in place. Do not leave two. If Section D said to keep the user's existing section, write nothing here.
 
 Then write the docs files. Start from the templates in this skill folder:
 
