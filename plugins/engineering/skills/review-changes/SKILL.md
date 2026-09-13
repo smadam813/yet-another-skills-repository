@@ -60,7 +60,7 @@ Each smell below reads *what it is* → *how to fix it*. Match each one against 
 
 For the repo root, and for any directory the diff touches, look for an `AGENTS.md`. Where a directory has none, look for a `CLAUDE.md` there instead. A directory with both uses its `AGENTS.md` and ignores its `CLAUDE.md`.
 
-From each file you find this way, pull the section that governs how the agent writes or behaves — in this repo's `CLAUDE.md` that is "Agent behaviors", but another repo may name or shape it differently. If you find no such file, or none of them has this kind of content, the **Style** subagent skips its review and reports "no agent-behavior rules documented".
+From each file you find this way, pull the section that governs how the agent writes or behaves. This repo's `CLAUDE.md` calls it "Agent behaviors"; another repo may name or shape it differently. If you find no such file, or none of them has this kind of content, the **Style** subagent skips its review and reports "no agent-behavior rules documented".
 
 ### 5. Spawn all three subagents in parallel
 

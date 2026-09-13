@@ -21,7 +21,7 @@ The route most work travels. You have an idea and want it built.
    - **Yes** → **`/to-spec`** turns the thread into a spec, then **`/to-tickets`** splits it into tracer-bullet tickets. Each ticket declares its **blocking edges**. On a local tracker that is one file per ticket under `.scratch/<feature>/issues/`, worked blockers-first by hand. On a real tracker the edges become native blocking links, so you can grab any ticket whose blockers are done. Run **`/implement`** per ticket, and **`/clear` context between each one**. Each ticket is self-contained, so the last one's context is disposable.
    - **No** → run **`/implement`** right here, in the same context window.
 
-   Either way, **`/implement`** builds each issue by driving **`/tdd`** internally, one red-green slice at a time. It then closes out by running **`/review-changes`**, a two-axis review (Standards + Spec) of the diff, before committing. Reach for **`/tdd`** on its own to build one concrete behavior test-first without a full spec, and **`/review-changes`** on its own to review a branch or PR against a fixed point.
+   Either way, **`/implement`** builds each issue by driving **`/tdd`** internally, one red-green slice at a time. It then closes out by running **`/review-changes`**, a three-axis review (Standards + Spec + Style) of the diff, before committing. Reach for **`/tdd`** on its own to build one concrete behavior test-first without a full spec, and **`/review-changes`** on its own to review a branch or PR against a fixed point.
 
 ### Context hygiene
 

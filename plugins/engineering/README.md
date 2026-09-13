@@ -30,7 +30,7 @@ Skills for software engineering workflows.
 - [`resolving-merge-conflicts`](skills/resolving-merge-conflicts/SKILL.md) — resolve an
   in-progress merge or rebase conflict.
 - [`review-changes`](skills/review-changes/SKILL.md) — review changes since a fixed point
-  on two axes: standards and spec.
+  on three axes: standards, spec, and style.
 - [`setup-builder-skills`](skills/setup-builder-skills/SKILL.md) — set up the repo once:
   issue tracker, triage labels, and domain doc layout.
 - [`tdd`](skills/tdd/SKILL.md) — build features test-first, red-green-refactor; fix a bug
