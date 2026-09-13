@@ -15,3 +15,5 @@ Run typechecking and single test files as you go. Run the full test suite once a
 When the work is done, commit to the current branch.
 
 Then run /review-changes, naming the recorded commit as the fixed point and the spec or ticket as the spec source. Commit any fixes it produces.
+
+Then run /code-deslop. Commit any fixes it produces.
