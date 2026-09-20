@@ -77,7 +77,7 @@ function packageArgs(args) {
       continue;
     }
     const a = raw.replace(/^['"]+|['"]+$/g, '');
-    if (!a || a === '.') continue;
+    if (!a || a === '.' || a === '..') continue;
     if (a.startsWith('-')) {
       if (VALUE_FLAGS.has(a)) skipNext = true;
       continue;
@@ -239,6 +239,24 @@ function readNodeDeps(dir) {
 // Line-scan state machine: PEP 621 dependency arrays (which may span lines and
 // contain "]" inside extras like flask[async]) plus poetry dependency tables.
 // Bracket counting survives quoted extras because their brackets are balanced.
+// TOML comments start at a # outside quotes. A quoted name inside the
+// comment is not a declaration, and reading it as one silences the guard
+// for a package nobody installed.
+function stripTomlComment(line) {
+  let quote = null;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (quote) {
+      if (c === quote) quote = null;
+    } else if (c === '"' || c === "'") {
+      quote = c;
+    } else if (c === '#') {
+      return line.slice(0, i);
+    }
+  }
+  return line;
+}
+
 function pyprojectDepNames(text) {
   const names = new Set();
   let section = '';
@@ -268,7 +286,7 @@ function pyprojectDepNames(text) {
         if (arrayDepth < 0) arrayDepth = 0;
         continue;
       }
-      for (const q of line.matchAll(/["']([^"']+)["']/g)) {
+      for (const q of stripTomlComment(line).matchAll(/["']([^"']+)["']/g)) {
         const name = specName(q[1]);
         if (name) names.add(name.toLowerCase());
       }

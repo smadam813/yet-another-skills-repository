@@ -129,6 +129,21 @@ describe('unused-deps: configured ignores', () => {
     assert.strictEqual(eco.ignored, 1);
   });
 
+  test('a knip.jsonc with inline and trailing comments still yields its ignores', () => {
+    const dir = makeNodeWorkspace();
+    fs.writeFileSync(
+      path.join(dir, 'knip.jsonc'),
+      [
+        '{',
+        '  // whole-line comment',
+        '  "entry": ["https://example.com/not-a-comment"], /* block */',
+        '  "ignoreDependencies": ["lodash"] // legacy, keep for now',
+        '}',
+      ].join('\n'),
+    );
+    assert.deepStrictEqual([...configuredIgnores(dir)], ['lodash']);
+  });
+
   test('the ignore list is also read from package.json', () => {
     const dir = makeNodeWorkspace();
     const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8'));

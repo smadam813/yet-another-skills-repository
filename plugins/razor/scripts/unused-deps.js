@@ -139,6 +139,31 @@ function nodeToolchainReason(dep, devDeps) {
   return null;
 }
 
+// JSONC allows // and /* */ comments anywhere outside a string. A URL in a
+// string holds a //, so the scan tracks quotes rather than matching lines.
+function stripJsonComments(text) {
+  let out = '';
+  let i = 0;
+  while (i < text.length) {
+    const c = text[i];
+    if (c === '"') {
+      let j = i + 1;
+      while (j < text.length && text[j] !== '"') j += text[j] === '\\' ? 2 : 1;
+      out += text.slice(i, j + 1);
+      i = j + 1;
+    } else if (c === '/' && text[i + 1] === '/') {
+      while (i < text.length && text[i] !== '\n') i++;
+    } else if (c === '/' && text[i + 1] === '*') {
+      const end = text.indexOf('*/', i + 2);
+      i = end === -1 ? text.length : end + 2;
+    } else {
+      out += c;
+      i++;
+    }
+  }
+  return out;
+}
+
 // Dependencies the project has already declared it does not want audited.
 // Reads the resolver's own ignore list rather than inventing a razor-specific
 // config file — a project that already answered this question answered it.
@@ -151,8 +176,8 @@ function configuredIgnores(projectDir) {
   if (pkg && pkg.knip) take(pkg.knip.ignoreDependencies);
   for (const name of ['knip.json', 'knip.jsonc', '.knip.json']) {
     try {
-      const raw = fs.readFileSync(path.join(projectDir, name), 'utf-8').replace(/^\s*\/\/[^\n]*$/gm, '');
-      take(JSON.parse(raw).ignoreDependencies);
+      const raw = fs.readFileSync(path.join(projectDir, name), 'utf-8');
+      take(JSON.parse(stripJsonComments(raw)).ignoreDependencies);
     } catch {
       /* absent or unparseable — no ignores from it */
     }

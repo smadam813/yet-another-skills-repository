@@ -223,6 +223,8 @@ describe('locations, flag values, and self-upgrades are not dependencies', () =>
   const cases = [
     ['npm install ./local-lib', 'a relative path'],
     ['npm install ../sibling', 'a parent-relative path'],
+    ['pip install ..', 'the bare parent directory'],
+    ['npm install .', 'the bare current directory'],
     ['npm install file:../lib', 'a file: spec'],
     ['npm install https://example.com/pkg.tgz', 'a URL archive'],
     ['go get ./...', "go's own package wildcard"],
@@ -272,5 +274,25 @@ describe('PowerShell is gated exactly like Bash', () => {
       tool_input: { command: 'Get-ChildItem -Recurse' },
     });
     assert.strictEqual(r.stdout.trim(), '');
+  });
+});
+
+describe('unit: pyproject comments', () => {
+  const { pyprojectDepNames } = require('../hooks/dep-guard');
+
+  test('a quoted word inside a trailing comment is not a declared dependency', () => {
+    const toml = [
+      '[project]',
+      'dependencies = [',
+      '  "flask>=2.0",  # replaces "django" from the old app',
+      '  "requests", # see "urllib3" notes',
+      ']',
+    ].join('\n');
+    assert.deepStrictEqual([...pyprojectDepNames(toml)].sort(), ['flask', 'requests']);
+  });
+
+  test('a # inside a quoted spec is not a comment', () => {
+    const toml = '[project]\ndependencies = ["pkg @ git+https://x/y.git#egg=pkg"]\n';
+    assert.deepStrictEqual([...pyprojectDepNames(toml)], ['pkg']);
   });
 });

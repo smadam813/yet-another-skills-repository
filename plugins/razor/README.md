@@ -50,6 +50,9 @@ Razor is a vendored copy of [V-Songbird/razor](https://github.com/V-Songbird/raz
 - The description no longer names a host, so both marketplaces can carry it.
 - A `.cursor-plugin/plugin.json` is added.
 - The `unused` skill body loses its opening H1 and gains a blank line before a list, to pass the checker and the linter.
+- The `unused` skill quotes its `description` because the value contains a colon.
+- `hooks/dep-guard.js` skips a bare `..` install argument as a location, and strips a TOML `#` comment before it reads quoted names from a pyproject dependency array.
+- `scripts/unused-deps.js` strips `//` and `/* */` comments outside strings before it parses a knip config file.
 - This README replaces the upstream one.
 
 To pull a newer release, see the vendored plugins section of the repo [CLAUDE.md](../../CLAUDE.md).
