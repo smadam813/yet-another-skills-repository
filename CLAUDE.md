@@ -6,7 +6,7 @@
 
 Applies to all prose the agent writes: responses, commit messages, PR descriptions, issue comments, and docs. Quoted Oracle text, rules text, and API contracts keep their original wording. Lead with the answer, keep caveats short, and give a summary unless asked for depth.
 
-Follow ASD-STE100 (Simplified Technical English):
+Follow ASD-STE100 (Simplified Technical English). STE has writing rules and a controlled dictionary. Use an approved word with its approved meaning when the dictionary is available. Do not claim strict STE conformance without checking the current ASD-STE100 issue and dictionary.
 
 - Write one instruction per sentence. Keep instructions under 20 words and descriptions under 25.
 - Use the active voice and the present tense. Write instructions as commands.
@@ -17,18 +17,20 @@ Follow ASD-STE100 (Simplified Technical English):
 
 Follow Orwell's six rules:
 
-1. Never use a figure of speech you are used to seeing in print.
+1. Never use a metaphor, simile, or other figure of speech which you are used to seeing in print.
 2. Never use a long word where a short one will do.
-3. If it is possible to cut a word out, cut it out.
+3. If it is possible to cut a word out, always cut it out.
 4. Never use the passive where you can use the active.
-5. Never use a foreign phrase, a scientific word, or jargon if there is an everyday English equivalent.
+5. Never use a foreign phrase, a scientific word, or a jargon word if you can think of an everyday English equivalent.
 6. Break any of these rules sooner than say anything outright barbarous.
+
+Documents written for agents (a SKILL.md, `AGENTS.md`, `CLAUDE.md`) may use a leading word, a figure of speech such as "fog of war", on purpose, because the model already knows what it means. Treat it as a rule 6 exception to rule 1 and to the STE ban on figurative language. Keep it. Do not flatten it to plain English when you draft or revise.
 
 ## What this repo is
 
 A plugin marketplace of agent skills. Claude Code and Cursor both install the skills from the same directories.
 
-The content is Markdown. The repo holds no application code, no `package.json`, and no test suite. The marketplace checker is the only program in it.
+Most of the content is Markdown. The repo has no `package.json`. The marketplace checker and the hook code in the vendored plugins are the only programs in it.
 
 ## Validate
 
@@ -39,6 +41,14 @@ node scripts/check-marketplace.mjs
 The checker runs on plain Node and needs no dependencies. `.github/workflows/validate.yml` runs the same command on every push and pull request, and its `validate` job is the required status check on `main`. Run the checker after you change a manifest, a skill directory name, a SKILL.md frontmatter block, or a plugin README.
 
 Lint Markdown with `npx markdownlint-cli2` (rules in `.markdownlint.jsonc`). CI runs it as the `lint` job, which advises and does not gate the merge.
+
+Run a vendored plugin's tests from its directory after you change its hooks:
+
+```
+node --test tests/*.test.js
+```
+
+CI runs them as the `test` job on Ubuntu and Windows with Node 22. `.gitattributes` forces LF on checkout because the tests compare hook output against golden files byte for byte.
 
 ## Packaging for both tools
 
@@ -64,6 +74,17 @@ Bump a plugin's version in the same PR that changes its skills, as a separate co
 - Keep skill names unique across plugins. The checker only warns about a repeated name, because Claude Code gives each plugin its own namespace. Cursor does not, so one skill there hides the other.
 - Link the skill from `plugins/<plugin>/README.md` in alphabetical order. Nothing generates that index, and the checker errors on a skill directory the README does not link.
 - Put supporting material beside the SKILL.md: `references/` for Markdown that a pointer reaches, `scripts/` for templates the skill copies.
+
+## Vendored plugins
+
+`plugins/razor` is a copy of an upstream plugin. Its README names the upstream repo, the commit it was copied from, and every change this repo made. The skills, hooks, manifests, and version stay as upstream wrote them, apart from the listed changes. Repo conventions apply only to the files this repo adds: the README, the Cursor manifest, and the marketplace entries.
+
+To pull a newer release:
+
+1. Clone the upstream repo at the release tag.
+2. Copy the tracked files over the plugin directory.
+3. Reapply the changes the README lists, and update the commit it names.
+4. Run the tests and the checker.
 
 ## Invocation choice
 

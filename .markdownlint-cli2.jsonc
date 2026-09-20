@@ -1,4 +1,11 @@
 {
   "globs": ["**/*.md"],
-  "ignores": ["node_modules/**", ".claude/worktrees/**"]
+  "ignores": [
+    "node_modules/**",
+    ".claude/worktrees/**",
+    // Upstream prose in the vendored plugins keeps its own style.
+    "plugins/razor/docs/**",
+    "plugins/razor/CHANGELOG.md",
+    "plugins/razor/tests/**"
+  ]
 }

@@ -1,0 +1,4 @@
+# Every text file checks out with LF. The vendored plugin tests compare
+# emitted bytes against golden files and fail on a CRLF checkout.
+* text=auto eol=lf
+*.png binary

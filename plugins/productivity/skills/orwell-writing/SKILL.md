@@ -18,7 +18,7 @@ Remember these rules from "Politics and the English Language":
 5. Never use a foreign phrase, a scientific word, or a jargon word if you can think of an everyday English equivalent.
 6. Break any of these rules sooner than say anything outright barbarous.
 
-In documents written for agents (a SKILL.md, `AGENTS.md`, `CLAUDE.md`), a deliberate **leading word** — a pretrained figure of speech such as "fog of war" that the document uses on purpose — is a sanctioned rule 6 break of rule 1, and the same sanction exempts it from baseline rule 4's ban on figurative language. Keep it; do not flatten it to plain English in either pass.
+Documents written for agents (a SKILL.md, `AGENTS.md`, `CLAUDE.md`) may use a leading word, a figure of speech such as "fog of war", on purpose, because the model already knows what it means. Treat it as a rule 6 exception to rule 1 and to the STE ban on figurative language. Keep it. Do not flatten it to plain English when you draft or revise.
 
 ## ASD-STE100 baseline
 
