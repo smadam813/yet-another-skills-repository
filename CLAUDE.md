@@ -4,7 +4,7 @@
 
 ### Writing style
 
-Applies to all prose the agent writes: responses, commit messages, PR descriptions, issue comments, and docs. Quoted Oracle text, rules text, and API contracts keep their original wording. Lead with the answer, keep caveats short, and give a summary unless asked for depth.
+Applies to all prose the agent writes: responses, commit messages, PR descriptions, issue comments, and docs. Quoted rules text, API contracts, and other authoritative sources keep their original wording. Lead with the answer, keep caveats short, and give a summary unless asked for depth.
 
 Follow ASD-STE100 (Simplified Technical English). STE has writing rules and a controlled dictionary. Use an approved word with its approved meaning when the dictionary is available. Do not claim strict STE conformance without checking the current ASD-STE100 issue and dictionary.
 
@@ -25,6 +25,20 @@ Follow Orwell's six rules:
 6. Break any of these rules sooner than say anything outright barbarous.
 
 Documents written for agents (a SKILL.md, `AGENTS.md`, `CLAUDE.md`) may use a leading word, a figure of speech such as "fog of war", on purpose, because the model already knows what it means. Treat it as a rule 6 exception to rule 1 and to the STE ban on figurative language. Keep it. Do not flatten it to plain English when you draft or revise.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in this repo's GitHub Issues. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Uses the default five triage role names as label strings. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `CONTEXT.md` and one `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
 ## What this repo is
 
