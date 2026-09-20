@@ -260,9 +260,9 @@ function reactSeen(sessionId, n) {
     try {
       seen = Number(fs.readFileSync(file, 'utf8')) || 0;
     } catch {
-      seen = 0;
+      /* no counter yet: the turn starts at zero */
     }
-    if (!(n > seen)) return false;
+    if (n <= seen) return false;
     safeWriteFileSync(file, String(n));
     return true;
   } catch {
