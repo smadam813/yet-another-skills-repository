@@ -54,8 +54,4 @@ describe('settingsFromEnv', () => {
       assert.strictEqual(settingsFromEnv({ [name]: 'on' })[key], true, `${name}=on`);
     }
   });
-
-  test('a missing environment reads as empty', () => {
-    assert.deepStrictEqual(settingsFromEnv(undefined), settingsFromEnv({}));
-  });
 });

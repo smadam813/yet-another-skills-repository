@@ -42,7 +42,7 @@ function intEnv(env, name, fallback) {
 // Caps are in lines. Passing output is mostly noise (install trees, progress
 // logs); failing output is evidence, so it keeps ~4x more. The sidecar bounds
 // are in characters: see maybeSidecar for what each one guards.
-function settingsFromEnv(env = {}) {
+function settingsFromEnv(env) {
   return Object.freeze({
     capPass: intEnv(env, "HUSH_CAP_PASS", 60),
     capFail: intEnv(env, "HUSH_CAP_FAIL", 250),
@@ -58,7 +58,7 @@ function settingsFromEnv(env = {}) {
 
 // A transform whose caller passes no settings runs under the defaults, not
 // the environment. Only main() reads the environment.
-const DEFAULT_SETTINGS = settingsFromEnv();
+const DEFAULT_SETTINGS = settingsFromEnv({});
 
 // eslint-disable-next-line no-control-regex
 const ANSI_RE = /\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*(?:\x07|\x1b\\)/g;
