@@ -428,8 +428,7 @@ describe('template collapse: the view states its own recovery', () => {
   });
 });
 
-// The trailer suite proper is tests/exit_trailer.test.js. These cases stay
-// here as the transform's view of decode.
+// The full decode suite is tests/exit_trailer.test.js.
 describe('unit: decode', () => {
   test('extracts the exit code and strips the trailer from the end', () => {
     const text = 'line one\nline two\n[[hush:exit=1]]';
