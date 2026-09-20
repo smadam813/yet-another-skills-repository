@@ -979,12 +979,10 @@ function compress(text, exitCode, isDump, enumerate, relevanceTokens, scale, ses
 // original there would leak `[[hush:exit=N]]` into the model's context raw,
 // which is the single thing lib/exit-trailer.js's decode exists to prevent.
 //
-// The exemption keys on hasTrailer, not on the `[[hush:exit=` prefix. The
-// host truncates raw output around 29KB and can cut a real trailer in two,
-// and hush's own source or docs dumped to stdout carry the bare prefix as
-// literal text. In both cases decode removes nothing. An exemption there
-// would ship a larger rewrite and still leave the prefix in front of the
-// model.
+// The exemption keys on hasTrailer, not on the bare prefix. hasTrailer's
+// comment in lib/exit-trailer.js says why. Where decode removes nothing, an
+// exemption would ship a larger rewrite and still leave the prefix in front
+// of the model.
 function mustSanitize(response) {
   if (typeof response === "string") return hasTrailer(response);
   if (response && typeof response === "object") {

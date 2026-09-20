@@ -3,6 +3,14 @@
 All notable changes to hush are documented here. The version number lives in
 `.claude-plugin/plugin.json`.
 
+## 1.12.2 — 2026-09-20
+
+One module, `hooks/lib/exit-trailer.js`, now owns the exit trailer that
+keeps a command's real exit code through hush's forced zero exit. The
+PreToolUse hook asks it for the shell statements and the PostToolUse hook
+asks it to decode the result. A new test suite runs the statements through
+the decoder. Nothing the model sees changed.
+
 ## 1.12.1 — 2026-09-15
 
 hush no longer leaves a marker file in the system temporary folder when a

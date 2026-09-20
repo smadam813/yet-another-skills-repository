@@ -67,9 +67,12 @@ function decode(text) {
 }
 
 // True when the text holds a trailer that decode strips. The bare prefix is
-// not enough. The host truncates raw output around 29KB and can cut a
-// trailer in two, and hush's own source dumped to stdout holds the prefix as
-// literal text. In both cases decode strips nothing.
+// not enough, for two reasons. The host truncates raw output around 29KB
+// and can cut a trailer in two. hush's own source or docs dumped to stdout
+// hold the prefix as literal text. In both cases decode strips nothing, so a
+// caller that exempts such text from a size check on the prefix alone gets
+// the larger text and the prefix both. This is the one place that reasoning
+// lives; compress-tool-output.js's mustSanitize points here.
 function hasTrailer(text) {
   return typeof text === "string" && PRESENT_RE.test(text);
 }

@@ -4,7 +4,7 @@ const { test, describe } = require('node:test');
 const assert = require('node:assert');
 const { runHook, hookOutput } = require('./helpers');
 const { wrapPowerShell, wrapBash, alreadyWrapped, shouldSkip } = require('../hooks/preserve-exit-code');
-const { PREFIX } = require('../hooks/lib/exit-trailer');
+const { PREFIX, decode } = require('../hooks/lib/exit-trailer');
 
 // shouldSkip / end-to-end payloads: wrapping only happens in sessions where
 // the permission engine never evaluates the rewritten command (see the gate
@@ -257,14 +257,14 @@ describe('hook: end to end', () => {
 
 // String assertions cannot tell a trailer that records the RIGHT exit code
 // from one that silently records a wrong one, so these run the wrapped command
-// through a real shell and read the marker back. Skipped where there is no
+// through a real shell and decode the trailer. Skipped where there is no
 // bash to run them in.
 const { spawnSync } = require('child_process');
 const path = require('path');
 
-function markerOf(stdout) {
-  const m = /\[\[hush:exit=\s*(-?\d+)\s*\]\]/.exec((stdout || '').replace(/\r/g, ''));
-  return m ? Number(m[1]) : null;
+function trailerCode(stdout) {
+  const r = decode(stdout);
+  return r ? r.exitCode : null;
 }
 
 // `bash` on PATH is not necessarily a shell that can run the wrapper: on
@@ -282,7 +282,7 @@ function findBash() {
   }
   for (const bin of candidates) {
     const r = spawnSync(bin, ['-c', wrapBash('echo canary')], { encoding: 'utf-8' });
-    if (!r.error && markerOf(r.stdout) === 0 && /canary/.test(r.stdout || '')) return bin;
+    if (!r.error && trailerCode(r.stdout) === 0 && /canary/.test(r.stdout || '')) return bin;
   }
   return null;
 }
@@ -290,44 +290,44 @@ const BASH = findBash();
 
 function recordedExit(command) {
   const r = spawnSync(BASH, ['-c', wrapBash(command)], { encoding: 'utf-8' });
-  return { marker: markerOf(r.stdout), toolExit: r.status };
+  return { trailer: trailerCode(r.stdout), toolExit: r.status };
 }
 
 describe('shell conformance: what the wrapper actually records', { skip: BASH ? false : 'no POSIX shell available here' }, () => {
   test('a failing final command is recorded, and the tool call still succeeds', () => {
-    assert.deepStrictEqual(recordedExit('echo hi\nfalse'), { marker: 1, toolExit: 0 });
+    assert.deepStrictEqual(recordedExit('echo hi\nfalse'), { trailer: 1, toolExit: 0 });
   });
 
   test('a trailing subshell exit is recorded, not swallowed', () => {
-    assert.deepStrictEqual(recordedExit('echo hi\n( exit 5 )'), { marker: 5, toolExit: 0 });
-    assert.deepStrictEqual(recordedExit('echo hi; ( exit 5 )'), { marker: 5, toolExit: 0 });
+    assert.deepStrictEqual(recordedExit('echo hi\n( exit 5 )'), { trailer: 5, toolExit: 0 });
+    assert.deepStrictEqual(recordedExit('echo hi; ( exit 5 )'), { trailer: 5, toolExit: 0 });
   });
 
-  test('an ERR trap runs and the failing code still lands in the marker', () => {
-    assert.deepStrictEqual(recordedExit("trap 'echo trapped' ERR\necho hi\nfalse"), { marker: 1, toolExit: 0 });
+  test('an ERR trap runs and the failing code still lands in the trailer', () => {
+    assert.deepStrictEqual(recordedExit("trap 'echo trapped' ERR\necho hi\nfalse"), { trailer: 1, toolExit: 0 });
   });
 
   test('a signal death arrives as 128+N', () => {
-    assert.deepStrictEqual(recordedExit("echo hi\nbash -c 'kill -9 $$'"), { marker: 137, toolExit: 0 });
-    assert.deepStrictEqual(recordedExit("echo hi\nbash -c 'kill -15 $$'"), { marker: 143, toolExit: 0 });
+    assert.deepStrictEqual(recordedExit("echo hi\nbash -c 'kill -9 $$'"), { trailer: 137, toolExit: 0 });
+    assert.deepStrictEqual(recordedExit("echo hi\nbash -c 'kill -15 $$'"), { trailer: 143, toolExit: 0 });
   });
 
   // A masked pipeline is the shell's own semantics, not the wrapper's: without
   // `set -o pipefail`, `$?` is the LAST element's status. Preserving native
   // semantics means reporting what the shell reports.
   test('a masked pipeline reports what the shell reports', () => {
-    assert.deepStrictEqual(recordedExit('echo hi\nfalse | true'), { marker: 0, toolExit: 0 });
+    assert.deepStrictEqual(recordedExit('echo hi\nfalse | true'), { trailer: 0, toolExit: 0 });
   });
 
   // The two shapes the trailer cannot observe: both end the shell before it
-  // runs. Neither invents a code — no marker at all, and the non-zero status
+  // runs. Neither invents a code — no trailer at all, and the non-zero status
   // reaches Claude Code as a tool failure (which hush's PostToolUse hook never
   // sees), so the failure output arrives whole instead of wrongly labelled.
-  test('an explicit exit ends the shell before the trailer — no marker, non-zero status', () => {
-    assert.deepStrictEqual(recordedExit('echo hi\nexit 5'), { marker: null, toolExit: 5 });
+  test('an explicit exit ends the shell before the trailer — no trailer, non-zero status', () => {
+    assert.deepStrictEqual(recordedExit('echo hi\nexit 5'), { trailer: null, toolExit: 5 });
   });
 
-  test('set -e ends the shell before the trailer — no marker, non-zero status', () => {
-    assert.deepStrictEqual(recordedExit('set -e\necho hi\nfalse\necho unreached'), { marker: null, toolExit: 1 });
+  test('set -e ends the shell before the trailer — no trailer, non-zero status', () => {
+    assert.deepStrictEqual(recordedExit('set -e\necho hi\nfalse\necho unreached'), { trailer: null, toolExit: 1 });
   });
 });
