@@ -41,15 +41,6 @@ node --test tests/*.test.js
 
 The tests need Node 22 or later and run in CI on Ubuntu and Windows.
 
-## Upstream
+## Origin
 
-Hush is a vendored copy of [V-Songbird/hush](https://github.com/V-Songbird/hush) by Victor Villegas, MIT license. This copy comes from upstream commit `6ef6c1c5f7b2ae12793dbf041fa932c88352d393` (version 1.12.1), with these changes:
-
-- Upstream repo files that a plugin does not need are removed: `AGENTS.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `.claude/rules/`, `.github/workflows/test.yml`, and `scripts/git-hooks/`.
-- Both skill bodies lose their opening H1 to pass the checker.
-- The `craft-style` skill quotes its `description` because the value contains a colon.
-- The `craft-style` skill body starts with a comment that disables the MD038 lint rule. Two of its code spans name the H2 heading prefix and keep the trailing space on purpose.
-- The exit-marker regex in `hooks/compress-tool-output.js` admits only whitespace and an optional integer inside the brackets. The upstream pattern matched across lines and deleted text from any source file that names the marker syntax, such as `preserve-exit-code.js`. A test covers the case.
-- This README replaces the upstream one.
-
-To pull a newer release, see the vendored plugins section of the repo [CLAUDE.md](../../CLAUDE.md).
+Hush is a fork of [V-Songbird/hush](https://github.com/V-Songbird/hush) by Victor Villegas, MIT license, taken at upstream commit `6ef6c1c5f7b2ae12793dbf041fa932c88352d393` (version 1.12.1). It is now this repo's own plugin. Upstream fixes are ported by hand. See [ADR-0001](../../docs/adr/0001-fork-hush.md).
