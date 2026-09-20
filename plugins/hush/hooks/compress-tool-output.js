@@ -797,12 +797,7 @@ function containsSecret(text) {
 // secret screen run here, before session scratch is ever asked for a path.
 // Session scratch decides where and how it writes the file.
 function mayPark(content) {
-  if (process.env.HUSH_SIDECAR === "off") return false;
-  try {
-    return !containsSecret(content);
-  } catch {
-    return false;
-  }
+  return process.env.HUSH_SIDECAR !== "off" && !containsSecret(content);
 }
 
 // The elided half of a collapsed match list has nowhere else to live —

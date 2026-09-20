@@ -103,7 +103,7 @@ function listSidecars(sessionId) {
   try {
     names = fs.readdirSync(dir);
   } catch {
-    return [];
+    return []; // no session scratch yet: nothing parked
   }
   return names
     .filter((f) => f.endsWith('.txt'))
