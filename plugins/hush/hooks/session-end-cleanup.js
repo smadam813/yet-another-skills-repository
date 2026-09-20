@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 "use strict";
 
-// SessionEnd hook: sidecar files are session-scoped, so this is where they go.
-// The session's own directory is deleted outright — parked copies, saved.json
-// and the once-per-session note sentinel alike; anything a crashed session
-// left behind is caught by the age-graced sweep, which never touches a
-// directory a live session has written to recently.
+// SessionEnd hook: session scratch is session-scoped, so this is where it
+// goes. The session's own directory is deleted outright, sidecars, running
+// total, note sentinel, react counter and debug manifest alike (see
+// lib/session-scratch.js for the layout). Anything a crashed session left
+// behind is caught by the age-graced sweep, which never touches a directory a
+// live session has written to recently.
 //
 // Deletion happens only at session end, never at compaction: the PreCompact
 // summary hands the model those exact paths, and a within-session compaction

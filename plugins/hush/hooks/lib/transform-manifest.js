@@ -16,11 +16,10 @@
 // gate: recoveryGap is a correctness check on what gets emitted, so it cannot
 // depend on an env var. Only the on-disk manifest append stays behind
 // HUSH_DEBUG=1 — no measured I/O cost check has been run on always-on manifest
-// writing, so persisting stays opt-in.
+// writing, so persisting stays opt-in. Session scratch owns where the
+// manifest lives (see hooks/lib/session-scratch.js).
 
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
+const { appendManifest } = require('./session-scratch');
 
 // The action taxonomy. `lossy` means the view this action produces can leave
 // input lines out of itself, which is exactly the set recoveryGap polices;
@@ -161,46 +160,18 @@ function fieldGap(original, updated) {
   return missing.length ? `rewrite dropped ${missing.length} field(s) the response arrived with: ${missing.join(', ')}` : null;
 }
 
-function debugManifestPath(sessionId) {
-  const safe = String(sessionId || 'unknown').replace(/[^a-zA-Z0-9-]/g, '_');
-  return path.join(os.tmpdir(), `hush-debug-${safe}.jsonl`);
-}
-
-// HUSH_DEBUG=1: append the record as one JSON line to
-// tmpdir/hush-debug-<session_id>.jsonl. "Ran but kept the original" (cap
-// no-op, rejected MCP table, untouched Read) is otherwise invisible to any
-// harness measuring hush — this makes every decision, including the do-nothing
-// ones, observable without changing what any path produces.
+// HUSH_DEBUG=1: append the record as one JSON line to the session's
+// manifest. "Ran but kept the original" (cap no-op, rejected MCP table,
+// untouched Read) is otherwise invisible to any harness measuring hush — this
+// makes every decision, including the do-nothing ones, observable without
+// changing what any path produces.
 function appendRecord(record) {
   if (process.env.HUSH_DEBUG !== '1') return;
-  try {
-    const file = debugManifestPath(record.session);
-    // Same residual defense as claimSessionNote: refuse a pre-planted symlink
-    // at the manifest path before appending to it. The lstat check alone still
-    // leaves a TOCTOU gap between the check and the write — an O_NOFOLLOW open
-    // closes it atomically on the platforms that honor the flag (see
-    // safe-write.js's header for why win32 can't and the lstat check is the
-    // accepted residual there).
-    try {
-      if (fs.lstatSync(file).isSymbolicLink()) return;
-    } catch (e) {
-      if (e.code !== 'ENOENT') return;
-    }
-    const O_NOFOLLOW = typeof fs.constants.O_NOFOLLOW === 'number' ? fs.constants.O_NOFOLLOW : 0;
-    const fd = fs.openSync(file, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_APPEND | O_NOFOLLOW, 0o600);
-    try {
-      fs.writeSync(fd, JSON.stringify(record) + '\n');
-    } finally {
-      fs.closeSync(fd);
-    }
-  } catch {
-    /* fail-open: the manifest file is best-effort observability, never a
-       reason to alter or block the actual compression decision. */
-  }
+  appendManifest(record.session, record);
 }
 
 module.exports = {
   combineActions, buildRecord,
   recoveryGap, sizeGap, fieldGap,
-  debugManifestPath, appendRecord,
+  appendRecord,
 };

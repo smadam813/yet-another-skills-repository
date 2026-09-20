@@ -19,6 +19,21 @@ const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
 
+// Throws when a symlink sits at `target`, or when lstat fails for any reason
+// other than the file not existing. Every hush write that does not go through
+// safeWriteFileSync (the note sentinel's wx claim, the manifest append) runs
+// this first, so the refusal is written once. The lstat check alone leaves a
+// TOCTOU gap between the check and the write; an O_NOFOLLOW open closes it on
+// the platforms that honor the flag, and on win32 this is the accepted
+// residual defense (see the header).
+function refuseSymlink(target) {
+  try {
+    if (fs.lstatSync(target).isSymbolicLink()) throw new Error('safe-write: target is a symlink');
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e;
+  }
+}
+
 function safeWriteFileSync(target, content) {
   const dir = path.dirname(target);
   fs.mkdirSync(dir, { recursive: true });
@@ -60,11 +75,7 @@ function safeWriteFileSync(target, content) {
   }
 
   const realTarget = path.join(realDir, path.basename(target));
-  try {
-    if (fs.lstatSync(realTarget).isSymbolicLink()) throw new Error('safe-write: target is a symlink');
-  } catch (e) {
-    if (e.code !== 'ENOENT') throw e;
-  }
+  refuseSymlink(realTarget);
 
   const tmpPath = path.join(realDir, `.${path.basename(target)}.${process.pid}.${crypto.randomBytes(4).toString('hex')}.tmp`);
   const O_NOFOLLOW = typeof fs.constants.O_NOFOLLOW === 'number' ? fs.constants.O_NOFOLLOW : 0;
@@ -91,4 +102,4 @@ function safeWriteFileSync(target, content) {
   }
 }
 
-module.exports = { safeWriteFileSync };
+module.exports = { safeWriteFileSync, refuseSymlink };

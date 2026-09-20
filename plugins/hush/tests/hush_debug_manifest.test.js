@@ -1,8 +1,8 @@
 'use strict';
 
 // HUSH_DEBUG=1 decision manifest. One JSON line per handled
-// tool output — including every do-nothing path — appended to
-// tmpdir/hush-debug-<session_id>.jsonl. Never emitted without the env gate;
+// tool output — including every do-nothing path — appended to manifest.jsonl
+// in the session's scratch directory. Never emitted without the env gate;
 // never changes what any compression path actually produces (see the
 // `decision` side-channel comments in compress-tool-output.js).
 
@@ -12,9 +12,9 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { runHook, hookOutput } = require('./helpers');
-const { debugManifestPath, deliver } = require('../hooks/compress-tool-output');
+const { deliver } = require('../hooks/compress-tool-output');
 const { buildRecord, recoveryGap } = require('../hooks/lib/transform-manifest');
-const { sessionDir } = require('../hooks/lib/session-scratch');
+const { manifestPath, removeSession } = require('../hooks/lib/session-scratch');
 
 const sids = [];
 function sid(label) {
@@ -22,18 +22,15 @@ function sid(label) {
   sids.push(id);
   return id;
 }
-// Every test session takes its manifest file AND its sidecar directory with
-// it: a sidecar-writing test that leaves the file behind grows tmpdir on every
-// run of the suite.
+// The manifest lives in session scratch, so removing the session takes it
+// with the sidecars: a test that left either behind would grow tmpdir on
+// every run of the suite.
 after(() => {
-  for (const id of sids) {
-    fs.rmSync(debugManifestPath(id), { force: true });
-    fs.rmSync(sessionDir(id), { recursive: true, force: true });
-  }
+  for (const id of sids) removeSession(id);
 });
 
 function readManifest(sessionId) {
-  const file = debugManifestPath(sessionId);
+  const file = manifestPath(sessionId);
   if (!fs.existsSync(file)) return [];
   return fs.readFileSync(file, 'utf-8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l));
 }
@@ -47,13 +44,13 @@ describe('HUSH_DEBUG manifest: gate', () => {
     // HUSH_DEBUG=1 in the developer's shell would otherwise turn this gate
     // test into a false failure.
     runHook('compress-tool-output.js', { tool_name: 'Bash', session_id: id, tool_response: uniqueLines(300) }, { HUSH_DEBUG: '0' });
-    assert.strictEqual(fs.existsSync(debugManifestPath(id)), false);
+    assert.strictEqual(fs.existsSync(manifestPath(id)), false);
   });
 
   test('HUSH_DEBUG=0 (or anything but "1") still stays off', () => {
     const id = sid('gate-zero');
     runHook('compress-tool-output.js', { tool_name: 'Bash', session_id: id, tool_response: uniqueLines(300) }, { HUSH_DEBUG: '0' });
-    assert.strictEqual(fs.existsSync(debugManifestPath(id)), false);
+    assert.strictEqual(fs.existsSync(manifestPath(id)), false);
   });
 
   test('unwatched, unhandled tools never get a line, even with the gate on', () => {
@@ -65,7 +62,7 @@ describe('HUSH_DEBUG manifest: gate', () => {
   test('HUSH_DISABLE=1 suppresses the manifest too — nothing was handled', () => {
     const id = sid('gate-disabled');
     runHook('compress-tool-output.js', { tool_name: 'Bash', session_id: id, tool_response: uniqueLines(300) }, { HUSH_DEBUG: '1', HUSH_DISABLE: '1' });
-    assert.strictEqual(fs.existsSync(debugManifestPath(id)), false);
+    assert.strictEqual(fs.existsSync(manifestPath(id)), false);
   });
 });
 
@@ -555,7 +552,7 @@ describe('transform manifest: the recovery boundary', () => {
       if (prevDebug !== undefined) process.env.HUSH_DEBUG = prevDebug;
     }
     assert.deepStrictEqual(writes, [], 'the boundary still holds without HUSH_DEBUG');
-    assert.strictEqual(fs.existsSync(debugManifestPath(id)), false, 'and nothing was persisted');
+    assert.strictEqual(fs.existsSync(manifestPath(id)), false, 'and nothing was persisted');
   });
 });
 
