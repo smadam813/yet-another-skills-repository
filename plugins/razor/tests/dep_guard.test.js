@@ -6,7 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { runHook, hookOutput, freshSession } = require('./helpers');
-const { parseInstallCommand, parseInstallCommands, check, depKey, packageName } = require('../hooks/dep-guard');
+const { parseInstallCommand, parseInstallCommands, check, depKey, packageName, pyprojectDepNames } = require('../hooks/dep-guard');
 const { readState } = require('../hooks/razor-lib');
 
 // A chained command used to be checkpointed for its first install alone, and
@@ -278,8 +278,6 @@ describe('PowerShell is gated exactly like Bash', () => {
 });
 
 describe('unit: pyproject comments', () => {
-  const { pyprojectDepNames } = require('../hooks/dep-guard');
-
   test('a quoted word inside a trailing comment is not a declared dependency', () => {
     const toml = [
       '[project]',

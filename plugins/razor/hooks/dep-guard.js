@@ -236,9 +236,6 @@ function readNodeDeps(dir) {
 // below so the manifest guard can judge an edit by the file it would produce,
 // exactly as it already does for package.json and requirements.txt.
 //
-// Line-scan state machine: PEP 621 dependency arrays (which may span lines and
-// contain "]" inside extras like flask[async]) plus poetry dependency tables.
-// Bracket counting survives quoted extras because their brackets are balanced.
 // TOML comments start at a # outside quotes. A quoted name inside the
 // comment is not a declaration, and reading it as one silences the guard
 // for a package nobody installed.
@@ -257,6 +254,9 @@ function stripTomlComment(line) {
   return line;
 }
 
+// Line-scan state machine: PEP 621 dependency arrays (which may span lines and
+// contain "]" inside extras like flask[async]) plus poetry dependency tables.
+// Bracket counting survives quoted extras because their brackets are balanced.
 function pyprojectDepNames(text) {
   const names = new Set();
   let section = '';
