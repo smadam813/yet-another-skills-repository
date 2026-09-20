@@ -25,7 +25,7 @@ describe('unit: wrapping', () => {
   // explicit Format-Table/Out-* defers rendering to PowerShell's implicit
   // end-of-pipeline formatter, and the wrapper's trailing `exit 0` killed the
   // process before that deferred formatter ever flushed — silently
-  // swallowing ALL of the command's output, not just the marker. Out-String
+  // swallowing ALL of the command's output, not just the trailer. Out-String
   // forces synchronous, complete rendering before the next statement runs.
   test('wraps a Select-Object-terminated command (the exact shape that lost output) through Out-String', () => {
     const out = wrapPowerShell('Get-ChildItem -Force | Select-Object Name, LastWriteTime');
@@ -65,7 +65,7 @@ describe('unit: wrapping', () => {
     assert.match(out, /\nexit 0$/);
   });
 
-  test('alreadyWrapped detects the marker prefix', () => {
+  test('alreadyWrapped detects the trailer prefix', () => {
     assert.ok(alreadyWrapped(`echo hi\n${PREFIX}0]]`));
     assert.strictEqual(alreadyWrapped('echo hi'), false);
     assert.strictEqual(alreadyWrapped(undefined), false);

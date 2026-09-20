@@ -431,7 +431,7 @@ describe('template collapse: the view states its own recovery', () => {
 // The trailer suite proper is tests/exit_trailer.test.js. These cases stay
 // here as the transform's view of decode.
 describe('unit: decode', () => {
-  test('extracts the exit code and strips the marker from the end', () => {
+  test('extracts the exit code and strips the trailer from the end', () => {
     const text = 'line one\nline two\n[[hush:exit=1]]';
     const r = decode(text);
     assert.strictEqual(r.exitCode, 1);
@@ -444,35 +444,35 @@ describe('unit: decode', () => {
     assert.strictEqual(r.cleanText, 'all good');
   });
 
-  test('returns null when no marker is present', () => {
-    assert.strictEqual(decode('plain output, no marker'), null);
+  test('returns null when no trailer is present', () => {
+    assert.strictEqual(decode('plain output, no trailer'), null);
   });
 
-  // A malformed marker (PowerShell only sets $LASTEXITCODE for a native exe;
+  // A malformed trailer (PowerShell only sets $LASTEXITCODE for a native exe;
   // a pure-cmdlet command leaves it null/stale) must still be stripped from
-  // what the model sees — a raw `[[hush:exit=` marker leaked verbatim because
+  // what the model sees — a raw `[[hush:exit=` trailer leaked verbatim because
   // the old code treated "no digits captured" as "nothing to do here."
-  test('strips a malformed/empty marker even though no reliable exit code exists', () => {
+  test('strips a malformed/empty trailer even though no reliable exit code exists', () => {
     const r = decode('output\n[[hush:exit=]]');
     assert.strictEqual(r.exitCode, null);
     assert.strictEqual(r.cleanText, 'output');
   });
 
-  test('strips EVERY marker occurrence, using the last well-formed one as authoritative', () => {
+  test('strips EVERY trailer occurrence, using the last well-formed one as authoritative', () => {
     const text = 'saw a stray [[hush:exit=99]] in some log line\nreal output\n[[hush:exit=1]]';
     const r = decode(text);
     assert.strictEqual(r.exitCode, 1);
-    assert.doesNotMatch(r.cleanText, /\[\[hush:exit=/, 'no raw marker of any kind should ever reach the model');
+    assert.doesNotMatch(r.cleanText, /\[\[hush:exit=/, 'no raw trailer of any kind should ever reach the model');
     assert.strictEqual(r.cleanText, 'saw a stray  in some log line\nreal output');
   });
 
   // Confirmed real scenario:
   // Claude Code's own "output too large, persisted to a sidecar file"
   // mechanism captured RAW pre-hook output including an already-well-formed
-  // marker; a later `Get-Content -Tail` on that file got wrapped AGAIN by
+  // trailer; a later `Get-Content -Tail` on that file got wrapped AGAIN by
   // this hook, and since that second wrap was a pure cmdlet call (no native
-  // exe), it appended a malformed marker on top of the first, well-formed one.
-  test('a double-wrapped result (well-formed marker + malformed marker) keeps the well-formed exit code and strips both', () => {
+  // exe), it appended a malformed trailer on top of the first, well-formed one.
+  test('a double-wrapped result (well-formed trailer + malformed trailer) keeps the well-formed exit code and strips both', () => {
     const text = 'line one\nline two\n[[hush:exit=1]]\n[[hush:exit=\n]]';
     const r = decode(text);
     assert.strictEqual(r.exitCode, 1);
@@ -483,11 +483,11 @@ describe('unit: decode', () => {
     assert.strictEqual(decode(undefined), null);
   });
 
-  // hush's own source carries the marker syntax as literal text: the prefix
+  // hush's own source carries the trailer syntax as literal text: the prefix
   // and suffix constants sit on adjacent lines. A body that admitted anything
   // but a bracket matched from the prefix across the newline to the suffix
   // and deleted the whole SUFFIX declaration.
-  test('leaves literal marker syntax in source text alone', () => {
+  test('leaves literal trailer syntax in source text alone', () => {
     const src = fs.readFileSync(path.join(__dirname, '..', 'hooks', 'lib', 'exit-trailer.js'), 'utf8');
     const r = decode(src);
     assert.strictEqual(r.exitCode, null);
@@ -606,17 +606,17 @@ describe('hook: end to end', () => {
   // wrapped to report success — without the wrapper, Claude Code would have
   // routed this through PostToolUseFailure and this hook would never see it
   // at all (see preserve-exit-code.js's header for the full story).
-  test('a wrapped FAILING command gets the generous cap and an authoritative exit marker', () => {
+  test('a wrapped FAILING command gets the generous cap and an authoritative exit trailer', () => {
     const testLines = Array.from({ length: 320 }, (_, i) =>
       i % 8 === 0 ? `not ok ${i} - some subtest failed` : `ok ${i} - some subtest`
     );
     const raw = testLines.join('\n') + '\n[[hush:exit=1]]';
     // The repeated "ok N - some subtest" shape would otherwise template-
-    // collapse; pin it off so this stays a pure exit-marker/cap-generosity test.
+    // collapse; pin it off so this stays a pure exit-trailer/cap-generosity test.
     const r = runHook('compress-tool-output.js', { tool_name: 'PowerShell', tool_response: raw }, { HUSH_TEMPLATE: 'off' });
     const updated = hookOutput(r).hookSpecificOutput.updatedToolOutput;
-    assert.doesNotMatch(updated, /\[\[hush:exit=/, 'raw wrapper marker never reaches the model');
-    assert.match(updated, /\[hush: exit 1\]$/, 'clean exit marker is appended at the end');
+    assert.doesNotMatch(updated, /\[\[hush:exit=/, 'raw exit trailer never reaches the model');
+    assert.match(updated, /\[hush: exit 1\]$/, 'the exit note is appended at the end');
     assert.match(updated, /\[hush hook: \d+ lines omitted from this view, none with warnings\/errors\/failures\]/, 'still compressed');
     assert.ok(updated.includes('not ok 0'), 'failure lines are signal — always kept');
   });
@@ -630,7 +630,7 @@ describe('hook: end to end', () => {
     assert.ok(updated.split('\n').length <= 63, 'pass cap (60) should apply, not the fail cap (250)');
   });
 
-  test('wrapped exit marker on an object response (stdout field) is read and stripped the same way', () => {
+  test('exit trailer on an object response (stdout field) is read and stripped the same way', () => {
     const lines = Array.from({ length: 320 }, (_, i) => (i % 8 === 0 ? `ERROR item ${i}` : `ok ${i}`));
     const raw = lines.join('\n') + '\n[[hush:exit=1]]';
     const r = runHook('compress-tool-output.js', {
@@ -664,14 +664,14 @@ describe('hook: end to end', () => {
 
   // Regression test for a real leak: a pure-cmdlet PowerShell call (no
   // native exe, so $LASTEXITCODE was never set) produced a malformed
-  // `[[hush:exit=\n\n]]` marker that reached the model verbatim.
-  test('a malformed marker (pure-cmdlet call, $LASTEXITCODE never set) never leaks to the model', () => {
+  // `[[hush:exit=\n\n]]` trailer that reached the model verbatim.
+  test('a malformed trailer (pure-cmdlet call, $LASTEXITCODE never set) never leaks to the model', () => {
     const r = runHook('compress-tool-output.js', {
       tool_name: 'PowerShell',
       tool_response: 'Name\n----\nfoo.js\nbar.js\n[[hush:exit=\n\n]]',
     });
     const updated = hookOutput(r).hookSpecificOutput.updatedToolOutput;
-    assert.doesNotMatch(updated, /\[\[hush:exit=/, 'malformed marker must be stripped, not leaked raw');
+    assert.doesNotMatch(updated, /\[\[hush:exit=/, 'malformed trailer must be stripped, not leaked raw');
     assert.doesNotMatch(updated, /\[hush: exit /, 'no untrustworthy exit-code note should be appended either');
   });
 

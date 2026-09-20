@@ -6,26 +6,44 @@ const fs = require('fs');
 const path = require('path');
 const { bashTrailer, powershellTrailer, decode, hasTrailer, PREFIX } = require('../hooks/lib/exit-trailer');
 
-// What each shell prints when it runs its trailer statements. bash echoes
-// the three lines with LF; PowerShell writes them with CRLF.
-function bashOutput(code) {
-  return `[[hush:exit=\n${code}\n]]`;
+// A model of each shell, just wide enough to run the trailer statements: a
+// single-quoted literal prints as is, a bare variable prints its value, an
+// assignment prints nothing. bash ends lines with LF, PowerShell with CRLF.
+// The encoder's own statements feed the decoder, so a change to the text on
+// either side breaks this suite.
+function runBash(statements, code) {
+  const out = [];
+  for (const line of statements.split('\n')) {
+    let m;
+    if ((m = /^echo '(.*)'$/.exec(line))) out.push(m[1]);
+    else if (line === 'echo $__hush_exit') out.push(String(code));
+    else if (/^__hush_exit=\$\?$/.test(line)) continue;
+    else assert.fail(`unmodelled bash statement: ${line}`);
+  }
+  return out.join('\n');
 }
-function powershellOutput(code) {
-  return `[[hush:exit=\r\n${code}\r\n]]`;
+
+function runPowerShell(statements, code) {
+  const out = [];
+  for (const line of statements.split('\n')) {
+    let m;
+    if ((m = /^Write-Output '(.*)'$/.exec(line))) out.push(m[1]);
+    else if (line === '$LASTEXITCODE') out.push(code === null ? '' : String(code));
+    else assert.fail(`unmodelled PowerShell statement: ${line}`);
+  }
+  return out.join('\r\n');
 }
+
+const bashOutput = (code) => runBash(bashTrailer(), code);
+const powershellOutput = (code) => runPowerShell(powershellTrailer(), code);
 
 describe('unit: round trip', () => {
   test('the bash trailer decodes to the code the shell printed', () => {
-    const stmts = bashTrailer();
-    assert.match(stmts, /^__hush_exit=\$\?\necho '\[\[hush:exit='\necho \$__hush_exit\necho '\]\]'$/);
     const r = decode(`build output\n${bashOutput(3)}`);
     assert.deepStrictEqual(r, { exitCode: 3, cleanText: 'build output' });
   });
 
   test('the PowerShell trailer decodes to the code the shell printed', () => {
-    const stmts = powershellTrailer();
-    assert.match(stmts, /^Write-Output '\[\[hush:exit='\n\$LASTEXITCODE\nWrite-Output '\]\]'$/);
     const r = decode(`about to fail\r\n${powershellOutput(1)}`);
     assert.deepStrictEqual(r, { exitCode: 1, cleanText: 'about to fail' });
   });
@@ -50,15 +68,15 @@ describe('unit: decode', () => {
 
   // PowerShell only sets $LASTEXITCODE for a native executable. A pure-cmdlet
   // command leaves it unset, and the trailer body comes back empty.
-  test('a malformed trailer is stripped and reports no exit code', () => {
-    const r = decode('output\r\n[[hush:exit=\r\n\r\n]]');
+  test('decode strips a malformed trailer and reports no exit code', () => {
+    const r = decode(`output\r\n${powershellOutput(null)}`);
     assert.deepStrictEqual(r, { exitCode: null, cleanText: 'output' });
   });
 
   // A sidecar file that captured raw output with a trailer, read back through
   // a wrapped cmdlet, carries a well-formed trailer and then a malformed one.
   test('a doubled trailer strips both and reports the last well-formed code', () => {
-    const r = decode(`line one\nline two\n${bashOutput(1)}\n[[hush:exit=\n]]`);
+    const r = decode(`line one\nline two\n${bashOutput(1)}\n${powershellOutput(null)}`);
     assert.strictEqual(r.exitCode, 1);
     assert.strictEqual(r.cleanText, 'line one\nline two');
     const stray = decode(`saw a stray ${bashOutput(99)} in a log\nreal\n${bashOutput(1)}`);
@@ -72,10 +90,11 @@ describe('unit: decode', () => {
   });
 
   // The host truncates raw output around 29KB and can cut a trailer in two.
-  test('a trailer cut by host truncation is left as is and yields no code', () => {
-    const r = decode('output\n[[hush:exit=\n1');
+  test('decode leaves a trailer cut by host truncation as is and yields no code', () => {
+    const cut = `output\n${bashOutput(1)}`.slice(0, -2);
+    const r = decode(cut);
     assert.strictEqual(r.exitCode, null);
-    assert.strictEqual(r.cleanText, 'output\n[[hush:exit=\n1');
+    assert.strictEqual(r.cleanText, cut.replace(/\s+$/, ''));
   });
 
   test('leaves the literal prefix inside source text alone', () => {
@@ -89,11 +108,11 @@ describe('unit: decode', () => {
 describe('unit: hasTrailer', () => {
   test('true for a well-formed and for a malformed trailer', () => {
     assert.strictEqual(hasTrailer(`x\n${bashOutput(2)}`), true);
-    assert.strictEqual(hasTrailer('x\n[[hush:exit=\n]]'), true);
+    assert.strictEqual(hasTrailer(`x\r\n${powershellOutput(null)}`), true);
   });
 
   test('false for a cut trailer, a bare prefix, and a non-string', () => {
-    assert.strictEqual(hasTrailer('x\n[[hush:exit=\n1'), false);
+    assert.strictEqual(hasTrailer(`x\n${bashOutput(1)}`.slice(0, -2)), false);
     assert.strictEqual(hasTrailer(`const P = "${PREFIX}";`), false);
     assert.strictEqual(hasTrailer(undefined), false);
   });

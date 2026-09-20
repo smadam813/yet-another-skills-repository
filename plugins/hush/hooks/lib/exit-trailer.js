@@ -1,31 +1,29 @@
 "use strict";
 
-// The exit trailer: the one wire format between preserve-exit-code.js (which
-// writes it) and compress-tool-output.js (which reads it). Both hooks import
-// this module, and tests/exit_trailer.test.js round-trips the pair, so a
-// change to the text cannot leave one side behind.
+// The exit trailer is the wire format between two hooks. preserve-exit-code.js
+// writes it and compress-tool-output.js reads it. Both import this module, and
+// tests/exit_trailer.test.js sends the statements through decode. A change to
+// the text that breaks one side therefore fails a test, not a session.
 //
-// The trailer is `[[hush:exit=`, the exit code, `]]`, each on its own line.
-// The shells print it in three statements with no `$var` ever inside a
-// quoted string and no parentheses around a variable: Claude Code's own
-// command-safety layer rejects both of the more natural forms (see the
-// header of preserve-exit-code.js). Single-quoted literals plus a bare
-// variable expression statement is the most primitive construct that still
-// gets through, on both shells.
+// The trailer is `[[hush:exit=`, the exit code, and `]]`, each on its own
+// line. Each shell prints it in three statements. No `$var` sits inside a
+// quoted string, and no parentheses sit around a variable, because Claude
+// Code's command-safety layer rejects both forms. preserve-exit-code.js
+// records what that layer said.
 
 const PREFIX = "[[hush:exit=";
 const SUFFIX = "]]";
 
-// The statements a bash wrapper appends after the command. `$?` is captured
-// first, because `echo` itself resets it.
+// The statements a bash wrapper appends after the command. The first line
+// saves `$?` because `echo` resets it.
 function bashTrailer() {
   return `__hush_exit=$?\necho '${PREFIX}'\necho $__hush_exit\necho '${SUFFIX}'`;
 }
 
 // The statements a PowerShell wrapper appends after the command. PowerShell
-// auto-prints an unconsumed expression's value, so the bare `$LASTEXITCODE`
-// line is the number. A pure-cmdlet command never sets it, and the trailer
-// then comes back with an empty body: that is the malformed case below.
+// prints the value of a bare expression, so the `$LASTEXITCODE` line is the
+// number. A pure-cmdlet command never sets it. The trailer then has an empty
+// body, which is the malformed case below.
 function powershellTrailer() {
   return `Write-Output '${PREFIX}'\n$LASTEXITCODE\nWrite-Output '${SUFFIX}'`;
 }
@@ -68,9 +66,9 @@ function decode(text) {
   return { exitCode: lastValid ? parseInt(lastValid[1], 10) : null, cleanText };
 }
 
-// True when a STRIPPABLE trailer is present. Keyed on that, not on the bare
-// prefix: the host truncates raw output around 29KB and can cut a trailer
-// mid-text, and hush's own source dumped to stdout carries the prefix as
+// True when the text holds a trailer that decode strips. The bare prefix is
+// not enough. The host truncates raw output around 29KB and can cut a
+// trailer in two, and hush's own source dumped to stdout holds the prefix as
 // literal text. In both cases decode strips nothing.
 function hasTrailer(text) {
   return typeof text === "string" && PRESENT_RE.test(text);
