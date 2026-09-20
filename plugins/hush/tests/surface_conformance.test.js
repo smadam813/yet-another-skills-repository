@@ -40,6 +40,8 @@ after(() => {
 let seq = 0;
 const freshSessionId = () => `s${crypto.randomBytes(4).toString('hex')}${++seq}`;
 
+const oldManifest = (dir, sessionId) => path.join(dir, `hush-debug-${sessionId.replace(/[^a-zA-Z0-9-]/g, '_')}.jsonl`);
+
 /** A scratch TEMP holding the hush-owned files a live session would have. */
 function plantedTemp(sessionId) {
   const dir = path.join(SCRATCH_ROOT, `temp-${sessionId}-${++seq}`);
@@ -47,9 +49,9 @@ function plantedTemp(sessionId) {
   fs.mkdirSync(path.join(dir, 'hush-sidecar', safe), { recursive: true });
   fs.writeFileSync(path.join(dir, 'hush-sidecar', safe, 'hush-note'), '');
   fs.writeFileSync(path.join(dir, 'hush-sidecar', safe, 'manifest.jsonl'), '');
-  // An older hush wrote the manifest here. hush never reads or removes it.
-  fs.writeFileSync(path.join(dir, `hush-debug-${safe}.jsonl`), '');
   fs.writeFileSync(path.join(dir, 'hush-sidecar', safe, 'planted.txt'), 'kept\n');
+  // The old debug manifest in the temp root. hush never reads or removes it.
+  fs.writeFileSync(oldManifest(dir, sessionId), '');
   return dir;
 }
 
@@ -214,6 +216,7 @@ function assertActive(c, env) {
   if (c.writes) {
     assert.notDeepStrictEqual(snapshot(temp), before, 'active run touched no file — the payload misses the disk path');
   }
+  assert.ok(fs.existsSync(oldManifest(temp, c.session)), 'active run removed the old debug manifest');
 }
 
 const COMBOS = [

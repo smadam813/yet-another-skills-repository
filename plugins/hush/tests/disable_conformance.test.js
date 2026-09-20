@@ -43,6 +43,8 @@ after(() => {
 let seq = 0;
 const freshSessionId = () => `d${crypto.randomBytes(4).toString('hex')}${++seq}`;
 
+const oldManifest = (dir, sessionId) => path.join(dir, `hush-debug-${sessionId.replace(/[^a-zA-Z0-9-]/g, '_')}.jsonl`);
+
 /**
  * A scratch TEMP tree pre-populated with the hush-owned files a live session
  * would already have, so deletion and mutation are both observable.
@@ -53,9 +55,9 @@ function plantedTemp(sessionId, tag) {
   fs.mkdirSync(path.join(dir, 'hush-sidecar', safe), { recursive: true });
   fs.writeFileSync(path.join(dir, 'hush-sidecar', safe, 'hush-note'), '');
   fs.writeFileSync(path.join(dir, 'hush-sidecar', safe, 'manifest.jsonl'), '');
-  // An older hush wrote the manifest here. hush never reads or removes it.
-  fs.writeFileSync(path.join(dir, `hush-debug-${safe}.jsonl`), '');
   fs.writeFileSync(path.join(dir, 'hush-sidecar', safe, 'planted.txt'), 'kept\n');
+  // The old debug manifest in the temp root. hush never reads or removes it.
+  fs.writeFileSync(oldManifest(dir, sessionId), '');
   return dir;
 }
 
@@ -232,6 +234,7 @@ describe('HUSH_DISABLE=1 conformance across every hook', () => {
       const touched = JSON.stringify(snapshot(temp)) !== JSON.stringify(before);
       if (!c.silentWhenEnabled) assert.ok(printed, 'enabled run printed nothing — payload does not trigger this hook');
       if (c.writes) assert.ok(touched, 'enabled run touched no file — payload does not exercise the disk path');
+      assert.ok(fs.existsSync(oldManifest(temp, c.session)), 'enabled run removed the old debug manifest');
     });
   }
 
