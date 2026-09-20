@@ -1,0 +1,11 @@
+{
+  "name": "razor",
+  "description": "Reuse-first checks: reconsider dependencies, file growth and unnecessary code before adding more.",
+  "version": "1.6.0",
+  "license": "MIT",
+  "keywords": ["yagni", "token-optimization", "minimalism", "over-engineering", "hooks", "subagents", "dependency-guard", "lazy"],
+  "author": { "name": "Victor Villegas", "email": "victor.villegas@tuta.com" },
+  "homepage": "https://github.com/V-Songbird/razor",
+  "repository": "https://github.com/V-Songbird/razor",
+  "skills": "./skills/"
+}

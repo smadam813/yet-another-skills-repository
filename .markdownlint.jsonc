@@ -12,5 +12,7 @@
   // _underscores_ mark leading words and **asterisks** mark emphasis; both styles are deliberate.
   "MD049": false,
   // Templates repeat a heading per example section.
-  "MD024": { "siblings_only": true }
+  "MD024": { "siblings_only": true },
+  // Upstream prose in the vendored plugins keeps its own style.
+  "ignores": ["plugins/razor/docs/**", "plugins/razor/CHANGELOG.md", "plugins/razor/tests/**"]
 }

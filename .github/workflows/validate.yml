@@ -28,6 +28,27 @@ jobs:
       - name: Check both marketplaces
         run: node scripts/check-marketplace.mjs
 
+  # The vendored plugins ship hook code with tests. Runs on both platforms because
+  # the hooks resolve Windows paths differently. Mark it required next to validate.
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Test razor
+        working-directory: plugins/razor
+        run: node --test tests/*.test.js
+
   # Not a required check: prose style advises, the marketplace checker gates.
   lint:
     name: lint
