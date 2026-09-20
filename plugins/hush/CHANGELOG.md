@@ -3,6 +3,15 @@
 All notable changes to hush are documented here. The version number lives in
 `.claude-plugin/plugin.json`.
 
+## 1.12.4 — 2026-09-20
+
+`hooks/lib/session-scratch.js` now owns every file in a session's scratch
+directory: the note sentinel, the react counter, and the `HUSH_DEBUG`
+manifest join the sidecars and the running total. The manifest moves from
+`hush-debug-<session>.jsonl` in the temp folder to `manifest.jsonl` inside
+the session's folder, so it is removed with the session. The hooks call
+the module and hold no paths of their own. Nothing the model sees changed.
+
 ## 1.12.3 — 2026-09-20
 
 One module, `hooks/lib/session-scratch.js`, now owns the sidecars in a
