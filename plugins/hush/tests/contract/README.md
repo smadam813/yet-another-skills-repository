@@ -49,15 +49,15 @@ pinning the machine it was generated on.
 
 hush only emits when it actually shrinks something, so a fixture below a
 threshold produces an empty golden and pins nothing. The thresholds, from
-`hooks/compress-tool-output.js`:
+`settingsFromEnv` in `hooks/compress-tool-output.js`, at their defaults:
 
 | Path | Needs |
 | --- | --- |
-| Passing shell/Read cap | more than `CAP_PASS` (60) lines after collapse |
-| Failing shell cap | more than `CAP_FAIL` (250) lines — a 120-line failure is not cut |
-| Shell sidecar | between `SIDECAR_MIN_CHARS` (15,000) and `SIDECAR_SHELL_MAX` (28,000) chars |
+| Passing shell/Read cap | more than `HUSH_CAP_PASS` (60) lines after collapse |
+| Failing shell cap | more than `HUSH_CAP_FAIL` (250) lines — a 120-line failure is not cut |
+| Shell sidecar | between `HUSH_SIDECAR_MIN` (15,000) and `HUSH_SIDECAR_SHELL_MAX` (28,000) chars |
 
-Above `SIDECAR_SHELL_MAX` a *passing* shell output deliberately steps aside —
+Above `HUSH_SIDECAR_SHELL_MAX` a *passing* shell output deliberately steps aside —
 the host may already have truncated it — so an oversized fixture measures the
 guard, not the sidecar. Content also has to survive template collapse to reach
 the sidecar at all: same-shape lines collapse first and never park.

@@ -148,7 +148,7 @@ describe('HUSH_DEBUG manifest: one honest line per decision path', () => {
 
   test('sidecar — a very large shell output moves to a file behind a digest', () => {
     const id = sid('sidecar');
-    const body = uniqueLines(500); // ~18KB: over SIDECAR_MIN_CHARS, under SIDECAR_SHELL_MAX
+    const body = uniqueLines(500); // ~18KB: over the sidecar floor, under the shell bound
     runHook('compress-tool-output.js', { tool_name: 'Bash', session_id: id, tool_response: body }, { HUSH_DEBUG: '1' });
     const [entry] = readManifest(id);
     assert.strictEqual(entry.action, 'sidecar');
@@ -162,8 +162,8 @@ describe('HUSH_DEBUG manifest: one honest line per decision path', () => {
   // changes: "as hush received it" rather than "in full".
   test('sidecar — a shell output past the host-truncation size still gets a recovery copy', () => {
     const id = sid('guard');
-    const body = uniqueLines(900); // ~31KB: over SIDECAR_SHELL_MAX
-    assert.ok(body.length >= 28000, 'fixture must clear SIDECAR_SHELL_MAX for this test to mean anything');
+    const body = uniqueLines(900); // ~31KB: over the shell bound
+    assert.ok(body.length >= 28000, 'fixture must clear the shell bound for this test to mean anything');
     const r = runHook('compress-tool-output.js', { tool_name: 'Bash', session_id: id, tool_response: body }, { HUSH_DEBUG: '1' });
     const [entry] = readManifest(id);
     assert.strictEqual(entry.action, 'sidecar');
@@ -181,7 +181,7 @@ describe('HUSH_DEBUG manifest: one honest line per decision path', () => {
     lines[400] = "src/boot.ts(41,7): error TS2304: Cannot find name 'configure'.";
     lines.push('Build failed with exit code 1');
     const body = lines.join('\n');
-    assert.ok(body.length >= 28000, 'fixture must clear SIDECAR_SHELL_MAX for this test to mean anything');
+    assert.ok(body.length >= 28000, 'fixture must clear the shell bound for this test to mean anything');
 
     const r = runHook('compress-tool-output.js', { tool_name: 'Bash', session_id: id, tool_response: body }, { HUSH_DEBUG: '1' });
     const [entry] = readManifest(id);

@@ -21,7 +21,7 @@ describe('a long test log follows through to the sidecar', () => {
 
   test('the fixture is large enough to trip the sidecar (not just the inline cap)', () => {
     const content = fs.readFileSync(FIXTURE, 'utf8');
-    assert.ok(content.length >= 15000, `fixture should clear SIDECAR_MIN_CHARS (was ${content.length})`);
+    assert.ok(content.length >= 15000, `fixture should clear the sidecar floor (was ${content.length})`);
   });
 
   describe('digest shape: the census surfaces a failure among many passes, but the names require a follow-up read', () => {

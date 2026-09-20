@@ -5,13 +5,10 @@ const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { runHook, hookOutput } = require('./helpers');
-
-// Sidecar mode defaults ON in the hook; these tests exercise the inline-cap
-// semantics, so pin it off for the whole file (child hooks inherit it via
-// runHook's env spread). The sidecar suite below re-enables it explicitly.
-process.env.HUSH_SIDECAR = 'off';
+const helpers = require('./helpers');
+const { hookOutput } = helpers;
 const {
+  settingsFromEnv,
   stripAnsi,
   resolveCarriageReturns,
   dedupeConsecutive,
@@ -28,6 +25,20 @@ const {
   FAILURE_RERUN_NOTE,
 } = require('../hooks/compress-tool-output');
 const { decode } = require('../hooks/lib/exit-trailer');
+
+// The sidecar defaults on. The inline-cap cases here pin it off: in process
+// through a settings object, spawned through the child's environment. The
+// sidecar suites below turn it back on the same two ways.
+const INLINE = settingsFromEnv({ HUSH_SIDECAR: 'off' });
+const INLINE_NO_TEMPLATE = settingsFromEnv({ HUSH_SIDECAR: 'off', HUSH_TEMPLATE: 'off' });
+const NO_TEMPLATE = settingsFromEnv({ HUSH_TEMPLATE: 'off' });
+const runHook = (name, input, env) => helpers.runHook(name, input, { HUSH_SIDECAR: 'off', ...env });
+
+// compress() under the inline-cap settings, with its tail (session, sidecar
+// bypass, host truncation, decision) left at the defaults.
+function compressInline(text, exitCode, isDump = false, enumerate = false, relevance = [], scale = 1, settings = INLINE) {
+  return compress(text, exitCode, isDump, enumerate, relevance, scale, null, undefined, undefined, undefined, settings);
+}
 
 describe('unit: transforms', () => {
   test('stripAnsi removes color and cursor codes', () => {
@@ -194,17 +205,11 @@ describe('unit: transforms', () => {
   test('compress caps failing output more generously than passing output', () => {
     // Template collapse is orthogonal to this cap-size comparison — every line
     // here happens to share one template, so pin it off to isolate capLines.
-    const prev = process.env.HUSH_TEMPLATE;
-    process.env.HUSH_TEMPLATE = 'off';
-    try {
-      const big = Array.from({ length: 1000 }, (_, i) => `unique line ${i}`).join('\n');
-      const pass = compress(big, 0).split('\n').length;
-      const fail = compress(big, 1).split('\n').length;
-      assert.ok(pass < fail, `pass cap ${pass} should be tighter than fail cap ${fail}`);
-      assert.ok(pass <= 61);
-    } finally {
-      if (prev === undefined) delete process.env.HUSH_TEMPLATE; else process.env.HUSH_TEMPLATE = prev;
-    }
+    const big = Array.from({ length: 1000 }, (_, i) => `unique line ${i}`).join('\n');
+    const pass = compressInline(big, 0, false, false, [], 1, INLINE_NO_TEMPLATE).split('\n').length;
+    const fail = compressInline(big, 1, false, false, [], 1, INLINE_NO_TEMPLATE).split('\n').length;
+    assert.ok(pass < fail, `pass cap ${pass} should be tighter than fail cap ${fail}`);
+    assert.ok(pass <= 61);
   });
 
   test('isFileDump recognizes plain file-print commands', () => {
@@ -225,8 +230,8 @@ describe('unit: transforms', () => {
 
   test('compress treats a file-dump command like a failure — keeps more of the middle', () => {
     const big = Array.from({ length: 200 }, (_, i) => `line ${i}`).join('\n');
-    const asLog = compress(big, 0, false).split('\n').length;
-    const asDump = compress(big, 0, true).split('\n').length;
+    const asLog = compressInline(big, 0, false).split('\n').length;
+    const asDump = compressInline(big, 0, true).split('\n').length;
     assert.ok(asDump > asLog, `dump cap ${asDump} should be looser than log cap ${asLog}`);
   });
 
@@ -250,8 +255,8 @@ describe('unit: transforms', () => {
 
   test('enumerate=true passes far more of a big passing log than the normal cap', () => {
     const big = Array.from({ length: 900 }, (_, i) => `[${i}] compile mod_${i} ... ok`).join('\n');
-    const capped = compress(big, 0, false, false).split('\n').length;
-    const carved = compress(big, 0, false, true).split('\n').length;
+    const capped = compressInline(big, 0, false, false).split('\n').length;
+    const carved = compressInline(big, 0, false, true).split('\n').length;
     assert.ok(capped <= 61, `normal pass cap should hold (${capped})`);
     assert.ok(carved > capped * 5, `enumerate should keep far more (${carved} vs ${capped})`);
   });
@@ -259,7 +264,7 @@ describe('unit: transforms', () => {
   test('enumerate=true leaves no omission markers when the log fits the enumerate cap', () => {
     const lines = Array.from({ length: 900 }, (_, i) => `[${i}] compile mod_${i} ... ok`);
     lines[41] = 'WARN W1042 deprecated-api used in src/legacy/adapter.js';
-    const carved = compress(lines.join('\n'), 0, false, true);
+    const carved = compressInline(lines.join('\n'), 0, false, true);
     assert.doesNotMatch(carved, /lines omitted/, 'nothing should be elided under the enumerate cap');
     assert.ok(carved.includes(lines[41]), 'the warning survives');
   });
@@ -350,14 +355,8 @@ describe('unit: collapseTemplates', () => {
   });
 
   test('HUSH_TEMPLATE=off passes lines through untouched', () => {
-    const prev = process.env.HUSH_TEMPLATE;
-    process.env.HUSH_TEMPLATE = 'off';
-    try {
-      const lines = Array.from({ length: 8 }, (_, i) => `INFO worker-${i} processing job ${8000 + i}`);
-      assert.deepStrictEqual(collapseTemplates(lines), lines);
-    } finally {
-      if (prev === undefined) delete process.env.HUSH_TEMPLATE; else process.env.HUSH_TEMPLATE = prev;
-    }
+    const lines = Array.from({ length: 8 }, (_, i) => `INFO worker-${i} processing job ${8000 + i}`);
+    assert.deepStrictEqual(collapseTemplates(lines, [], NO_TEMPLATE), lines);
   });
 
   // The collapse footer claims prompt-named lines are
@@ -963,15 +962,15 @@ describe('unit: relevance preservation + pressure scaling', () => {
   test('a prompt-named identifier outside head/tail survives the cap', () => {
     const lines = Array.from({ length: 400 }, (_, i) => '    "node_modules/pkg-' + i + '": { "version": "1.0.' + i + '" },');
     lines[200] = '    "node_modules/ioredis": { "version": "5.4.1" },';
-    const withTok = compress(lines.join(NL), 0, true, false, ['ioredis'], 1);
-    const without = compress(lines.join(NL), 0, true, false, [], 1);
+    const withTok = compressInline(lines.join(NL), 0, true, false, ['ioredis'], 1);
+    const without = compressInline(lines.join(NL), 0, true, false, [], 1);
     assert.ok(withTok.includes('5.4.1'), 'ioredis line survives with relevance token');
     assert.ok(!without.includes('5.4.1'), 'same line is cut without the token');
   });
 
   test('a token matching too many lines is ignored (no cap blowout)', () => {
     const lines = Array.from({ length: 400 }, (_, i) => 'version line ' + i);
-    const out = compress(lines.join(NL), 0, false, false, ['version'], 1);
+    const out = compressInline(lines.join(NL), 0, false, false, ['version'], 1);
     assert.ok(out.split(NL).length <= 62, 'common token must not defeat the cap');
   });
 
@@ -984,11 +983,11 @@ describe('unit: relevance preservation + pressure scaling', () => {
 
   test('scale tightens caps but never below the floors; enumerate never scales', () => {
     const big = Array.from({ length: 3000 }, (_, i) => 'unique ' + i).join(NL);
-    const full = compress(big, 0, false, false, [], 1).split(NL).length;
-    const half = compress(big, 0, false, false, [], 0.5).split(NL).length;
+    const full = compressInline(big, 0, false, false, [], 1).split(NL).length;
+    const half = compressInline(big, 0, false, false, [], 0.5).split(NL).length;
     assert.ok(half < full, 'scaled cap (' + half + ') tighter than base (' + full + ')');
     assert.ok(half >= 30, 'pass floor holds');
-    const enumFull = compress(big, 0, false, true, [], 0.5).split(NL).length;
+    const enumFull = compressInline(big, 0, false, true, [], 0.5).split(NL).length;
     assert.ok(enumFull > 2000, 'enumeration carve-out is never scaled');
   });
 });
@@ -1002,11 +1001,6 @@ describe('unit + e2e: sidecar digests for very large outputs', () => {
     if (m) created.push(m[1].trim());
     return m ? m[1].trim() : null;
   }
-  function withSidecarOn(fn) {
-    const prev = process.env.HUSH_SIDECAR;
-    delete process.env.HUSH_SIDECAR;
-    try { return fn(); } finally { process.env.HUSH_SIDECAR = prev; }
-  }
   after(() => { for (const f of created) fs.rmSync(f, { force: true }); });
 
   const bigLog = (() => {
@@ -1016,7 +1010,7 @@ describe('unit + e2e: sidecar digests for very large outputs', () => {
   })();
 
   test('a huge output becomes a line-numbered digest and the full text lands in the sidecar file', () => {
-    const digest = withSidecarOn(() => comp(bigLog, 0, true, false, ['ioredis'], 1, 'sidetest'));
+    const digest = comp(bigLog, 0, true, false, ['ioredis'], 1, 'sidetest');
     assert.ok(digest.startsWith('[hush hook: this output is'), 'digest opens with the provenance header');
     assert.match(digest, /this output is \d+ non-empty lines \(\d+ errors?\)/, 'header carries the category census, not a bare count');
     assert.match(digest, /re-run the command — a second run is not guaranteed to reproduce this output/, 'missing-file fallback is present and conditional');
@@ -1031,26 +1025,26 @@ describe('unit + e2e: sidecar digests for very large outputs', () => {
 
   test('below the threshold the normal capped view still applies', () => {
     const small = Array.from({ length: 300 }, (_, i) => 'l' + i).join(NL);
-    const out = withSidecarOn(() => comp(small, 0, false, false, [], 1, 'sidetest'));
+    const out = comp(small, 0, false, false, [], 1, 'sidetest');
     assert.doesNotMatch(out, /saved in full to/);
     assert.match(out, /lines omitted from this view/);
   });
 
   test('the enumeration carve-out is exempt — nothing moves to a file', () => {
-    const out = withSidecarOn(() => comp(bigLog, 0, true, true, [], 1, 'sidetest'));
+    const out = comp(bigLog, 0, true, true, [], 1, 'sidetest');
     assert.doesNotMatch(out, /saved in full to/);
   });
 
   test('same content re-fires to the same file (idempotent)', () => {
-    const d1 = withSidecarOn(() => comp(bigLog, 0, true, false, [], 1, 'sidetest'));
-    const d2 = withSidecarOn(() => comp(bigLog, 0, true, false, [], 1, 'sidetest'));
+    const d1 = comp(bigLog, 0, true, false, [], 1, 'sidetest');
+    const d2 = comp(bigLog, 0, true, false, [], 1, 'sidetest');
     assert.strictEqual(pathFrom(d1), pathFrom(d2));
   });
 
   test('prompt-named lines join the digest', () => {
     const ls = Array.from({ length: 2000 }, (_, i) => 'info filler line ' + i + ' padding padding');
     ls[1000] = '    "node_modules/ioredis": { "version": "5.4.1" },';
-    const digest = withSidecarOn(() => comp(ls.join(NL), 0, true, false, ['ioredis'], 1, 'sidetest'));
+    const digest = comp(ls.join(NL), 0, true, false, ['ioredis'], 1, 'sidetest');
     pathFrom(digest);
     assert.ok(digest.includes('5.4.1'), 'relevance line is in the digest, not only the file');
   });
@@ -1078,25 +1072,16 @@ describe('secrets guard: credential-shaped content is never persisted to a sidec
   const { sessionDir } = require('../hooks/lib/session-scratch');
   const sideDir = sessionDir('secrettest');
   after(() => fs.rmSync(sideDir, { recursive: true, force: true }));
-  function withSidecarOn(fn) {
-    const prev = process.env.HUSH_SIDECAR;
-    delete process.env.HUSH_SIDECAR;
-    try { return fn(); } finally { process.env.HUSH_SIDECAR = prev; }
-  }
   // Every line here shares one shape (only the counter/duration vary), so
   // collapseTemplates alone would shrink 2000 lines under the cap and hide
   // whether capLines' own "lines omitted" marker fired — pin templating off
   // so the skip-sidecar case demonstrably reaches the ordinary line cap.
-  function withTemplateOff(fn) {
-    const prev = process.env.HUSH_TEMPLATE;
-    process.env.HUSH_TEMPLATE = 'off';
-    try { return fn(); } finally { if (prev === undefined) delete process.env.HUSH_TEMPLATE; else process.env.HUSH_TEMPLATE = prev; }
-  }
+  const skip = (text) => comp(text, 0, true, false, [], 1, 'secrettest', undefined, undefined, undefined, NO_TEMPLATE);
   function sidecarFileCount() {
     try { return fs.readdirSync(sideDir).length; } catch { return 0; }
   }
   // Same size/shape as the sidecar suite's own bigLog fixture, minus the
-  // synthetic ERROR lines (irrelevant here) — clears SIDECAR_MIN_CHARS on its
+  // synthetic ERROR lines (irrelevant here) — clears the sidecar floor on its
   // own so every case in this block is genuinely sidecar-eligible by size.
   function bigLog(extraLine) {
     const ls = Array.from({ length: 2000 }, (_, i) => '02:00 info handled req ' + i + ' in ' + (i % 90) + 'ms');
@@ -1124,9 +1109,7 @@ describe('secrets guard: credential-shaped content is never persisted to a sidec
 
   test('a secret buried in an otherwise sidecar-eligible output skips the sidecar entirely', () => {
     const before = sidecarFileCount();
-    const out = withSidecarOn(() => withTemplateOff(() =>
-      comp(bigLog('leaked key: sk-abcd1234EFGH5678ijklMNOPqrst'), 0, true, false, [], 1, 'secrettest')
-    ));
+    const out = skip(bigLog('leaked key: sk-abcd1234EFGH5678ijklMNOPqrst'));
     assert.doesNotMatch(out, /saved in full to/, 'no sidecar pointer emitted');
     assert.match(out, /lines omitted from this view/, 'falls through to the ordinary inline cap');
     assert.strictEqual(sidecarFileCount(), before, 'no new sidecar file was written');
@@ -1134,7 +1117,7 @@ describe('secrets guard: credential-shaped content is never persisted to a sidec
 
   test('control: the identical shape without a secret still sidecars', () => {
     const before = sidecarFileCount();
-    const out = withSidecarOn(() => comp(bigLog(null), 0, true, false, [], 1, 'secrettest'));
+    const out = comp(bigLog(null), 0, true, false, [], 1, 'secrettest');
     assert.match(out, /saved in full to/, 'clean content still gets the sidecar treatment');
     assert.strictEqual(sidecarFileCount(), before + 1, 'exactly one new sidecar file appeared');
     const m = out.match(/saved in full to ([^;]+);/);
@@ -1231,7 +1214,6 @@ describe('signal-first digest + compound-error signal matching', () => {
   const created = [];
   after(() => { for (const f of created) fs.rmSync(f, { force: true }); });
   function pathFrom(d) { const m = d.match(/saved in full to ([^;]+);/); if (m) created.push(m[1].trim()); return m ? m[1].trim() : null; }
-  function withSidecar(fn) { const p = process.env.HUSH_SIDECAR; delete process.env.HUSH_SIDECAR; try { return fn(); } finally { process.env.HUSH_SIDECAR = p; } }
 
   test('capLines keeps a bare ReferenceError line the old regex would miss', () => {
     const lines = Array.from({ length: 300 }, (_, i) => 'compile mod_' + i + ' ok');
@@ -1252,7 +1234,7 @@ describe('signal-first digest + compound-error signal matching', () => {
     const lines = [];
     for (let i = 0; i < 700; i++) lines.push('[' + i + '/700] compile mod_' + i + ' ... ok (46ms) with some padding to widen the line');
     lines[690] = 'ERROR EBUILD01 link-failed: ReferenceError: retries is not defined';
-    const digest = withSidecar(() => compress(lines.join(NL), 1, false, false, [], 1, 'sigfirst'));
+    const digest = compress(lines.join(NL), 1, false, false, [], 1, 'sigfirst');
     pathFrom(digest);
     const errPos = digest.indexOf('ReferenceError');
     const noisePos = digest.indexOf('compile mod_0 ');
@@ -1267,7 +1249,7 @@ describe('signal-first digest + compound-error signal matching', () => {
 
   test('a digest with no signal lines still emits the structural section', () => {
     const lines = Array.from({ length: 700 }, (_, i) => 'plain info line ' + i + ' padded out a bit for width here');
-    const digest = withSidecar(() => compress(lines.join(NL), 0, true, false, [], 1, 'nosig'));
+    const digest = compress(lines.join(NL), 0, true, false, [], 1, 'nosig');
     pathFrom(digest);
     assert.ok(!digest.includes('Signal lines ('), 'no signal header when there are none');
     assert.ok(digest.includes('Structure (head + tail'), 'structural section header present');
@@ -1281,7 +1263,6 @@ describe('census-grade sidecar digests', () => {
   const created = [];
   after(() => { for (const f of created) fs.rmSync(f, { force: true }); });
   function pathFrom(d) { const m = String(d).match(/saved in full to ([^;]+);/); if (m) created.push(m[1].trim()); return m ? m[1].trim() : null; }
-  function withSidecar(fn) { const p = process.env.HUSH_SIDECAR; delete process.env.HUSH_SIDECAR; try { return fn(); } finally { process.env.HUSH_SIDECAR = p; } }
 
   test('signalCensus counts each category on a mixed-signal fixture', () => {
     const lines = [
@@ -1311,7 +1292,7 @@ describe('census-grade sidecar digests', () => {
     const lines = [];
     for (let i = 0; i < 200; i++) lines.push('info ' + i);
     lines[5] = 'ERROR only one signal line';
-    const digest = withSidecar(() => comp2(lines.join(NL), 0, true, false, [], 1, 'fewsignals'));
+    const digest = comp2(lines.join(NL), 0, true, false, [], 1, 'fewsignals');
     pathFrom(digest);
     assert.ok(!digest.includes('Other signal lines'), 'nothing unshown, so no "not shown" line');
   });
@@ -1323,7 +1304,7 @@ describe('census-grade sidecar digests', () => {
     // first 10 + last 10 signal indices, leaving 30 unshown in the middle —
     // enough to exceed the 15-entry cap and exercise the "+more" tail.
     for (let i = 0; i < 50; i++) lines[100 + i * 10] = 'ERROR item ' + i;
-    const digest = withSidecar(() => comp2(lines.join(NL), 0, true, false, [], 1, 'manysignals'));
+    const digest = comp2(lines.join(NL), 0, true, false, [], 1, 'manysignals');
     pathFrom(digest);
     assert.match(digest, /Other signal lines \(not shown\): (L\d+, ){14}L\d+ \.\.\. \(\+\d+ more\)/, 'capped at 15 numbers with a remaining-count tail');
     const m = digest.match(/Other signal lines \(not shown\): ([^\n]+)/);
@@ -1339,7 +1320,7 @@ describe('census-grade sidecar digests', () => {
     lines[12] = 'FAILURE suite red';
     lines[13] = 'CRITICAL disk full';
     lines[14] = 'DEPRECATED old api';
-    const digest = withSidecar(() => comp2(lines.join(NL), 1, false, false, [], 1, 'budget2KB'));
+    const digest = comp2(lines.join(NL), 1, false, false, [], 1, 'budget2KB');
     pathFrom(digest);
     const structAt = digest.indexOf('Structure (head + tail');
     assert.ok(structAt > -1, 'structure section present');
@@ -1359,7 +1340,6 @@ describe('the keep vocabulary, pinned category by category', () => {
   const created = [];
   after(() => { for (const f of created) fs.rmSync(f, { force: true }); });
   function pathFrom(d) { const m = String(d).match(/saved in full to ([^;]+);/); if (m) created.push(m[1].trim()); return m ? m[1].trim() : null; }
-  function withSidecar(fn) { const p = process.env.HUSH_SIDECAR; delete process.env.HUSH_SIDECAR; try { return fn(); } finally { process.env.HUSH_SIDECAR = p; } }
 
   // Varying token counts, so no two neighbours share a template and the cap —
   // not the collapse — is what decides which lines survive.
@@ -1418,7 +1398,7 @@ describe('the keep vocabulary, pinned category by category', () => {
       'DEPRECATED formatAmount takes one argument now',
     ];
     samples.forEach((s, i) => { lines[100 + i * 100] = s; });
-    const digest = withSidecar(() => comp3(lines.join(NL), 0, true, false, [], 1, 'censusvocab'));
+    const digest = comp3(lines.join(NL), 0, true, false, [], 1, 'censusvocab');
     pathFrom(digest);
     const census = '3 errors, 3 failures, 1 critical, 3 warnings, 1 deprecation';
     assert.ok(digest.includes(`(${census})`), `header census drifted: ${digest.slice(0, 400)}`);
@@ -1433,11 +1413,10 @@ describe('shell-scoped sidecar upper bound (host-truncation guard)', () => {
   const created = [];
   after(() => { for (const f of created) fs.rmSync(f, { force: true }); });
   function pathFrom(d) { const m = String(d).match(/saved in full to ([^;]+);/); if (m) created.push(m[1].trim()); return m ? m[1].trim() : null; }
-  function withSidecar(fn) { const p = process.env.HUSH_SIDECAR; delete process.env.HUSH_SIDECAR; try { return fn(); } finally { process.env.HUSH_SIDECAR = p; } }
   function bigText(chars) { const a = []; let n = 0; while (a.join(NL).length < chars) { a.push('info line ' + n + ' padding padding padding padding ' + n); n++; } return a.join(NL); }
 
   test('a shell output in the 15-28KB window still sidecars', () => {
-    const out = withSidecar(() => compress(bigText(20000), 0, false, false, [], 1, 's', undefined, true));
+    const out = compress(bigText(20000), 0, false, false, [], 1, 's', undefined, true);
     pathFrom(out);
     assert.match(out, /saved in full to/, 'sidecar active in the sweet spot');
   });
@@ -1445,14 +1424,7 @@ describe('shell-scoped sidecar upper bound (host-truncation guard)', () => {
   test('a shell output at/above the host-truncation size sidecars, without claiming to be full', () => {
     // bigText's fixed "info line N padding..." shape template-collapses on its
     // own; pin the new rung off so this test isolates the sidecar decision.
-    const prevTemplate = process.env.HUSH_TEMPLATE;
-    process.env.HUSH_TEMPLATE = 'off';
-    let out;
-    try {
-      out = withSidecar(() => compress(bigText(32000), 0, false, false, [], 1, 's', undefined, true));
-    } finally {
-      if (prevTemplate === undefined) delete process.env.HUSH_TEMPLATE; else process.env.HUSH_TEMPLATE = prevTemplate;
-    }
+    const out = compress(bigText(32000), 0, false, false, [], 1, 's', undefined, true, undefined, NO_TEMPLATE);
     const m = String(out).match(/was saved to ([^;]+) as hush received it/);
     assert.ok(m, 'the recovery copy is written past the host-truncation size');
     created.push(m[1].trim());
@@ -1461,27 +1433,16 @@ describe('shell-scoped sidecar upper bound (host-truncation guard)', () => {
   });
 
   test('a large Read is exempt — full content reaches the hook, sidecar still helps', () => {
-    const out = withSidecar(() => compress(bigText(36000), 0, true, false, [], 1, 's', false));
+    const out = compress(bigText(36000), 0, true, false, [], 1, 's', false);
     pathFrom(out);
     assert.match(out, /saved in full to/, 'Read path keeps sidecaring big files');
   });
 
   test('HUSH_SIDECAR_SHELL_MAX tunes the bound', () => {
-    const prev = process.env.HUSH_SIDECAR_SHELL_MAX;
-    process.env.HUSH_SIDECAR_SHELL_MAX = '18000';
-    // constants are read at require-time; re-require a fresh copy
-    const p = require.resolve('../hooks/compress-tool-output');
-    delete require.cache[p];
-    const fresh = require('../hooks/compress-tool-output');
-    try {
-      const out = withSidecar(() => fresh.compress(bigText(20000), 0, false, false, [], 1, 's', undefined, true));
-      assert.doesNotMatch(out, /saved in full to/, '20KB now exceeds the lowered bound');
-      assert.match(out, /as hush received it/, 'so the copy drops its "in full" claim');
-    } finally {
-      if (prev === undefined) delete process.env.HUSH_SIDECAR_SHELL_MAX; else process.env.HUSH_SIDECAR_SHELL_MAX = prev;
-      delete require.cache[p];
-      require('../hooks/compress-tool-output');
-    }
+    const lowered = settingsFromEnv({ HUSH_SIDECAR_SHELL_MAX: '18000' });
+    const out = compress(bigText(20000), 0, false, false, [], 1, 's', undefined, true, undefined, lowered);
+    assert.doesNotMatch(out, /saved in full to/, '20KB now exceeds the lowered bound');
+    assert.match(out, /as hush received it/, 'so the copy drops its "in full" claim');
   });
 });
 
@@ -1494,10 +1455,12 @@ describe('grep match-list compression', () => {
       for (let i = 1; i <= per; i++) lines.push(`${f}:${i}: const value_${i} = ${'x'.repeat(60)};`);
     return lines.join('\n');
   }
+  // The view alone: no session, and the sidecar off, so nothing is parked.
+  const grep = (content, relevance, label) => H.compressGrep(content, relevance, label, undefined, undefined, INLINE);
 
   test('collapses beyond the per-file keep, appends counts and the marker', () => {
     const content = grepContent(['src/a.js', 'src/b.js'], 40);
-    const out = H.compressGrep(content, []);
+    const out = grep(content, []);
     assert.ok(out.length < content.length);
     assert.ok(out.includes('src/a.js: 40 matches, 3 shown'));
     assert.ok(out.includes('src/b.js: 40 matches, 3 shown'));
@@ -1511,7 +1474,7 @@ describe('grep match-list compression', () => {
     for (let i = 1; i <= 30; i++) lines.push(`app.js:${i}: plain line ${'x'.repeat(50)}`);
     lines.push('app.js:31: throw new TypeError("boom")');
     lines.push('app.js:32: requires ioredis here');
-    const out = H.compressGrep(lines.join('\n'), ['ioredis']);
+    const out = grep(lines.join('\n'), ['ioredis']);
     assert.ok(out.includes('app.js:31:'));
     assert.ok(out.includes('app.js:32:'));
     assert.ok(!out.includes('app.js:17:'));
@@ -1521,20 +1484,20 @@ describe('grep match-list compression', () => {
     const lines = [];
     for (let i = 1; i <= 10; i++) lines.push(`C:\\proj\\x.js:${i}: item ${'y'.repeat(40)}`);
     lines.push('-- a separator line that is not a match --');
-    const out = H.compressGrep(lines.join('\n'), []);
+    const out = grep(lines.join('\n'), []);
     assert.ok(out.includes('C:\\proj\\x.js: 10 matches, 3 shown'));
     assert.ok(out.includes('-- a separator line that is not a match --'));
   });
 
   test('returns content unchanged when nothing collapses', () => {
     const content = grepContent(['a.js'], 3);
-    assert.strictEqual(H.compressGrep(content, []), content);
+    assert.strictEqual(grep(content, []), content);
   });
 
   test('single-file searches (bare line: prefix) collapse under the given label', () => {
     const lines = [];
     for (let i = 1; i <= 40; i++) lines.push(`${i}: const handler_${i} = wrap(${'r'.repeat(40)})`);
-    const out = H.compressGrep(lines.join('\n'), [], 'big.js');
+    const out = grep(lines.join('\n'), [], 'big.js');
     assert.ok(out.length < lines.join('\n').length);
     assert.ok(out.includes('big.js: 40 matches, 3 shown'));
     assert.ok(out.includes('1: const handler_1'));
@@ -1544,7 +1507,7 @@ describe('grep match-list compression', () => {
   test('too-common relevance tokens (the search pattern itself) do not defeat the collapse', () => {
     const lines = [];
     for (let i = 1; i <= 60; i++) lines.push(`app.js:${i}: uses redis pool ${'p'.repeat(40)}`);
-    const out = H.compressGrep(lines.join('\n'), ['redis']);
+    const out = grep(lines.join('\n'), ['redis']);
     assert.ok(out.includes('app.js: 60 matches, 3 shown'), 'redis hits every line, so the token is dropped as too common');
   });
 
@@ -1601,18 +1564,6 @@ describe('grep elision: the omitted matches are persisted', () => {
     return id;
   }
 
-  // This file pins HUSH_SIDECAR=off for the inline-cap suites; persistence
-  // tests need it back on, without depending on ambient env either way.
-  function sidecarOn(fn) {
-    const prev = process.env.HUSH_SIDECAR;
-    delete process.env.HUSH_SIDECAR;
-    try {
-      return fn();
-    } finally {
-      if (prev === undefined) delete process.env.HUSH_SIDECAR; else process.env.HUSH_SIDECAR = prev;
-    }
-  }
-
   const matchList = (files, per, body = (i) => `const value_${i} = ${'x'.repeat(60)};`) => {
     const lines = [];
     for (const f of files) for (let i = 1; i <= per; i++) lines.push(`${f}:${i}: ${body(i)}`);
@@ -1628,7 +1579,7 @@ describe('grep elision: the omitted matches are persisted', () => {
     const id = newSession('persist');
     const content = matchList(['src/a.js', 'src/b.js'], 40);
     const decision = {};
-    const out = sidecarOn(() => H.compressGrep(content, [], 'src', decision, id));
+    const out = H.compressGrep(content, [], 'src', decision, id);
 
     const named = savedPath(out);
     assert.ok(named, `the summary names the parked copy: ${out.split('\n').filter((l) => l.startsWith('[hush'))[0]}`);
@@ -1643,8 +1594,8 @@ describe('grep elision: the omitted matches are persisted', () => {
   test('the same result twice in one session reuses the one file', () => {
     const id = newSession('idempotent');
     const content = matchList(['src/a.js'], 60);
-    sidecarOn(() => H.compressGrep(content, [], 'src', {}, id));
-    sidecarOn(() => H.compressGrep(content, [], 'src', {}, id));
+    H.compressGrep(content, [], 'src', {}, id);
+    H.compressGrep(content, [], 'src', {}, id);
     assert.strictEqual(fs.readdirSync(sessionDir(id)).length, 1);
   });
 
@@ -1652,14 +1603,7 @@ describe('grep elision: the omitted matches are persisted', () => {
     const id = newSession('off');
     const content = matchList(['src/a.js', 'src/b.js'], 40);
     const decision = {};
-    const prev = process.env.HUSH_SIDECAR;
-    process.env.HUSH_SIDECAR = 'off';
-    let out;
-    try {
-      out = H.compressGrep(content, [], 'src', decision, id);
-    } finally {
-      if (prev === undefined) delete process.env.HUSH_SIDECAR; else process.env.HUSH_SIDECAR = prev;
-    }
+    const out = H.compressGrep(content, [], 'src', decision, id, INLINE);
     assert.ok(out.includes('match lines omitted'), 'the collapse still happens');
     assert.strictEqual(savedPath(out), null, 'no path is claimed');
     assert.ok(out.includes('re-run with a narrower pattern'), 'the honest instruction takes its place');
@@ -1671,7 +1615,7 @@ describe('grep elision: the omitted matches are persisted', () => {
     const id = newSession('secret');
     const content = matchList(['src/keys.js'], 60, (i) => `const key_${i} = "sk-ABCDEFGHIJKLMNOP${i}0000";`);
     const decision = {};
-    const out = sidecarOn(() => H.compressGrep(content, [], 'src', decision, id));
+    const out = H.compressGrep(content, [], 'src', decision, id);
     assert.strictEqual(savedPath(out), null, 'a secret-bearing match list is not written out');
     assert.ok(out.includes('re-run with a narrower pattern'));
     assert.strictEqual(decision.recovery, undefined);
@@ -1789,14 +1733,8 @@ describe('unit: failure digest', () => {
   }
 
   function inline(text, exitCode) {
-    const prev = process.env.HUSH_TEMPLATE;
-    process.env.HUSH_TEMPLATE = 'off'; // template collapse would mask the cap under test
-    try {
-      return compress(text, exitCode, false, false, [], 1, null, true, false, {});
-    } finally {
-      if (prev === undefined) delete process.env.HUSH_TEMPLATE;
-      else process.env.HUSH_TEMPLATE = prev;
-    }
+    // template collapse would mask the cap under test
+    return compress(text, exitCode, false, false, [], 1, null, true, false, {}, INLINE_NO_TEMPLATE);
   }
 
   // The footer promises EVERY warning/error/failure line survives,
