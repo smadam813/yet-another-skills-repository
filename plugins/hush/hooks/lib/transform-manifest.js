@@ -88,7 +88,7 @@ function buildRecord(d) {
     // retrieval count that counts something else. `recoveryPath` also points at
     // files hush never wrote (`source-file` names the original on disk), so it
     // cannot stand in for this either. Non-null here means exactly one thing:
-    // hush put bytes in the sidecar store for this tool call.
+    // hush put bytes in session scratch for this tool call.
     sidecarPath: d.sidecarPath || null,
     // "session": the file lives in a directory the naming session owns and is
     // deleted when that session ends (see hooks/lib/session-scratch.js).

@@ -28,6 +28,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const { HOOKS_DIR } = require('./helpers');
+const { sessionDir } = require('../hooks/lib/session-scratch');
 
 const SCRATCH_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'hush-surface-'));
 const FIXTURES = path.join(SCRATCH_ROOT, 'fixtures');
@@ -40,14 +41,21 @@ after(() => {
 let seq = 0;
 const freshSessionId = () => `s${crypto.randomBytes(4).toString('hex')}${++seq}`;
 
+// freshSessionId yields one safe path segment, so no sanitizing here.
+const oldManifest = (dir, sessionId) => path.join(dir, `hush-debug-${sessionId}.jsonl`);
+// A hook that read the old manifest could only show this on stdout.
+const OLD_MANIFEST_MARK = 'old-manifest-content-hush-never-reads';
+
 /** A scratch TEMP holding the hush-owned files a live session would have. */
 function plantedTemp(sessionId) {
   const dir = path.join(SCRATCH_ROOT, `temp-${sessionId}-${++seq}`);
-  const safe = sessionId.replace(/[^a-zA-Z0-9-]/g, '_');
+  const safe = path.basename(sessionDir(sessionId));
   fs.mkdirSync(path.join(dir, 'hush-sidecar', safe), { recursive: true });
   fs.writeFileSync(path.join(dir, 'hush-sidecar', safe, 'hush-note'), '');
-  fs.writeFileSync(path.join(dir, `hush-debug-${safe}.jsonl`), '');
+  fs.writeFileSync(path.join(dir, 'hush-sidecar', safe, 'manifest.jsonl'), '');
   fs.writeFileSync(path.join(dir, 'hush-sidecar', safe, 'planted.txt'), 'kept\n');
+  // The old debug manifest in the temp root. hush never reads or removes it.
+  fs.writeFileSync(oldManifest(dir, sessionId), OLD_MANIFEST_MARK);
   return dir;
 }
 
@@ -212,6 +220,8 @@ function assertActive(c, env) {
   if (c.writes) {
     assert.notDeepStrictEqual(snapshot(temp), before, 'active run touched no file — the payload misses the disk path');
   }
+  assert.ok(fs.existsSync(oldManifest(temp, c.session)), 'active run removed the old debug manifest');
+  assert.ok(!r.stdout.includes(OLD_MANIFEST_MARK), 'active run read the old debug manifest');
 }
 
 const COMBOS = [
