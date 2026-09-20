@@ -23,11 +23,11 @@ const {
   requestsEnumeration,
   compress,
   firstLine,
-  extractWrappedExit,
   signalCensus,
   exitNote,
   FAILURE_RERUN_NOTE,
 } = require('../hooks/compress-tool-output');
+const { decode } = require('../hooks/lib/exit-trailer');
 
 describe('unit: transforms', () => {
   test('stripAnsi removes color and cursor codes', () => {
@@ -428,22 +428,24 @@ describe('template collapse: the view states its own recovery', () => {
   });
 });
 
-describe('unit: extractWrappedExit', () => {
+// The trailer suite proper is tests/exit_trailer.test.js. These cases stay
+// here as the transform's view of decode.
+describe('unit: decode', () => {
   test('extracts the exit code and strips the marker from the end', () => {
     const text = 'line one\nline two\n[[hush:exit=1]]';
-    const r = extractWrappedExit(text);
+    const r = decode(text);
     assert.strictEqual(r.exitCode, 1);
     assert.strictEqual(r.cleanText, 'line one\nline two');
   });
 
   test('extracts a zero exit code correctly (falsy but valid)', () => {
-    const r = extractWrappedExit('all good\n[[hush:exit=0]]');
+    const r = decode('all good\n[[hush:exit=0]]');
     assert.strictEqual(r.exitCode, 0);
     assert.strictEqual(r.cleanText, 'all good');
   });
 
   test('returns null when no marker is present', () => {
-    assert.strictEqual(extractWrappedExit('plain output, no marker'), null);
+    assert.strictEqual(decode('plain output, no marker'), null);
   });
 
   // A malformed marker (PowerShell only sets $LASTEXITCODE for a native exe;
@@ -451,14 +453,14 @@ describe('unit: extractWrappedExit', () => {
   // what the model sees — a raw `[[hush:exit=` marker leaked verbatim because
   // the old code treated "no digits captured" as "nothing to do here."
   test('strips a malformed/empty marker even though no reliable exit code exists', () => {
-    const r = extractWrappedExit('output\n[[hush:exit=]]');
+    const r = decode('output\n[[hush:exit=]]');
     assert.strictEqual(r.exitCode, null);
     assert.strictEqual(r.cleanText, 'output');
   });
 
   test('strips EVERY marker occurrence, using the last well-formed one as authoritative', () => {
     const text = 'saw a stray [[hush:exit=99]] in some log line\nreal output\n[[hush:exit=1]]';
-    const r = extractWrappedExit(text);
+    const r = decode(text);
     assert.strictEqual(r.exitCode, 1);
     assert.doesNotMatch(r.cleanText, /\[\[hush:exit=/, 'no raw marker of any kind should ever reach the model');
     assert.strictEqual(r.cleanText, 'saw a stray  in some log line\nreal output');
@@ -472,25 +474,25 @@ describe('unit: extractWrappedExit', () => {
   // exe), it appended a malformed marker on top of the first, well-formed one.
   test('a double-wrapped result (well-formed marker + malformed marker) keeps the well-formed exit code and strips both', () => {
     const text = 'line one\nline two\n[[hush:exit=1]]\n[[hush:exit=\n]]';
-    const r = extractWrappedExit(text);
+    const r = decode(text);
     assert.strictEqual(r.exitCode, 1);
     assert.doesNotMatch(r.cleanText, /\[\[hush:exit=/);
   });
 
   test('handles non-string input', () => {
-    assert.strictEqual(extractWrappedExit(undefined), null);
+    assert.strictEqual(decode(undefined), null);
   });
 
   // hush's own source carries the marker syntax as literal text: the prefix
   // and suffix constants sit on adjacent lines. A body that admitted anything
   // but a bracket matched from the prefix across the newline to the suffix
-  // and deleted the whole MARKER_SUFFIX declaration.
+  // and deleted the whole SUFFIX declaration.
   test('leaves literal marker syntax in source text alone', () => {
-    const src = fs.readFileSync(path.join(__dirname, '..', 'hooks', 'preserve-exit-code.js'), 'utf8');
-    const r = extractWrappedExit(src);
+    const src = fs.readFileSync(path.join(__dirname, '..', 'hooks', 'lib', 'exit-trailer.js'), 'utf8');
+    const r = decode(src);
     assert.strictEqual(r.exitCode, null);
-    assert.ok(r.cleanText.includes('const MARKER_PREFIX = "[[hush:exit=";'));
-    assert.ok(r.cleanText.includes('const MARKER_SUFFIX = "]]";'));
+    assert.ok(r.cleanText.includes('const PREFIX = "[[hush:exit=";'));
+    assert.ok(r.cleanText.includes('const SUFFIX = "]]";'));
   });
 
   // Real shape produced by preserve-exit-code.js's wrapPowerShell: the
@@ -500,7 +502,7 @@ describe('unit: extractWrappedExit', () => {
   // tool_result content.
   test('parses the real multi-line CRLF shape PowerShell actually produces', () => {
     const text = 'about to fail\r\n[[hush:exit=\r\n1\r\n]]';
-    const r = extractWrappedExit(text);
+    const r = decode(text);
     assert.strictEqual(r.exitCode, 1);
     assert.strictEqual(r.cleanText, 'about to fail');
   });

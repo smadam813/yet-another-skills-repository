@@ -22,32 +22,33 @@
 //
 // Wrapping forces the tool call itself to always report success (so
 // PostToolUse fires, where compression works), while the real exit code
-// survives as a trailer marker compress-tool-output.js reads authoritatively
-// (see EXIT_MARKER_RE there) instead of guessing from response shape/regex.
+// survives as an exit trailer compress-tool-output.js reads authoritatively
+// instead of guessing from response shape/regex. lib/exit-trailer.js owns the
+// trailer's text on both sides; this hook only splices it into the wrapper.
 
 const { readInput, emitUpdatedInput } = require("./lib/harness");
 const { coreOff } = require("./lib/gate");
+const trailer = require("./lib/exit-trailer");
 
 const WATCHED_TOOLS = new Set(["Bash", "PowerShell"]);
-const MARKER_PREFIX = "[[hush:exit=";
-const MARKER_SUFFIX = "]]";
 
 function alreadyWrapped(command) {
-  return typeof command === "string" && command.includes(MARKER_PREFIX);
+  return typeof command === "string" && command.includes(trailer.PREFIX);
 }
 
-// Deliberately three separate statements with no `$var` ever inside a quoted
-// string, and no parentheses around a variable — confirmed live against a
-// real session that BOTH of the more natural forms get rejected outright by
-// Claude Code's own command-safety layer before the command ever runs:
-// `Write-Output "...$LASTEXITCODE..."` -> "Command contains expandable
-// strings with embedded expressions"; `Write-Output ("..." + $LASTEXITCODE +
-// "...")` -> "Command contains subexpressions $()" (parens near a variable
-// read the same as a subexpression to that checker, even though this isn't
-// one). Single-quoted literals plus a bare `$LASTEXITCODE` expression
-// statement (PowerShell auto-prints an unconsumed expression's value) is the
-// most primitive construct that still gets through, and it does — verified
-// live, exit code correctly reported on its own line, tool succeeds.
+// The trailer is deliberately three separate statements with no `$var` ever
+// inside a quoted string, and no parentheses around a variable — confirmed
+// live against a real session that BOTH of the more natural forms get
+// rejected outright by Claude Code's own command-safety layer before the
+// command ever runs: `Write-Output "...$LASTEXITCODE..."` -> "Command
+// contains expandable strings with embedded expressions"; `Write-Output
+// ("..." + $LASTEXITCODE + "...")` -> "Command contains subexpressions $()"
+// (parens near a variable read the same as a subexpression to that checker,
+// even though this isn't one). Single-quoted literals plus a bare
+// `$LASTEXITCODE` expression statement (PowerShell auto-prints an unconsumed
+// expression's value) is the most primitive construct that still gets
+// through, and it does — verified live, exit code correctly reported on its
+// own line, tool succeeds.
 //
 // The command runs inside `& { ... } | Out-String` rather than bare — found
 // live: a cmdlet pipeline ending in something like `Select-Object` (no
@@ -69,7 +70,7 @@ function alreadyWrapped(command) {
 function wrapPowerShell(command) {
   return (
     `& { ${command} } 2>&1 | Out-String -Width 4096\n` +
-    `Write-Output '${MARKER_PREFIX}'\n$LASTEXITCODE\nWrite-Output '${MARKER_SUFFIX}'\nexit 0`
+    `${trailer.powershellTrailer()}\nexit 0`
   );
 }
 
@@ -78,7 +79,7 @@ function wrapPowerShell(command) {
 // single-quoted literals around a bare (unquoted, safe for a plain integer)
 // variable reference.
 function wrapBash(command) {
-  return `${command}\n__hush_exit=$?\necho '${MARKER_PREFIX}'\necho $__hush_exit\necho '${MARKER_SUFFIX}'\nexit 0`;
+  return `${command}\n${trailer.bashTrailer()}\nexit 0`;
 }
 
 // Wrapping is gated on the session's permission mode. Claude Code applies
@@ -98,7 +99,7 @@ function wrapBash(command) {
 //     rule matching, so it denied EVERY wrapped command, even ones an
 //     allow rule covered.
 // Under `bypassPermissions` none of that machinery runs (verified live:
-// the full PowerShell wrapper executes and the marker comes back), so
+// the full PowerShell wrapper executes and the trailer comes back), so
 // wrapping is safe exactly there. `HUSH_WRAP=1` opts back in for sessions
 // whose rules are blanket per-tool grants (plain `Bash` / `PowerShell`,
 // no command pattern) — those match the wrapped command as a whole; the
@@ -148,4 +149,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { wrapPowerShell, wrapBash, alreadyWrapped, shouldSkip, MARKER_PREFIX, MARKER_SUFFIX };
+module.exports = { wrapPowerShell, wrapBash, alreadyWrapped, shouldSkip };

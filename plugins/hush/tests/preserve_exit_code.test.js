@@ -3,7 +3,8 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert');
 const { runHook, hookOutput } = require('./helpers');
-const { wrapPowerShell, wrapBash, alreadyWrapped, shouldSkip, MARKER_PREFIX } = require('../hooks/preserve-exit-code');
+const { wrapPowerShell, wrapBash, alreadyWrapped, shouldSkip } = require('../hooks/preserve-exit-code');
+const { PREFIX } = require('../hooks/lib/exit-trailer');
 
 // shouldSkip / end-to-end payloads: wrapping only happens in sessions where
 // the permission engine never evaluates the rewritten command (see the gate
@@ -65,7 +66,7 @@ describe('unit: wrapping', () => {
   });
 
   test('alreadyWrapped detects the marker prefix', () => {
-    assert.ok(alreadyWrapped(`echo hi\n${MARKER_PREFIX}0]]`));
+    assert.ok(alreadyWrapped(`echo hi\n${PREFIX}0]]`));
     assert.strictEqual(alreadyWrapped('echo hi'), false);
     assert.strictEqual(alreadyWrapped(undefined), false);
   });
