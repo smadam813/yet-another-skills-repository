@@ -7,7 +7,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 const { HOOKS_DIR } = require('./helpers');
-const { sessionDir, notePath, SIDECAR_ROOT } = require('../hooks/lib/sidecar-store');
+const { sessionDir, notePath, SIDECAR_ROOT } = require('../hooks/lib/session-scratch');
 
 /** Run postcompact-rearm.js with raw stdin (not necessarily JSON); returns spawnSync result. */
 function runRaw(stdinData, env) {

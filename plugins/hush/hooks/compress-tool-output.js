@@ -11,9 +11,8 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { readInput, emitToolOutput, decodeResponse, SHELL_FIELDS, lastUserPromptText } = require("./lib/harness");
-const { safeWriteFileSync } = require("./lib/safe-write");
 const { combineActions, buildRecord, recoveryGap, sizeGap, fieldGap, debugManifestPath, appendRecord } = require("./lib/transform-manifest");
-const sidecarStore = require("./lib/sidecar-store");
+const sessionScratch = require("./lib/session-scratch");
 const { coreOff } = require("./lib/gate");
 const { decode: decodeTrailer, hasTrailer } = require("./lib/exit-trailer");
 
@@ -641,9 +640,9 @@ function pressureScale(transcriptBytes) {
 // exact total count, and every prompt-named (relevance) line, so most tasks
 // never need the follow at all. Fail-open: any filesystem trouble falls back
 // to the normal capped view. The enumeration carve-out is exempt — its whole
-// point is that nothing is elided. Files are content-addressed (idempotent on
-// re-fire) inside a directory this session owns, and are deleted when the
-// session ends (see lib/sidecar-store.js).
+// point is that nothing is elided. Session scratch parks the file, content-
+// addressed (idempotent on re-fire) inside a directory this session owns, and
+// removes it when the session ends (see lib/session-scratch.js).
 const SIDECAR_MIN_CHARS = intEnv("HUSH_SIDECAR_MIN", 15000);
 // Upper bound for SHELL outputs only. Claude Code truncates a Bash/PowerShell
 // result to ~29KB for the hook (and the model) once it trips its own
@@ -693,15 +692,6 @@ function signalCensus(lines, signalIdx) {
     if (n > 0) parts.push(`${n} ${n === 1 ? c.singular : c.plural}`);
   });
   return parts.join(", ");
-}
-
-function cheapHash(s) {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return (h >>> 0).toString(16);
 }
 
 function buildSidecarDigest(cleaned, relevanceTokens) {
@@ -803,30 +793,14 @@ function containsSecret(text) {
   return SECRET_RES.some((re) => re.test(text));
 }
 
-// The one place a sidecar file's name is decided, for every caller that parks
-// content: this session's own directory carries ownership and cleanup, and the
-// name is just the content hash, so re-firing on identical output reuses the
-// file instead of multiplying it. Returns null when the content must not be
-// persisted at all — the secret screen runs here, strictly before any caller
-// can be handed a path to write to.
-function sidecarTarget(content, sessionId) {
-  if (process.env.HUSH_SIDECAR === "off") return null;
+// Whether content may leave the conversation for disk at all, for every
+// caller that parks: the HUSH_SIDECAR switch and the secret screen run here,
+// strictly before session scratch is ever asked for a path. Where and how the
+// file is written is session scratch's decision, not this hook's.
+function mayPark(content) {
+  if (process.env.HUSH_SIDECAR === "off") return false;
   try {
-    if (containsSecret(content)) return null;
-    return path.join(sidecarStore.sessionDir(sessionId), `${cheapHash(content)}.txt`);
-  } catch {
-    return null;
-  }
-}
-
-// Materializes a sidecarTarget. Returns true only when the file is on disk
-// afterwards (safeWriteFileSync throws on any refusal or I/O failure), so no
-// caller can print a path for a write that never landed.
-function writeSidecar(file, content) {
-  try {
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    if (!fs.existsSync(file)) safeWriteFileSync(file, content);
-    return true;
+    return !containsSecret(content);
   } catch {
     return false;
   }
@@ -839,9 +813,7 @@ function writeSidecar(file, content) {
 // when the copy is really there, null when it is not — the caller words its
 // marker from that answer, never the other way round.
 function persistGrepMatches(content, sessionId) {
-  const file = sidecarTarget(content, sessionId);
-  if (!file) return null;
-  return writeSidecar(file, content) ? file : null;
+  return mayPark(content) ? sessionScratch.parkSidecar(sessionId, content) : null;
 }
 
 function maybeSidecar(cleaned, relevanceTokens, sessionId, hostMayTruncate, failed) {
@@ -862,31 +834,37 @@ function maybeSidecar(cleaned, relevanceTokens, sessionId, hostMayTruncate, fail
   // then never parks anything.
   const partial = !!(hostMayTruncate && cleaned.length >= SIDECAR_SHELL_MAX);
   try {
-    // sidecarTarget scans for secrets before ever handing back a path, so a
-    // credential-shaped payload falls through to the ordinary inline cap
-    // rather than being written out "cleaned".
-    const file = sidecarTarget(cleaned, sessionId);
-    if (!file) return null;
+    // mayPark screens for secrets before session scratch is ever asked to
+    // write, so a credential-shaped payload falls through to the ordinary
+    // inline cap rather than being written out "cleaned".
+    if (!mayPark(cleaned)) return null;
     const d = buildSidecarDigest(cleaned, relevanceTokens);
-    const p = file.replace(/\\/g, "/");
-    const saved = partial ? `was saved to ${p} as hush received it` : `was saved in full to ${p}`;
-    const header =
-      `[hush hook: this output is ${d.nonBlank} non-empty lines (${d.census || "0 signal lines"}) ` +
-      `and ${saved}; the digest below keeps the head, tail, ` +
-      `every prompt-named line, and a sample of the signal lines, each with its L<n> line number. ` +
-      `For anything else — including any total or count you report — Read that file with ` +
-      `offset/limit around the L<n> numbers you need. ` +
-      `If that file no longer exists, re-run the command — a second run is not guaranteed ` +
-      `to reproduce this output.]`;
-    const out = `${header}\n${d.body}`;
+    const view = (file) => {
+      const p = file.replace(/\\/g, "/");
+      const saved = partial ? `was saved to ${p} as hush received it` : `was saved in full to ${p}`;
+      return (
+        `[hush hook: this output is ${d.nonBlank} non-empty lines (${d.census || "0 signal lines"}) ` +
+        `and ${saved}; the digest below keeps the head, tail, ` +
+        `every prompt-named line, and a sample of the signal lines, each with its L<n> line number. ` +
+        `For anything else — including any total or count you report — Read that file with ` +
+        `offset/limit around the L<n> numbers you need. ` +
+        `If that file no longer exists, re-run the command — a second run is not guaranteed ` +
+        `to reproduce this output.]\n${d.body}`
+      );
+    };
     // A near-line-free payload (e.g. one giant minified-JSON line) leaves
     // buildSidecarDigest's head/tail trim nothing to cut — the digest would
     // reproduce the whole input plus header overhead, larger than the source.
     // Bail before ever touching disk and let compress() fall through to the
     // ordinary inline cap, which is a no-op here too but at least isn't larger.
+    // The path is not known until the file is parked, so this first check
+    // runs with an empty one; the real path only makes the view longer.
+    if (view("").length >= cleaned.length) return null;
+    const file = sessionScratch.parkSidecar(sessionId, cleaned);
+    if (!file) return null;
+    const out = view(file);
     if (out.length >= cleaned.length) return null;
-    if (!writeSidecar(file, cleaned)) return null;
-    // The written file IS the recovery location for everything the digest
+    // The parked file IS the recovery location for everything the digest
     // left out — the manifest record carries it (see deliver).
     return { text: out, file, linesIn: d.total, omitted: Math.max(0, d.total - d.shown) };
   } catch {
@@ -901,7 +879,7 @@ function maybeSidecar(cleaned, relevanceTokens, sessionId, hostMayTruncate, fail
 // behavior, by construction) but never re-sidecar them, or the middle of the
 // file would become unreachable. Range reads (offset/limit) come back small
 // and pass untouched — that's the intended path the digest teaches.
-const isSidecarPath = sidecarStore.isSidecarPath;
+const isSidecar = sessionScratch.isSidecar;
 
 // `decision`, when passed, is mutated with the single action token that
 // classifies what this call actually did (see HUSH_DEBUG below) — purely an
@@ -1037,7 +1015,7 @@ function deliver(decision, updated, data) {
   // how much was actually delivered. Every handled output passes through here
   // with both sizes already computed, so the running total costs a read and a
   // write and nothing else.
-  sidecarStore.addSaved(record.session, record.bytesIn, record.bytesOut);
+  sessionScratch.addSaved(record.session, record.bytesIn, record.bytesOut);
   emit(out, data.session_id);
 }
 
@@ -1072,14 +1050,14 @@ const NOTE_TEXT =
 // parallel tool calls emit at most one note. Sessions without a session_id
 // (bare test harnesses) never emit — a shared "unknown" key would leak the
 // once-only state across unrelated runs. It lives in the session's sidecar
-// directory (sidecar-store's notePath), so session-end-cleanup.js removes it
+// directory (session scratch's notePath), so session-end-cleanup.js removes it
 // with the parked copies and the stale sweep catches it after a crash;
 // postcompact-rearm.js unlinks it at compaction. `dir` is a test seam only:
 // the directory to claim in, instead of the session's own.
 function claimSessionNote(sessionId, dir) {
   if (typeof sessionId !== "string" || !sessionId) return false;
   try {
-    const notePath = dir ? path.join(dir, sidecarStore.NOTE_FILE) : sidecarStore.notePath(sessionId);
+    const notePath = dir ? path.join(dir, sessionScratch.NOTE_FILE) : sessionScratch.notePath(sessionId);
     // Refuse a pre-planted symlink at the sentinel path before wx even tries
     // it — same residual-defense posture as safe-write's lstat gate.
     try {
@@ -1135,7 +1113,7 @@ function main() {
     const decoded = decodeResponse(response);
     const file = decoded.kind === "file" ? decoded.file : undefined;
     const filePath = (data.tool_input && data.tool_input.file_path) || (file && file.filePath);
-    const sideRead = isSidecarPath(filePath);
+    const sideRead = isSidecar(filePath);
     // An explicit offset/limit means the model is navigating to a specific
     // slice — often after a capped view's own marker invited it — and that
     // slice must come back verbatim or the follow-up loop never resolves.
@@ -1304,7 +1282,7 @@ module.exports = {
   isFileDump,
   isLogPath,
   isGeneratedPath,
-  isSidecarPath,
+  isSidecar,
   requestsEnumeration,
   extractRelevanceTokens,
   pressureScale,

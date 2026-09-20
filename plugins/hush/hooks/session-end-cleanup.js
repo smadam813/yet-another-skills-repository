@@ -16,7 +16,7 @@
 // an error, and a sidecar left on disk costs nothing but temp space.
 
 const { readInputOrNull: readInput } = require("./lib/harness");
-const { removeSession, sweepStale } = require("./lib/sidecar-store");
+const { removeSession, sweepStale } = require("./lib/session-scratch");
 const { coreOff } = require("./lib/gate");
 
 function main() {

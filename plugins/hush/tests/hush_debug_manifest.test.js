@@ -14,7 +14,7 @@ const path = require('path');
 const { runHook, hookOutput } = require('./helpers');
 const { debugManifestPath, deliver } = require('../hooks/compress-tool-output');
 const { buildRecord, recoveryGap } = require('../hooks/lib/transform-manifest');
-const { sessionDir } = require('../hooks/lib/sidecar-store');
+const { sessionDir } = require('../hooks/lib/session-scratch');
 
 const sids = [];
 function sid(label) {

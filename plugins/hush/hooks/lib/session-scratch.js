@@ -1,10 +1,10 @@
 'use strict';
 
-// Where sidecar files live, who owns them, and when they go away. One module
-// because four call sites need the same answer: compress-tool-output.js writes
-// them, precompact-summary.js lists this session's, session-end-cleanup.js
-// removes them, and isSidecarPath decides whether a Read of one is a read of
-// machine-persisted tool output.
+// Session scratch: the one directory hush owns for a session, and the module
+// that writes into it. compress-tool-output.js parks a sidecar here and
+// gets a path back, precompact-summary.js asks for the live sidecars this
+// session parked, session-end-cleanup.js removes the directory, and
+// isSidecar decides whether a Read of a path is a read of parked output.
 //
 // Layout: tmpdir/hush-sidecar/<session>/<content-hash>.txt — the directory IS
 // the registration. Two non-.txt files share the directory: saved.json, the
@@ -36,9 +36,9 @@ const SIDECAR_ROOT = path.join(os.tmpdir(), 'hush-sidecar');
 // long enough that no plausible session loses a file it still points at.
 const STALE_MS = 24 * 60 * 60 * 1000;
 
-// The sessionId sanitization the sidecar tree uses — the id becomes a
-// single path segment, so anything that isn't [A-Za-z0-9-] (path
-// separators and traversal included) is flattened to an underscore.
+// The session id becomes one path segment here and nowhere else: anything
+// that isn't [A-Za-z0-9-] (path separators and traversal included) is
+// flattened to an underscore.
 // win32 folds the case: `ABCD1234` and `abcd1234` are one directory on NTFS,
 // so distinct-case ids have to resolve to the same name here too — otherwise a
 // cleanup for one id deletes the other's live files.
@@ -47,7 +47,7 @@ function sessionDir(sessionId) {
   return path.join(SIDECAR_ROOT, process.platform === 'win32' ? safe.toLowerCase() : safe);
 }
 
-// True for any file under the sidecar root at any depth: a session directory
+// True for any file under the scratch root at any depth: a session directory
 // today, a stale flat-scheme leftover from an older run just the same.
 // win32 folds the case here for the same reason sessionDir does: the path
 // arrives from the model, which may have retyped or lowercased what the digest
@@ -55,12 +55,64 @@ function sessionDir(sessionId) {
 // as "not a sidecar", and a full Read of one then passed through uncompressed --
 // the whole parked output straight back into context, which is the one thing
 // this predicate exists to prevent.
-function isSidecarPath(filePath) {
+function isSidecar(filePath) {
   if (typeof filePath !== 'string') return false;
   const fold = (p) => (process.platform === 'win32' ? p.toLowerCase() : p);
   const resolved = fold(path.resolve(filePath.trim()));
   const root = fold(path.resolve(SIDECAR_ROOT) + path.sep);
   return resolved.startsWith(root);
+}
+
+// Parks one tool output as a sidecar and returns its path, or null when
+// nothing is on disk afterwards. The name is the content hash, so re-firing
+// on identical output reuses the file instead of multiplying it, and an
+// existing file is never rewritten. The safe write refuses symlinks and
+// throws on any I/O failure, so no caller can print a path for a write that
+// never landed. Whether the content may be parked at all — the secret screen,
+// the HUSH_SIDECAR switch — is the caller's call, not this module's.
+function parkSidecar(sessionId, content) {
+  try {
+    const file = path.join(sessionDir(sessionId), `${cheapHash(content)}.txt`);
+    if (!fs.existsSync(file)) safeWriteFileSync(file, content);
+    return file;
+  } catch {
+    return null;
+  }
+}
+
+// FNV-1a over the UTF-16 code units: cheap, and collisions only cost a
+// reused file name for output that is byte-identical in practice.
+function cheapHash(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(16);
+}
+
+// The sidecars this session parked that are still on disk: full paths,
+// sorted by name so repeated calls in one session list the same files the
+// same way. Only regular .txt files count — a .tmp partial from an
+// interrupted safe write is not a recovery location, and neither is a name
+// that has since been deleted or that is a directory. An absent session
+// directory means the session parked nothing.
+function listSidecars(sessionId) {
+  const dir = sessionDir(sessionId);
+  let names;
+  try {
+    names = fs.readdirSync(dir);
+  } catch {
+    return [];
+  }
+  return names
+    .filter((f) => f.endsWith('.txt'))
+    .sort()
+    .map((f) => path.join(dir, f))
+    .filter((file) => {
+      const st = fs.statSync(file, { throwIfNoEntry: false });
+      return !!st && st.isFile();
+    });
 }
 
 // SessionEnd trigger: the session's whole namespace goes, partial `.tmp`
@@ -163,4 +215,4 @@ function addSaved(sessionId, bytesIn, bytesOut) {
   }
 }
 
-module.exports = { SIDECAR_ROOT, NOTE_FILE, sessionDir, isSidecarPath, removeSession, sweepStale, savedPath, addSaved, notePath };
+module.exports = { SIDECAR_ROOT, NOTE_FILE, sessionDir, isSidecar, parkSidecar, listSidecars, removeSession, sweepStale, savedPath, addSaved, notePath };

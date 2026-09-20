@@ -16,14 +16,14 @@
 
 const { readInputOrNull: readInput } = require("./lib/harness");
 const fs = require("fs");
-const { notePath } = require("./lib/sidecar-store");
+const { notePath } = require("./lib/session-scratch");
 const { coreOff } = require("./lib/gate");
 
 // Re-arming is deletion, and deletion is total: the note sentinel is dropped
 // so the next compaction can claim it again, never carried forward as still
 // live. Nothing here re-arms per entry, and nothing here trusts state content.
 //
-// session_id arrives from stdin raw; sidecar-store's sessionDir flattens it to
+// session_id arrives from stdin raw; session scratch's sessionDir flattens it to
 // one path segment, so the sentinel path cannot leave the sidecar root — a
 // traversal-shaped id names a directory hush owns, never someone else's file.
 function unlinkSentinels(sessionId) {

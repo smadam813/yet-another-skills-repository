@@ -7,7 +7,8 @@ const path = require('path');
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 const { HOOKS_DIR } = require('./helpers');
-const { STATIC_BLOCK, buildSidecarBlock, liveSidecarFiles, SIDECAR_CAP, sessionDir } = require('../hooks/precompact-summary');
+const { STATIC_BLOCK, buildSidecarBlock, SIDECAR_CAP } = require('../hooks/precompact-summary');
+const { sessionDir, listSidecars } = require('../hooks/lib/session-scratch');
 
 /** Run precompact-summary.js with raw stdin (not necessarily JSON); returns spawnSync result. */
 function runRaw(stdinData, env) {
@@ -154,7 +155,7 @@ describe('precompact-summary hook', () => {
     const r = runHook({ hook_event_name: 'PreCompact', session_id: mine });
     assert.match(r.stdout, /mine\.txt/);
     assert.doesNotMatch(r.stdout, /stale\d\.txt/);
-    assert.strictEqual(liveSidecarFiles(sessionDir(mine)).length, 1);
+    assert.strictEqual(listSidecars(mine).length, 1);
   });
 
   test('a session that transformed output without parking any gets the static block only', () => {
@@ -192,7 +193,7 @@ describe('precompact-summary hook', () => {
     const r = runHook({ hook_event_name: 'PreCompact', session_id: session });
     assert.strictEqual(r.status, 0);
     assert.match(r.stdout, new RegExp(parked.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-    assert.strictEqual(liveSidecarFiles(sessionDir(session)).length, 1,
+    assert.strictEqual(listSidecars(session).length, 1,
       'only the output that was actually parked has an artifact');
   });
 
@@ -251,6 +252,6 @@ describe('precompact-summary hook', () => {
   test('listing order is stable, not filesystem order', () => {
     const session = freshSessionId();
     for (const s of ['zzz', 'aaa', 'mmm']) writeSidecarFile(session, s);
-    assert.deepStrictEqual(liveSidecarFiles(sessionDir(session)), ['aaa.txt', 'mmm.txt', 'zzz.txt']);
+    assert.deepStrictEqual(listSidecars(session).map((f) => path.basename(f)), ['aaa.txt', 'mmm.txt', 'zzz.txt']);
   });
 });
