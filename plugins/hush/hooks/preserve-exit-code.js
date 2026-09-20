@@ -14,7 +14,7 @@
 // PowerShell tool itself is concerned — but Claude Code routes a non-zero
 // exit through PostToolUseFailure, an event with no mechanism to shrink
 // content (no `updatedToolOutput`, unlike PostToolUse). That silently
-// defeats compress-tool-output.js's CAP_FAIL path on exactly the noisy-
+// defeats compress-tool-output.js's failing cap on exactly the noisy-
 // failure case hush's compression exists for: hush's PostToolUse hook is
 // never invoked for a command that exits non-zero, so a huge failing build
 // or test dump reaches context uncompressed and stays that way for the rest

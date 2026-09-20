@@ -17,7 +17,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const { HOOKS_DIR } = require('./helpers');
-const { compress } = require('../hooks/compress-tool-output');
+const { compress, settingsFromEnv } = require('../hooks/compress-tool-output');
 const { buildSidecarBlock } = require('../hooks/precompact-summary');
 const { sessionDir, isSidecar, SIDECAR_ROOT, savedPath, addSaved } = require('../hooks/lib/session-scratch');
 
@@ -36,20 +36,9 @@ function freshSessionId(tag) {
   return id;
 }
 
-// ~18KB of one repeated-but-unique shape: over SIDECAR_MIN_CHARS, under
-// SIDECAR_SHELL_MAX, and line-rich enough for the digest to be smaller.
+// ~18KB of one repeated-but-unique shape: over the sidecar floor, under
+// the shell bound, and line-rich enough for the digest to be smaller.
 const BIG = Array.from({ length: 500 }, (_, i) => `2026-07-28 10:00:00 worker step ${i} finished, artifact ${i} written`).join('\n');
-
-function sidecarOn(fn) {
-  const prev = process.env.HUSH_SIDECAR;
-  delete process.env.HUSH_SIDECAR;
-  try {
-    return fn();
-  } finally {
-    if (prev === undefined) delete process.env.HUSH_SIDECAR;
-    else process.env.HUSH_SIDECAR = prev;
-  }
-}
 
 const pathFrom = (digest) => {
   const m = digest.match(/saved in full to ([^;]+);/);
@@ -94,8 +83,8 @@ describe('sidecar storage: a session owns its namespace', () => {
   test('two sessions producing identical output get a file each, in their own directories', () => {
     const a = freshSessionId('iso-a');
     const b = freshSessionId('iso-b');
-    const fileA = sidecarOn(() => pathFrom(compress(BIG, 0, true, false, [], 1, a)));
-    const fileB = sidecarOn(() => pathFrom(compress(BIG, 0, true, false, [], 1, b)));
+    const fileA = pathFrom(compress(BIG, 0, true, false, [], 1, a));
+    const fileB = pathFrom(compress(BIG, 0, true, false, [], 1, b));
 
     assert.notStrictEqual(fileA, fileB, 'identical content is no longer one shared file');
     assert.strictEqual(path.dirname(path.resolve(fileA)), path.resolve(sessionDir(a)));
@@ -138,8 +127,8 @@ describe('sidecar storage: a session owns its namespace', () => {
 
   test('the same output twice in one session reuses the one file', () => {
     const id = freshSessionId('idempotent');
-    const first = sidecarOn(() => pathFrom(compress(BIG, 0, true, false, [], 1, id)));
-    const second = sidecarOn(() => pathFrom(compress(BIG, 0, true, false, [], 1, id)));
+    const first = pathFrom(compress(BIG, 0, true, false, [], 1, id));
+    const second = pathFrom(compress(BIG, 0, true, false, [], 1, id));
     assert.strictEqual(first, second);
     assert.strictEqual(fs.readdirSync(sessionDir(id)).length, 1);
   });
@@ -156,15 +145,8 @@ describe('sidecar storage: a failed write never costs the output', () => {
     // Template collapse is pinned off so the fallback is demonstrably the
     // ordinary line cap: every line in BIG shares one shape, and collapsing
     // them would keep the view under the cap and hide which path ran.
-    const prevTemplate = process.env.HUSH_TEMPLATE;
-    process.env.HUSH_TEMPLATE = 'off';
-    let out;
-    try {
-      out = sidecarOn(() => compress(BIG, 0, true, false, [], 1, id));
-    } finally {
-      if (prevTemplate === undefined) delete process.env.HUSH_TEMPLATE;
-      else process.env.HUSH_TEMPLATE = prevTemplate;
-    }
+    const noTemplate = settingsFromEnv({ HUSH_TEMPLATE: 'off' });
+    const out = compress(BIG, 0, true, false, [], 1, id, undefined, undefined, undefined, noTemplate);
     assert.doesNotMatch(out, /saved in full to/, 'no pointer to a file that was never written');
     assert.match(out, /lines omitted from this view/, 'falls through to the ordinary inline cap');
     assert.ok(out.includes('worker step 0 finished'), 'the original output is still what the model sees');
@@ -281,7 +263,7 @@ describe('sidecar cleanup: crash leftovers', () => {
 describe('sidecar lifetime: compaction keeps every path valid', () => {
   test('the PreCompact summary names this session\'s files and they are still there afterwards', () => {
     const id = freshSessionId('compact');
-    const file = sidecarOn(() => pathFrom(compress(BIG, 0, true, false, [], 1, id)));
+    const file = pathFrom(compress(BIG, 0, true, false, [], 1, id));
 
     const block = buildSidecarBlock(id);
     assert.ok(block, 'the summary gets a block naming the parked output');
