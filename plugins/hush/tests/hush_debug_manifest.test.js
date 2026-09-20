@@ -2,7 +2,7 @@
 
 // HUSH_DEBUG=1 decision manifest. One JSON line per handled
 // tool output — including every do-nothing path — appended to manifest.jsonl
-// in the session's scratch directory. Never emitted without the env gate;
+// in session scratch. Never emitted without the env gate;
 // never changes what any compression path actually produces (see the
 // `decision` side-channel comments in compress-tool-output.js).
 

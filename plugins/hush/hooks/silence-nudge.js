@@ -74,10 +74,10 @@ function styleKeepsQuiet(pluginRoot = path.join(__dirname, "..")) {
   }
 }
 
-// The default's corrective state, how many mid-turn text blocks have already
-// been answered with a reminder this turn, is the react counter in session
-// scratch (resetReact, reactSeen). Fail-open in the cheap direction: an
-// unreadable transcript or counter means no injection.
+// The react counter in session scratch (resetReact, reactSeen) holds the
+// default's state: how many mid-turn text blocks the hook has answered this
+// turn. Fail-open in the cheap direction: an unreadable transcript or counter
+// means no injection.
 
 // Count assistant text blocks since the last real human prompt — mid-turn
 // text, because the turn's own final message cannot exist yet while a

@@ -14,7 +14,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const {
   parkSidecar, listSidecars, isSidecar, removeSession, sessionDir,
-  claimNote, rearmNote, resetReact, reactSeen, appendManifest, manifestPath,
+  claimNote, rearmNote, notePath, resetReact, reactSeen, appendManifest, manifestPath,
 } = require('../hooks/lib/session-scratch');
 
 const sessions = [];
@@ -131,6 +131,16 @@ describe('session scratch: the note sentinel', () => {
     assert.strictEqual(claimNote(undefined), false);
   });
 
+  test('a symlink at the sentinel path refuses the claim', { skip: process.platform === 'win32' }, () => {
+    const id = freshSessionId('claim-symlink');
+    const victim = path.join(sessionDir(id), 'victim');
+    fs.mkdirSync(sessionDir(id), { recursive: true });
+    fs.writeFileSync(victim, 'keep');
+    fs.symlinkSync(victim, notePath(id));
+    assert.strictEqual(claimNote(id), false);
+    assert.strictEqual(fs.readFileSync(victim, 'utf8'), 'keep');
+  });
+
   test('the sentinel is not a sidecar', () => {
     const id = freshSessionId('claim-not-sidecar');
     claimNote(id);
@@ -201,7 +211,7 @@ describe('session scratch: the debug manifest', () => {
     assert.strictEqual(fs.existsSync(sessionDir(id)), false);
   });
 
-  test('a symlink at the manifest path is refused, and nothing is written through it', { skip: process.platform === 'win32' }, () => {
+  test('a symlink at the manifest path refuses the append', { skip: process.platform === 'win32' }, () => {
     const id = freshSessionId('manifest-symlink');
     const victim = path.join(sessionDir(id), 'victim');
     fs.mkdirSync(sessionDir(id), { recursive: true });

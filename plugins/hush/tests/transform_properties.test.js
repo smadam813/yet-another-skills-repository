@@ -677,11 +677,11 @@ describe('pinned: narrow edges of the current transforms', () => {
     assert.ok(path.resolve(target).startsWith(root), 'the id is flattened to one path segment under the root');
     assert.ok(!path.relative(root, target).startsWith('..'));
 
-    // The claim lands in the flattened directory and nowhere else.
+    // The claim lands under the flattened path and parks no sidecar.
     try {
       assert.strictEqual(sessionScratch.claimNote(sessionId), true);
       assert.strictEqual(fs.readFileSync(target, 'utf-8'), '');
-      assert.deepStrictEqual(fs.readdirSync(sessionScratch.sessionDir(sessionId)), ['hush-note']);
+      assert.deepStrictEqual(sessionScratch.listSidecars(sessionId), []);
     } finally {
       sessionScratch.removeSession(sessionId);
     }

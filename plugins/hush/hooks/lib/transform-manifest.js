@@ -161,10 +161,10 @@ function fieldGap(original, updated) {
 }
 
 // HUSH_DEBUG=1: append the record as one JSON line to the session's
-// manifest. "Ran but kept the original" (cap no-op, rejected MCP table,
-// untouched Read) is otherwise invisible to any harness measuring hush — this
-// makes every decision, including the do-nothing ones, observable without
-// changing what any path produces.
+// manifest. A harness measuring hush cannot otherwise see "ran but kept the
+// original" (cap no-op, rejected MCP table, untouched Read). The manifest
+// shows every decision, the do-nothing ones included, and changes nothing
+// any path produces.
 function appendRecord(record) {
   if (process.env.HUSH_DEBUG !== '1') return;
   appendManifest(record.session, record);

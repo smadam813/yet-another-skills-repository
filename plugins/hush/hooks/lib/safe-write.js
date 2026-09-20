@@ -2,8 +2,9 @@
 
 // Symlink-refusing, atomic-rename file write.
 //
-// The function below is duplicated verbatim in another plugin in this
-// marketplace; mirror any functional fix.
+// safeWriteFileSync began as a verbatim copy of the one in plugins/razor.
+// hush's copy has since pulled the symlink check out into refuseSymlink.
+// Mirror any functional fix between the two.
 //
 // Throws on refusal or I/O failure; every call site wraps the call in
 // try/catch, so a throw here degrades to the feature silently skipping
@@ -19,13 +20,16 @@ const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
 
+// The O_NOFOLLOW open flag, or 0 where the platform has none (win32).
+const O_NOFOLLOW = typeof fs.constants.O_NOFOLLOW === 'number' ? fs.constants.O_NOFOLLOW : 0;
+
 // Throws when a symlink sits at `target`, or when lstat fails for any reason
-// other than the file not existing. Every hush write that does not go through
-// safeWriteFileSync (the note sentinel's wx claim, the manifest append) runs
-// this first, so the refusal is written once. The lstat check alone leaves a
-// TOCTOU gap between the check and the write; an O_NOFOLLOW open closes it on
-// the platforms that honor the flag, and on win32 this is the accepted
-// residual defense (see the header).
+// other than the file not existing. hush writes the symlink refusal once,
+// here. The safe write runs it, and so does every write that cannot go
+// through the safe write: the note's wx claim and the manifest append. The
+// lstat check alone leaves a race between the check and the write. An
+// O_NOFOLLOW open closes that race where the platform honors the flag. On
+// win32 the lstat check is the accepted fallback (see the header).
 function refuseSymlink(target) {
   try {
     if (fs.lstatSync(target).isSymbolicLink()) throw new Error('safe-write: target is a symlink');
@@ -78,7 +82,6 @@ function safeWriteFileSync(target, content) {
   refuseSymlink(realTarget);
 
   const tmpPath = path.join(realDir, `.${path.basename(target)}.${process.pid}.${crypto.randomBytes(4).toString('hex')}.tmp`);
-  const O_NOFOLLOW = typeof fs.constants.O_NOFOLLOW === 'number' ? fs.constants.O_NOFOLLOW : 0;
   const fd = fs.openSync(tmpPath, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | O_NOFOLLOW, 0o600);
   try {
     fs.writeSync(fd, content);
@@ -102,4 +105,4 @@ function safeWriteFileSync(target, content) {
   }
 }
 
-module.exports = { safeWriteFileSync, refuseSymlink };
+module.exports = { safeWriteFileSync, refuseSymlink, O_NOFOLLOW };

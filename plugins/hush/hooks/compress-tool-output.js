@@ -1226,8 +1226,8 @@ function main() {
 
 function emit(updated, sessionId) {
   if (updated === undefined) return; // nothing shrank — stay silent
-  // The note rides once per session: session scratch holds the claim, so two
-  // hook fires racing on parallel tool calls emit at most one note, and
+  // The note goes out once per session. Session scratch holds the claim, so
+  // two hook fires racing on parallel tool calls emit at most one note.
   // postcompact-rearm.js re-arms it after compaction.
   const noteRides =
     process.env.HUSH_NOTE !== "off" && hasHushNote(updated) && sessionScratch.claimNote(sessionId);

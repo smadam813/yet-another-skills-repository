@@ -8,7 +8,8 @@
 // note. silence-nudge.js resets and advances the react counter.
 // transform-manifest.js appends a debug record. session-end-cleanup.js
 // removes the directory. isSidecar decides whether a Read of a path is a
-// read of a sidecar.
+// read of a sidecar. The path getters (savedPath, notePath, manifestPath)
+// serve a user's statusline script and the test suites, not the hooks.
 //
 // Layout: tmpdir/hush-sidecar/<session>/ holds:
 //   <content-hash>.txt  a sidecar (parkSidecar). The directory IS the
@@ -19,8 +20,8 @@
 //   react-count         the react counter: mid-turn text blocks answered
 //                       this turn (resetReact, reactSeen).
 //   manifest.jsonl      the HUSH_DEBUG decision manifest (appendManifest).
-// Only the .txt entries are sidecars; listSidecars never offers the others
-// to the summarizer as a recovery file.
+// Only the .txt entries are sidecars. listSidecars never names the others,
+// so the summarizer never offers one to the model.
 //
 // A flat shared directory made ownership a filename prefix and, since files
 // are content-addressed and an existing file is never rewritten, let two
@@ -36,9 +37,9 @@
 // so a sweep from another session's end can't take it.
 //
 // Cleanup is a Core behavior: session-end-cleanup.js runs only while the Core
-// surface is on. The react counter is Quiet's one entry here, and it rides
-// Core's lifetime. With HUSH_CORE=off nothing reaps it, and it is left for OS
-// temp cleaning. That is a known trade-off, not a bug: HUSH_CORE=off keeps
+// surface is on. The react counter is Quiet's one entry here, and it shares
+// Core's lifetime. With HUSH_CORE=off nothing removes it, and OS temp cleaning
+// takes it later. That is a known trade-off, not a bug: HUSH_CORE=off keeps
 // its pinned meaning of "no Core hook touches disk".
 //
 // The session id becomes one path segment here and nowhere else. Every
@@ -48,7 +49,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { safeWriteFileSync, refuseSymlink } = require('./safe-write');
+const { safeWriteFileSync, refuseSymlink, O_NOFOLLOW } = require('./safe-write');
 
 const SIDECAR_ROOT = path.join(os.tmpdir(), 'hush-sidecar');
 
@@ -191,12 +192,12 @@ function savedPath(sessionId) {
   return path.join(sessionDir(sessionId), 'saved.json');
 }
 
-// The note's sentinel: an empty file whose existence says "delivered". It
-// lives in the session directory for the reason saved.json does: removeSession
-// takes it at session end and the stale sweep after a crash. A sentinel
-// written to the tmpdir root instead outlived every session that never
-// reached SessionEnd (killed, crashed, or closed without the event), and
-// 32,000 of them piled up.
+// The note sentinel: an empty file whose existence says "delivered". It
+// lives in session scratch for the reason saved.json does: removeSession
+// takes it at session end and the stale sweep after a crash. An older hush
+// wrote the sentinel to the temp root instead. Every session that never
+// reached SessionEnd (killed, crashed, or closed without the event) left one
+// behind, and one user counted 32,000 of them.
 function notePath(sessionId) {
   return path.join(sessionDir(sessionId), 'hush-note');
 }
@@ -248,8 +249,8 @@ function resetReact(sessionId) {
 }
 
 // True when `n` mid-turn text blocks is more than the stored count, and
-// stores `n`. The nudge fires at most once per new block: the reminder lands
-// right after the block that earned it, then stays quiet until another
+// stores `n`. So the nudge fires at most once per new block. The reminder
+// lands right after the block that earned it, then stays quiet until another
 // appears. Fail-silent on any trouble: no count means no injection.
 function reactSeen(sessionId, n) {
   if (typeof sessionId !== 'string' || !sessionId) return false;
@@ -271,21 +272,19 @@ function reactSeen(sessionId, n) {
 
 // The HUSH_DEBUG decision manifest: one JSON line per handled tool output.
 // transform-manifest.js owns the record shape and the env gate; this module
-// owns where the lines go. It lives in the session directory so a debug
-// session leaves nothing behind in the temp root.
+// owns where the lines go. It lives in session scratch, so session end
+// removes it with the rest.
 function manifestPath(sessionId) {
   return path.join(sessionDir(sessionId), 'manifest.jsonl');
 }
 
 // Appends one record. An append cannot go through the atomic-rename safe
-// write, so it refuses a symlink at the path and opens with O_NOFOLLOW to
-// close the gap between the check and the write where the platform allows.
+// write, so it refuses a symlink at the path and opens with O_NOFOLLOW.
 function appendManifest(sessionId, record) {
   try {
     const file = manifestPath(sessionId);
     refuseSymlink(file);
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    const O_NOFOLLOW = typeof fs.constants.O_NOFOLLOW === 'number' ? fs.constants.O_NOFOLLOW : 0;
     const fd = fs.openSync(file, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_APPEND | O_NOFOLLOW, 0o600);
     try {
       fs.writeSync(fd, JSON.stringify(record) + '\n');
@@ -293,8 +292,8 @@ function appendManifest(sessionId, record) {
       fs.closeSync(fd);
     }
   } catch {
-    /* fail-open: the manifest is best-effort observability, never a reason
-       to alter or block the compression decision */
+    /* fail-open: a lost manifest line never alters or blocks the compression
+       decision */
   }
 }
 
