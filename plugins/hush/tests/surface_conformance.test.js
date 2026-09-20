@@ -40,7 +40,8 @@ after(() => {
 let seq = 0;
 const freshSessionId = () => `s${crypto.randomBytes(4).toString('hex')}${++seq}`;
 
-const oldManifest = (dir, sessionId) => path.join(dir, `hush-debug-${sessionId.replace(/[^a-zA-Z0-9-]/g, '_')}.jsonl`);
+// freshSessionId yields one safe path segment, so no sanitizing here.
+const oldManifest = (dir, sessionId) => path.join(dir, `hush-debug-${sessionId}.jsonl`);
 
 /** A scratch TEMP holding the hush-owned files a live session would have. */
 function plantedTemp(sessionId) {
