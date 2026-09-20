@@ -3,6 +3,16 @@
 All notable changes to hush are documented here. The version number lives in
 `.claude-plugin/plugin.json`.
 
+## 1.12.5 — 2026-09-20
+
+The PostToolUse hook now reads its settings once per fire. A new
+`settingsFromEnv(env)` returns a frozen object with the two line caps, the
+sidecar size bounds, and the template, sidecar, adaptive, grep, and note
+switches. `main()` builds it from the environment and passes it down. The
+transforms take it as a parameter, so a test builds one from a literal and
+never sets an environment variable. Names, defaults, and the `off` token
+are unchanged. Nothing the model sees changed.
+
 ## 1.12.4 — 2026-09-20
 
 `hooks/lib/session-scratch.js` now owns every file in session scratch.

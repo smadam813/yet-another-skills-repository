@@ -1,8 +1,8 @@
 'use strict';
 
 // settingsFromEnv reads every Core flag and cap the tool-output hook uses,
-// once per hook fire, from the environment object it is handed. Names,
-// defaults, and off tokens are the ones the README documents.
+// once per hook fire, from the environment object its caller passes. The
+// names, the defaults, and the `off` token are unchanged.
 
 const { test, describe } = require('node:test');
 const assert = require('node:assert');

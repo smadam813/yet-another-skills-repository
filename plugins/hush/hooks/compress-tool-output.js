@@ -33,10 +33,11 @@ function intEnv(env, name, fallback) {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
-// Every Core flag and cap this hook reads, taken from one environment object
-// once per fire. main() builds it from process.env and passes it down; a test
-// builds it from a literal and never touches the environment. Names, defaults,
-// and the `off` token are the README's.
+// The hook reads every Core flag and cap from one environment object, once
+// per fire. main() builds it from process.env and passes it down. A test
+// builds it from a literal and never touches the environment. The names, the
+// defaults, and the `off` token are unchanged from the flags this file has
+// always read.
 //
 // Caps are in lines. Passing output is mostly noise (install trees, progress
 // logs); failing output is evidence, so it keeps ~4x more. The sidecar bounds
@@ -55,8 +56,8 @@ function settingsFromEnv(env = {}) {
   });
 }
 
-// What every transform runs under when its caller passes no settings: the
-// defaults, not the environment. Only main() reads the environment.
+// A transform whose caller passes no settings runs under the defaults, not
+// the environment. Only main() reads the environment.
 const DEFAULT_SETTINGS = settingsFromEnv();
 
 // eslint-disable-next-line no-control-regex
@@ -1076,7 +1077,7 @@ function main() {
 
   if (!WATCHED_TOOLS.has(data.tool_name)) return;
 
-  // The one environment read of the fire.
+  // main() reads the environment here and nowhere else.
   const settings = settingsFromEnv(process.env);
 
   const response = data.tool_response;

@@ -57,9 +57,10 @@ threshold produces an empty golden and pins nothing. The thresholds, from
 | Failing shell cap | more than `HUSH_CAP_FAIL` (250) lines — a 120-line failure is not cut |
 | Shell sidecar | between `HUSH_SIDECAR_MIN` (15,000) and `HUSH_SIDECAR_SHELL_MAX` (28,000) chars |
 
-Above `HUSH_SIDECAR_SHELL_MAX` a *passing* shell output deliberately steps aside —
-the host may already have truncated it — so an oversized fixture measures the
-guard, not the sidecar. Content also has to survive template collapse to reach
+Above `HUSH_SIDECAR_SHELL_MAX` the host may already have truncated a shell
+output, so hush still parks the copy but its header says "as hush received
+it" instead of "in full". An oversized fixture measures that wording, not the
+sidecar. Content also has to survive template collapse to reach
 the sidecar at all: same-shape lines collapse first and never park.
 
 ## Porting

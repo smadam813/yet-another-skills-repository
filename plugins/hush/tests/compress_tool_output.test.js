@@ -26,16 +26,16 @@ const {
 } = require('../hooks/compress-tool-output');
 const { decode } = require('../hooks/lib/exit-trailer');
 
-// The sidecar defaults on. The inline-cap cases here pin it off: in process
-// through a settings object, spawned through the child's environment. The
-// sidecar suites below turn it back on the same two ways.
+// The sidecar is on by default. The inline-cap cases here turn it off: in
+// process with a settings object, and in a spawned hook with the child's
+// environment. The sidecar suites below turn it back on the same two ways.
 const INLINE = settingsFromEnv({ HUSH_SIDECAR: 'off' });
 const INLINE_NO_TEMPLATE = settingsFromEnv({ HUSH_SIDECAR: 'off', HUSH_TEMPLATE: 'off' });
 const NO_TEMPLATE = settingsFromEnv({ HUSH_TEMPLATE: 'off' });
 const runHook = (name, input, env) => helpers.runHook(name, input, { HUSH_SIDECAR: 'off', ...env });
 
-// compress() under the inline-cap settings, with its tail (session, sidecar
-// bypass, host truncation, decision) left at the defaults.
+// Calls compress() with the inline-cap settings and leaves the tail arguments
+// (session, sidecar bypass, host truncation, decision) at their defaults.
 function compressInline(text, exitCode, isDump = false, enumerate = false, relevance = [], scale = 1, settings = INLINE) {
   return compress(text, exitCode, isDump, enumerate, relevance, scale, null, undefined, undefined, undefined, settings);
 }
@@ -1455,7 +1455,7 @@ describe('grep match-list compression', () => {
       for (let i = 1; i <= per; i++) lines.push(`${f}:${i}: const value_${i} = ${'x'.repeat(60)};`);
     return lines.join('\n');
   }
-  // The view alone: no session, and the sidecar off, so nothing is parked.
+  // The view alone: no session and no sidecar, so nothing parks.
   const grep = (content, relevance, label) => H.compressGrep(content, relevance, label, undefined, undefined, INLINE);
 
   test('collapses beyond the per-file keep, appends counts and the marker', () => {
