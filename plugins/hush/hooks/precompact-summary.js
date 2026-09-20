@@ -16,9 +16,9 @@
 //     decision/error verbatim, drop narration and tool-output restatement.
 // (b) only when this session has recovery files on disk: their paths, so the
 //     summary can carry the reference instead of the content. Session scratch
-//     lists the sidecars still live (see lib/session-scratch.js), each
-//     stat-verified at summary time, and a listing longer than the cap says
-//     how many it left out instead of dropping them silently.
+//     lists the sidecars still live and stats each one at summary time (see
+//     lib/session-scratch.js). A listing longer than the cap says how many
+//     it left out instead of dropping them silently.
 
 const { readInputOrNull: readInput, emitRaw } = require("./lib/harness");
 const path = require("path");

@@ -1159,7 +1159,7 @@ describe('unit + e2e: reads OF sidecar files are capped, never re-sidecared', ()
   const os2 = require('os');
   const sideDir = path.join(os2.tmpdir(), 'hush-sidecar');
 
-  test('isSidecar matches files under the sidecar root, session namespace included', () => {
+  test('isSidecar matches files under the scratch root, session namespace included', () => {
     assert.strictEqual(isSidecar(path.join(sideDir, 'sess1234', 'abc123.txt')), true);
     assert.strictEqual(isSidecar(path.join(sideDir, 'abc123.txt')), true);
     assert.strictEqual(isSidecar('/var/logs/app.log'), false);

@@ -2,8 +2,8 @@
 
 // Session scratch is the one module that parks a sidecar and lists the live
 // ones. These tests drive it through its interface against the real temp
-// root, one fresh session id per test, and assert on what a later call
-// returns. removeSession takes each session with it in after().
+// root, one fresh session id per test. Each asserts on what a later call
+// returns. after() removes every session through removeSession.
 
 const { test, describe, after } = require('node:test');
 const assert = require('node:assert');
@@ -53,28 +53,28 @@ describe('session scratch: park then list', () => {
     assert.strictEqual(fs.existsSync(sessionDir(id)), false, 'listing creates no directory');
   });
 
-  test('a stale partial write beside a parked sidecar is not listed', () => {
+  test('the list skips a stale partial write beside a parked sidecar', () => {
     const id = freshSessionId('partial');
     const file = parkSidecar(id, 'complete');
     fs.writeFileSync(path.join(sessionDir(id), '.abc123.txt.4242.1a2b3c4d.tmp'), 'half a wri');
     assert.deepStrictEqual(listSidecars(id), [file]);
   });
 
-  test('a stale partial write with no parked sidecar lists nothing', () => {
+  test('the list skips a stale partial write when nothing was parked', () => {
     const id = freshSessionId('partial-only');
     fs.mkdirSync(sessionDir(id), { recursive: true });
     fs.writeFileSync(path.join(sessionDir(id), '.abc123.txt.4242.1a2b3c4d.tmp'), 'half a wri');
     assert.deepStrictEqual(listSidecars(id), []);
   });
 
-  test('a directory named like a sidecar is not listed', () => {
+  test('the list skips a directory named like a sidecar', () => {
     const id = freshSessionId('dir');
     const file = parkSidecar(id, 'real');
     fs.mkdirSync(path.join(sessionDir(id), 'notafile.txt'));
     assert.deepStrictEqual(listSidecars(id), [file]);
   });
 
-  test('a parked sidecar that was deleted is not listed', () => {
+  test('the list skips a parked sidecar that is gone', () => {
     const id = freshSessionId('deleted');
     const file = parkSidecar(id, 'gone soon');
     fs.rmSync(file);
@@ -91,7 +91,7 @@ describe('session scratch: park fails open', () => {
     assert.strictEqual(path.dirname(path.resolve(file)), path.resolve(sessionDir(id)));
   });
 
-  test('a session directory that is a plain file makes park return null', () => {
+  test('park returns null when a plain file sits where session scratch goes', () => {
     const id = freshSessionId('blocked');
     fs.mkdirSync(path.dirname(sessionDir(id)), { recursive: true });
     fs.writeFileSync(sessionDir(id), 'not a directory');

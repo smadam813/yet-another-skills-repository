@@ -640,9 +640,9 @@ function pressureScale(transcriptBytes) {
 // exact total count, and every prompt-named (relevance) line, so most tasks
 // never need the follow at all. Fail-open: any filesystem trouble falls back
 // to the normal capped view. The enumeration carve-out is exempt — its whole
-// point is that nothing is elided. Session scratch parks the file, content-
-// addressed (idempotent on re-fire) inside a directory this session owns, and
-// removes it when the session ends (see lib/session-scratch.js).
+// point is that nothing is elided. Session scratch parks the file under the
+// content hash, so a re-fire reuses it, and removes it when the session ends
+// (see lib/session-scratch.js).
 const SIDECAR_MIN_CHARS = intEnv("HUSH_SIDECAR_MIN", 15000);
 // Upper bound for SHELL outputs only. Claude Code truncates a Bash/PowerShell
 // result to ~29KB for the hook (and the model) once it trips its own
@@ -793,10 +793,9 @@ function containsSecret(text) {
   return SECRET_RES.some((re) => re.test(text));
 }
 
-// Whether content may leave the conversation for disk at all, for every
-// caller that parks: the HUSH_SIDECAR switch and the secret screen run here,
-// strictly before session scratch is ever asked for a path. Where and how the
-// file is written is session scratch's decision, not this hook's.
+// The one gate on parking, for every caller: the HUSH_SIDECAR switch and the
+// secret screen run here, before session scratch is ever asked for a path.
+// Session scratch decides where and how it writes the file.
 function mayPark(content) {
   if (process.env.HUSH_SIDECAR === "off") return false;
   try {
@@ -836,7 +835,7 @@ function maybeSidecar(cleaned, relevanceTokens, sessionId, hostMayTruncate, fail
   try {
     // mayPark screens for secrets before session scratch is ever asked to
     // write, so a credential-shaped payload falls through to the ordinary
-    // inline cap rather than being written out "cleaned".
+    // inline cap and never reaches disk "cleaned".
     if (!mayPark(cleaned)) return null;
     const d = buildSidecarDigest(cleaned, relevanceTokens);
     const view = (file) => {
@@ -857,8 +856,10 @@ function maybeSidecar(cleaned, relevanceTokens, sessionId, hostMayTruncate, fail
     // reproduce the whole input plus header overhead, larger than the source.
     // Bail before ever touching disk and let compress() fall through to the
     // ordinary inline cap, which is a no-op here too but at least isn't larger.
-    // The path is not known until the file is parked, so this first check
-    // runs with an empty one; the real path only makes the view longer.
+    // Session scratch names the path when it parks, so this first check runs
+    // with an empty one. The real path only makes the view longer, and the
+    // second check keeps the size invariant. A file parked in that one-path
+    // window stays on disk unnamed, as a rejected grep collapse's copy does.
     if (view("").length >= cleaned.length) return null;
     const file = sessionScratch.parkSidecar(sessionId, cleaned);
     if (!file) return null;
@@ -1050,7 +1051,7 @@ const NOTE_TEXT =
 // parallel tool calls emit at most one note. Sessions without a session_id
 // (bare test harnesses) never emit — a shared "unknown" key would leak the
 // once-only state across unrelated runs. It lives in the session's sidecar
-// directory (session scratch's notePath), so session-end-cleanup.js removes it
+// scratch (session scratch's notePath), so session-end-cleanup.js removes it
 // with the parked copies and the stale sweep catches it after a crash;
 // postcompact-rearm.js unlinks it at compaction. `dir` is a test seam only:
 // the directory to claim in, instead of the session's own.
