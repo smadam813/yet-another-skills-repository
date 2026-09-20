@@ -93,7 +93,9 @@ Bump a plugin's version in the same PR that changes its skills, as a separate co
 
 ## Vendored plugins
 
-`plugins/hush` and `plugins/razor` are copies of upstream plugins. Each README names the upstream repo, the commit it was copied from, and every change this repo made. The skills, hooks, manifests, and version stay as upstream wrote them, apart from the listed changes. Repo conventions apply only to the files this repo adds: the README, the Cursor manifest, and the marketplace entries. A skill body still loses its opening H1, because the checker rejects it.
+`plugins/razor` is a copy of an upstream plugin. Its README names the upstream repo, the commit it was copied from, and every change this repo made. The skills, hooks, manifests, and version stay as upstream wrote them, apart from the listed changes. Repo conventions apply only to the files this repo adds: the README, the Cursor manifest, and the marketplace entries. A skill body still loses its opening H1, because the checker rejects it.
+
+`plugins/hush` began as a vendored copy and is now this repo's own plugin. See `docs/adr/0001-fork-hush.md`. Repo conventions apply to all of its files.
 
 To pull a newer release:
 
