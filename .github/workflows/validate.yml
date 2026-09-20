@@ -29,7 +29,7 @@ jobs:
         run: node scripts/check-marketplace.mjs
 
   # The vendored plugins ship hook code with tests. Runs on both platforms because
-  # the hooks resolve Windows paths differently. Mark it required next to validate.
+  # the hooks resolve Windows paths differently. Not a required check: validate gates.
   test:
     name: test (${{ matrix.os }})
     strategy:

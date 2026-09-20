@@ -43,7 +43,10 @@ The tests need Node 22 or later and run in CI on Ubuntu and Windows.
 
 Razor is a vendored copy of [V-Songbird/razor](https://github.com/V-Songbird/razor) by Victor Villegas, MIT license. This copy comes from upstream commit `b7d33aea4a9ec04769069c99e29f424301712b51` (version 1.6.0), with these changes:
 
-- The Codex manifest, hooks, libraries, tests, and setup guide are removed.
+- The Codex manifest, hooks, libraries, tests, and setup guide are removed: `.codex-plugin/`, `hooks/codex-hook.js`, `hooks/codex-hooks.json`, `hooks/lib/codex-harness.js`, `hooks/lib/codex-tools.js`, `tests/codex_runtime.test.js`, `tests/codex_tools.test.js`, and `docs/SETUP.md`.
+- Three Claude hooks lose their Codex branches. `hooks/pre-tool-use.js` drops the `codex-tools` require and the `apply_patch` loop. `hooks/razor-lib.js` drops the `RAZOR_HOST === 'codex'` harness switch. `hooks/subagent-start.js` drops the `explorer` entry.
+- `docs/SETTINGS.md` loses the paragraph that links the setup guide. `.gitignore` loses the `!/docs/SETUP.md` line.
+- Upstream repo files that a plugin does not need are removed: `AGENTS.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `.claude/rules/benchmark-layout.md`, `.github/workflows/test.yml`, and `scripts/git-hooks/`.
 - The description no longer names a host, so both marketplaces can carry it.
 - A `.cursor-plugin/plugin.json` is added.
 - The `unused` skill body loses its opening H1 and gains a blank line before a list, to pass the checker and the linter.
