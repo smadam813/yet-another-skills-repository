@@ -1159,6 +1159,36 @@ describe('unit + e2e: reads OF sidecar files are capped, never re-sidecared', ()
     assert.strictEqual(isSidecar(undefined), false);
   });
 
+  test('the other session scratch entries are not sidecar reads', () => {
+    for (const name of ['manifest.jsonl', 'saved.json', 'hush-note', 'react-count']) {
+      assert.strictEqual(isSidecar(path.join(sideDir, 'sess1234', name)), false, name);
+    }
+  });
+
+  test('e2e: a FULL Read of the debug manifest passes through untouched and is no retrieval', () => {
+    const { manifestPath, removeSession } = require('../hooks/lib/session-scratch');
+    const id = `hush-manifest-read-${Date.now()}`;
+    const lines = Array.from({ length: 2000 }, (_, i) => JSON.stringify({ tool: 'Bash', action: 'cap', i })).join(NL);
+    const file = manifestPath(id);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, lines + NL);
+    try {
+      const r = runHook('compress-tool-output.js', {
+        tool_name: 'Read',
+        session_id: id,
+        tool_input: { file_path: file },
+        tool_response: { type: 'text', file: { filePath: file, content: lines, numLines: 2000, startLine: 1, totalLines: 2000 } },
+      }, { HUSH_DEBUG: '1' });
+      assert.strictEqual(hookOutput(r), null, 'the read passes through: the hook stays silent');
+      const records = fs.readFileSync(file, 'utf-8').trim().split(NL).map((l) => JSON.parse(l));
+      const rec = records[records.length - 1];
+      assert.strictEqual(rec.tool, 'Read');
+      assert.strictEqual(rec.retrieval, false, 'reading the manifest is not a sidecar retrieval');
+    } finally {
+      removeSession(id);
+    }
+  });
+
   test('e2e: a FULL Read of a sidecar file returns the capped view, not another digest', () => {
     const big = Array.from({ length: 2000 }, (_, i) => (i % 9 === 0 ? 'ERROR item ' + i : 'info line ' + i)).join(NL);
     const f = path.join(sideDir, 'test-fullread.txt');

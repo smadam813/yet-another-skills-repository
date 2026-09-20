@@ -8,8 +8,6 @@
 // detail: failing runs get a much larger cap and everything kept is verbatim.
 
 const fs = require("fs");
-const os = require("os");
-const path = require("path");
 const { readInput, emitToolOutput, decodeResponse, SHELL_FIELDS, lastUserPromptText } = require("./lib/harness");
 const { combineActions, buildRecord, recoveryGap, sizeGap, fieldGap, appendRecord } = require("./lib/transform-manifest");
 const sessionScratch = require("./lib/session-scratch");

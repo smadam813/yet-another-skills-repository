@@ -6,7 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
-const { safeWriteFileSync } = require('../hooks/lib/safe-write');
+const { safeWriteFileSync, openGuardedSync } = require('../hooks/lib/safe-write');
 
 const SAFE_WRITE_PATH = path.join(__dirname, '..', 'hooks', 'lib', 'safe-write.js');
 
@@ -142,5 +142,35 @@ describe('safeWriteFileSync: concurrent writers', () => {
     const final = fs.readFileSync(target, 'utf-8');
     assert.ok(final === contentA || final === contentB, 'final file must be exactly one full write');
     assert.deepStrictEqual(tmpLeftovers(dir), []);
+  });
+});
+
+describe('openGuardedSync: the guarded open for appends and exclusive claims', () => {
+  test('creates the parent and opens with the flags it was given', () => {
+    const dir = tmpDir();
+    const target = path.join(dir, 'deep', 'log.jsonl');
+    const { O_WRONLY, O_CREAT, O_APPEND, O_EXCL } = fs.constants;
+    let fd = openGuardedSync(target, O_WRONLY | O_CREAT | O_APPEND);
+    fs.writeSync(fd, 'one\n');
+    fs.closeSync(fd);
+    fd = openGuardedSync(target, O_WRONLY | O_CREAT | O_APPEND);
+    fs.writeSync(fd, 'two\n');
+    fs.closeSync(fd);
+    assert.strictEqual(fs.readFileSync(target, 'utf-8'), 'one\ntwo\n');
+    assert.throws(() => openGuardedSync(target, O_WRONLY | O_CREAT | O_EXCL), { code: 'EEXIST' });
+  });
+
+  test('refuses a target that lstat reports as a symlink', () => {
+    const dir = tmpDir();
+    const target = path.join(dir, 'link.jsonl');
+    const origLstat = fs.lstatSync;
+    fs.lstatSync = (p, ...rest) =>
+      p === target ? { isSymbolicLink: () => true, isDirectory: () => false } : origLstat(p, ...rest);
+    try {
+      assert.throws(() => openGuardedSync(target, fs.constants.O_WRONLY | fs.constants.O_CREAT), /symlink/);
+    } finally {
+      fs.lstatSync = origLstat;
+    }
+    assert.strictEqual(fs.existsSync(target), false);
   });
 });

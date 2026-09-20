@@ -25,8 +25,7 @@ const O_NOFOLLOW = typeof fs.constants.O_NOFOLLOW === 'number' ? fs.constants.O_
 
 // Throws when a symlink sits at `target`, or when lstat fails for any reason
 // other than the file not existing. hush writes the symlink refusal once,
-// here. The safe write runs it, and so does every write that cannot go
-// through the safe write: the note's wx claim and the manifest append. The
+// here. The safe write runs it, and so does openGuardedSync. The
 // lstat check alone leaves a race between the check and the write. An
 // O_NOFOLLOW open closes that race where the platform honors the flag. On
 // win32 the lstat check is the accepted fallback (see the header).
@@ -36,6 +35,16 @@ function refuseSymlink(target) {
   } catch (e) {
     if (e.code !== 'ENOENT') throw e;
   }
+}
+
+// Opens `target` for a write that cannot go through the atomic rename: the
+// note's exclusive claim and the manifest append. Refuses a symlink at the
+// path, creates the parent, and adds O_NOFOLLOW to `flags`. Returns the fd;
+// the caller closes it.
+function openGuardedSync(target, flags) {
+  refuseSymlink(target);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  return fs.openSync(target, flags | O_NOFOLLOW, 0o600);
 }
 
 function safeWriteFileSync(target, content) {
@@ -105,4 +114,4 @@ function safeWriteFileSync(target, content) {
   }
 }
 
-module.exports = { safeWriteFileSync, refuseSymlink, O_NOFOLLOW };
+module.exports = { safeWriteFileSync, openGuardedSync };

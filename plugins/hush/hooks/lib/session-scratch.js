@@ -21,7 +21,8 @@
 //                       this turn (resetReact, reactSeen).
 //   manifest.jsonl      the HUSH_DEBUG decision manifest (appendManifest).
 // Only the .txt entries are sidecars. listSidecars never names the others,
-// so the summarizer never offers one to the model.
+// so the summarizer never offers one to the model. isSidecar says no to
+// them, so a Read of the manifest or the total passes through untouched.
 //
 // A flat shared directory made ownership a filename prefix and, since files
 // are content-addressed and an existing file is never rewritten, let two
@@ -49,7 +50,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { safeWriteFileSync, refuseSymlink, O_NOFOLLOW } = require('./safe-write');
+const { safeWriteFileSync, openGuardedSync } = require('./safe-write');
 
 const SIDECAR_ROOT = path.join(os.tmpdir(), 'hush-sidecar');
 
@@ -68,8 +69,10 @@ function sessionDir(sessionId) {
   return path.join(SIDECAR_ROOT, process.platform === 'win32' ? safe.toLowerCase() : safe);
 }
 
-// True for any file under the scratch root at any depth: a session directory
-// today, a stale flat-scheme leftover from an older run just the same.
+// True for a .txt file under the scratch root at any depth: a session
+// directory today, a stale flat-scheme leftover from an older run just the
+// same. The other entries in the layout are not sidecars: a Read of one must
+// pass through untouched, and must not count as a retrieval.
 // win32 folds the case here for the same reason sessionDir does: the path
 // arrives from the model, which may have retyped or lowercased what the digest
 // printed, and NTFS calls that the same file. A case-only mismatch used to read
@@ -81,7 +84,7 @@ function isSidecar(filePath) {
   const fold = (p) => (process.platform === 'win32' ? p.toLowerCase() : p);
   const resolved = fold(path.resolve(filePath.trim()));
   const root = fold(path.resolve(SIDECAR_ROOT) + path.sep);
-  return resolved.startsWith(root);
+  return resolved.startsWith(root) && resolved.endsWith('.txt');
 }
 
 // FNV-1a over the UTF-16 code units: cheap, and a collision only costs a
@@ -209,12 +212,8 @@ function notePath(sessionId) {
 function claimNote(sessionId) {
   if (typeof sessionId !== 'string' || !sessionId) return false;
   try {
-    const file = notePath(sessionId);
-    refuseSymlink(file);
-    // The first parked sidecar creates the directory lazily; a note can fire
-    // before any output is parked, so create it here too.
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, '', { flag: 'wx' });
+    const { O_WRONLY, O_CREAT, O_EXCL } = fs.constants;
+    fs.closeSync(openGuardedSync(notePath(sessionId), O_WRONLY | O_CREAT | O_EXCL));
     return true;
   } catch {
     return false; // EEXIST (already noted), a symlink, or unwritable tmp
@@ -234,6 +233,9 @@ function rearmNote(sessionId) {
 
 // The react counter: how many mid-turn text blocks the nudge has already
 // answered this turn. Quiet's one entry in session scratch (see the header).
+// It goes through the safe write like saved.json, so a temp directory the
+// safe write refuses loses the counter as well as the sidecars: the nudge
+// then never fires for that session. That is the cost of one writer.
 function reactPath(sessionId) {
   return path.join(sessionDir(sessionId), 'react-count');
 }
@@ -279,13 +281,11 @@ function manifestPath(sessionId) {
 }
 
 // Appends one record. An append cannot go through the atomic-rename safe
-// write, so it refuses a symlink at the path and opens with O_NOFOLLOW.
+// write, so it takes the guarded open instead.
 function appendManifest(sessionId, record) {
   try {
-    const file = manifestPath(sessionId);
-    refuseSymlink(file);
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    const fd = fs.openSync(file, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_APPEND | O_NOFOLLOW, 0o600);
+    const { O_WRONLY, O_CREAT, O_APPEND } = fs.constants;
+    const fd = openGuardedSync(manifestPath(sessionId), O_WRONLY | O_CREAT | O_APPEND);
     try {
       fs.writeSync(fd, JSON.stringify(record) + '\n');
     } finally {

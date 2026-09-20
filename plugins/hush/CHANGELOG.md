@@ -10,8 +10,9 @@ The note sentinel, the react counter, and the `HUSH_DEBUG` manifest join
 the sidecars and the running total. The manifest moves from
 `hush-debug-<session>.jsonl` in the temp folder to `manifest.jsonl` in
 the session's folder. Session end now removes it with the rest. The hooks
-call the module and hold no paths of their own. Nothing the model sees
-changed.
+call the module and hold no paths of their own. A Read of the manifest,
+the total, the sentinel, or the counter is no longer a sidecar read: only a
+`.txt` file in session scratch is one. Nothing the model sees changed.
 
 ## 1.12.3 — 2026-09-20
 

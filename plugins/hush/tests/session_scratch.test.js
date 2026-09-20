@@ -145,6 +145,7 @@ describe('session scratch: the note sentinel', () => {
     const id = freshSessionId('claim-not-sidecar');
     claimNote(id);
     assert.deepStrictEqual(listSidecars(id), []);
+    assert.strictEqual(isSidecar(notePath(id)), false);
   });
 });
 
@@ -200,6 +201,7 @@ describe('session scratch: the debug manifest', () => {
     const id = freshSessionId('manifest-not-sidecar');
     appendManifest(id, { action: 'cap' });
     assert.deepStrictEqual(listSidecars(id), []);
+    assert.strictEqual(isSidecar(manifestPath(id)), false);
   });
 
   test('removeSession takes the manifest with the rest', () => {
