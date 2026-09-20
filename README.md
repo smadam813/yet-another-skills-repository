@@ -11,6 +11,8 @@ install the same skills. Neither install path needs the other tool.
   design, diagnosis, review, and ticket flow.
 - [**productivity**](plugins/productivity/README.md) — everyday work:
   writing, teaching, handoffs, and stress-testing ideas.
+- [**razor**](plugins/razor/README.md) — reuse-first checks: hooks that question new
+  dependencies, new files, and unnecessary code before the agent adds them.
 
 ## Claude Code
 
