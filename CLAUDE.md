@@ -58,7 +58,7 @@ Four manifests describe each plugin. The checker fails when they disagree:
 - `.cursor-plugin/marketplace.json` — each `source` is a path from `metadata.pluginRoot` (`engineering`). Both paths must point to the same directory.
 - `plugins/<plugin>/.claude-plugin/plugin.json` and `plugins/<plugin>/.cursor-plugin/plugin.json` — `description`, `version`, `license`, and `keywords` must match between the two files, and each `description` must match the one in its marketplace entry. Cursor's manifest also carries `"skills": "./skills/"`.
 
-A new description therefore changes four files, and a new version changes both plugin.json files. List a new plugin in both marketplaces: the checker fails on a plugin that only one marketplace names.
+A new description therefore changes four files for a plugin in both marketplaces, and two for a Claude-only one. A new version changes both plugin.json files. List a new plugin in both marketplaces: the checker fails on a plugin that only one marketplace names.
 
 A plugin with no `.cursor-plugin/plugin.json` is Claude-only. It ships hooks or output styles that Cursor cannot load. The checker then requires it to stay out of the Cursor marketplace and skips the Cursor manifest checks. `hush` is Claude-only.
 

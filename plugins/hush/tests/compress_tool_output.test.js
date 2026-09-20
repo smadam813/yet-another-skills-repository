@@ -481,6 +481,18 @@ describe('unit: extractWrappedExit', () => {
     assert.strictEqual(extractWrappedExit(undefined), null);
   });
 
+  // hush's own source carries the marker syntax as literal text: the prefix
+  // and suffix constants sit on adjacent lines. A body that admitted anything
+  // but a bracket matched from the prefix across the newline to the suffix
+  // and deleted the whole MARKER_SUFFIX declaration.
+  test('leaves literal marker syntax in source text alone', () => {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'hooks', 'preserve-exit-code.js'), 'utf8');
+    const r = extractWrappedExit(src);
+    assert.strictEqual(r.exitCode, null);
+    assert.ok(r.cleanText.includes('const MARKER_PREFIX = "[[hush:exit=";'));
+    assert.ok(r.cleanText.includes('const MARKER_SUFFIX = "]]";'));
+  });
+
   // Real shape produced by preserve-exit-code.js's wrapPowerShell: the
   // prefix, the number, and the suffix are three separate output lines
   // (never one contiguous string — see that file's header for why), and

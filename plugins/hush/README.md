@@ -49,6 +49,7 @@ Hush is a vendored copy of [V-Songbird/hush](https://github.com/V-Songbird/hush)
 - Both skill bodies lose their opening H1 to pass the checker.
 - The `craft-style` skill quotes its `description` because the value contains a colon.
 - The `craft-style` skill body starts with a comment that disables the MD038 lint rule. Two of its code spans name the H2 heading prefix and keep the trailing space on purpose.
+- The exit-marker regex in `hooks/compress-tool-output.js` admits only whitespace and an optional integer inside the brackets. The upstream pattern matched across lines and deleted text from any source file that names the marker syntax, such as `preserve-exit-code.js`. A test covers the case.
 - This README replaces the upstream one.
 
 To pull a newer release, see the vendored plugins section of the repo [CLAUDE.md](../../CLAUDE.md).

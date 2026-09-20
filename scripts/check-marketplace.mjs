@@ -46,34 +46,38 @@ const cursorNames = names(cursorEntries)
 const pluginRoot = cursor?.metadata?.pluginRoot ?? ''
 const sourcePath = (entry) => (typeof entry.source === 'string' ? entry.source : entry.source?.path)
 
-// A plugin without a Cursor manifest is Claude-only: hooks and output styles that Cursor
-// cannot load. It stays out of the Cursor marketplace. Every other plugin must be in both.
-const claudeOnly = (entry) => {
-  const dir = sourcePath(entry ?? {})
-  return Boolean(dir) && existsSync(resolve(root, dir)) && !existsSync(join(resolve(root, dir), '.cursor-plugin/plugin.json'))
-}
-for (const n of claudeNames) {
-  const only = claudeOnly(claudeEntries.find((p) => p.name === n))
-  if (only && cursorNames.has(n)) err(`plugin "${n}" has no .cursor-plugin/plugin.json but is in the Cursor marketplace`)
-  if (!only && !cursorNames.has(n)) err(`plugin "${n}" is in the Claude marketplace but not the Cursor one`)
+// One descriptor per Claude entry. A plugin without a Cursor manifest is Claude-only: hooks
+// and output styles that Cursor cannot load. It stays out of the Cursor marketplace. Every
+// other plugin must be in both. Only a directory that exists can say which it is.
+const plugins = [...claudeNames].sort().map((name) => {
+  const cEntry = claudeEntries.find((p) => p.name === name)
+  const xEntry = cursorEntries.find((p) => p.name === name)
+  const cDir = sourcePath(cEntry)
+  const cResolved = cDir ? resolve(root, cDir) : null
+  const exists = Boolean(cResolved) && existsSync(cResolved)
+  const only = exists && !existsSync(join(cResolved, '.cursor-plugin/plugin.json'))
+  return { name, cEntry, xEntry, cDir, xDir: sourcePath(xEntry ?? {}), cResolved, exists, only }
+})
+for (const { name, exists, only } of plugins) {
+  if (!exists) continue // reported below, where a bad source path is the whole problem
+  if (only && cursorNames.has(name)) err(`plugin "${name}" has no .cursor-plugin/plugin.json but is in the Cursor marketplace`)
+  if (!only && !cursorNames.has(name)) err(`plugin "${name}" is in the Claude marketplace but not the Cursor one`)
 }
 for (const n of cursorNames) if (!claudeNames.has(n)) err(`plugin "${n}" is in the Cursor marketplace but not the Claude one`)
 
 const skillNames = new Map()
 
-for (const name of [...claudeNames].sort()) {
-  const cEntry = claudeEntries.find((p) => p.name === name)
-  const xEntry = cursorEntries.find((p) => p.name === name)
-  const only = claudeOnly(cEntry)
-  const cDir = sourcePath(cEntry ?? {})
-  const xDir = sourcePath(xEntry ?? {})
-  if (!cDir) err(`plugin "${name}": no "source" in the Claude marketplace`)
-  if (!xDir && !only) err(`plugin "${name}": no "source" in the Cursor marketplace`)
-  if (!cDir || (!xDir && !only)) continue
-
-  const cResolved = resolve(root, cDir)
-  if (!existsSync(cResolved)) {
+for (const { name, cEntry, xEntry, cDir, xDir, cResolved, exists, only } of plugins) {
+  if (!cDir) {
+    err(`plugin "${name}": no "source" in the Claude marketplace`)
+    continue
+  }
+  if (!exists) {
     err(`plugin "${name}": source directory ${cDir} does not exist`)
+    continue
+  }
+  if (!xDir && !only) {
+    err(`plugin "${name}": no "source" in the Cursor marketplace`)
     continue
   }
   if (xDir && cResolved !== resolve(root, pluginRoot, xDir)) {

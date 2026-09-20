@@ -441,7 +441,13 @@ function firstLine(command) {
 // RAW pre-hook output including an already-well-formed marker, and a later
 // `Get-Content -Tail` on that sidecar file gets wrapped again by this same
 // hook — two markers can legitimately land in one tool result.
-const EXIT_MARKER_ANY_RE = /\[\[hush:exit=[^[\]]*\]\]/g;
+//
+// The body admits only whitespace and an optional integer: everything the
+// wrapper can emit between the brackets, and nothing else. A looser body
+// (anything but a bracket) spans lines and eats real text when the marker
+// syntax appears as literal source, e.g. hush's own preserve-exit-code.js
+// with its MARKER_PREFIX/MARKER_SUFFIX constants read back through this hook.
+const EXIT_MARKER_ANY_RE = /\[\[hush:exit=\s*(?:-?\d+)?\s*\]\]/g;
 const EXIT_MARKER_VALID_RE = /\[\[hush:exit=\s*(-?\d+)\s*\]\]/g;
 // The same pattern without /g, for the one caller that asks "is there a marker
 // here at all?" rather than replacing them. Derived from ANY's source so the
