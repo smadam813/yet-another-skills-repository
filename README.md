@@ -9,6 +9,8 @@ install the same skills. Neither install path needs the other tool.
 
 - [**engineering**](plugins/engineering/README.md) — software engineering workflows:
   design, diagnosis, review, and ticket flow.
+- [**hush**](plugins/hush/README.md) — quieter sessions: an output style and hooks
+  that cut narration and trim tool output. Claude Code only.
 - [**productivity**](plugins/productivity/README.md) — everyday work:
   writing, teaching, handoffs, and stress-testing ideas.
 - [**razor**](plugins/razor/README.md) — reuse-first checks: hooks that question new

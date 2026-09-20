@@ -60,6 +60,8 @@ Four manifests describe each plugin. The checker fails when they disagree:
 
 A new description therefore changes four files, and a new version changes both plugin.json files. List a new plugin in both marketplaces: the checker fails on a plugin that only one marketplace names.
 
+A plugin with no `.cursor-plugin/plugin.json` is Claude-only. It ships hooks or output styles that Cursor cannot load. The checker then requires it to stay out of the Cursor marketplace and skips the Cursor manifest checks. `hush` is Claude-only.
+
 Both tools read a skill from the same path, in the same format: `plugins/<plugin>/skills/<name>/SKILL.md`.
 
 ## Versions
@@ -77,7 +79,7 @@ Bump a plugin's version in the same PR that changes its skills, as a separate co
 
 ## Vendored plugins
 
-`plugins/razor` is a copy of an upstream plugin. Its README names the upstream repo, the commit it was copied from, and every change this repo made. The skills, hooks, manifests, and version stay as upstream wrote them, apart from the listed changes. Repo conventions apply only to the files this repo adds: the README, the Cursor manifest, and the marketplace entries.
+`plugins/hush` and `plugins/razor` are copies of upstream plugins. Each README names the upstream repo, the commit it was copied from, and every change this repo made. The skills, hooks, manifests, and version stay as upstream wrote them, apart from the listed changes. Repo conventions apply only to the files this repo adds: the README, the Cursor manifest, and the marketplace entries. A skill body still loses its opening H1, because the checker rejects it.
 
 To pull a newer release:
 

@@ -42,39 +42,50 @@ const names = (entries) => new Set(entries.map((p) => p.name).filter(Boolean))
 const claudeNames = names(claudeEntries)
 const cursorNames = names(cursorEntries)
 
-// A plugin listed in one marketplace but not the other is only installable in one tool.
-for (const n of claudeNames) if (!cursorNames.has(n)) err(`plugin "${n}" is in the Claude marketplace but not the Cursor one`)
-for (const n of cursorNames) if (!claudeNames.has(n)) err(`plugin "${n}" is in the Cursor marketplace but not the Claude one`)
-
 // Cursor prefixes every source with metadata.pluginRoot; Claude spells the path out in full.
 const pluginRoot = cursor?.metadata?.pluginRoot ?? ''
 const sourcePath = (entry) => (typeof entry.source === 'string' ? entry.source : entry.source?.path)
+
+// A plugin without a Cursor manifest is Claude-only: hooks and output styles that Cursor
+// cannot load. It stays out of the Cursor marketplace. Every other plugin must be in both.
+const claudeOnly = (entry) => {
+  const dir = sourcePath(entry ?? {})
+  return Boolean(dir) && existsSync(resolve(root, dir)) && !existsSync(join(resolve(root, dir), '.cursor-plugin/plugin.json'))
+}
+for (const n of claudeNames) {
+  const only = claudeOnly(claudeEntries.find((p) => p.name === n))
+  if (only && cursorNames.has(n)) err(`plugin "${n}" has no .cursor-plugin/plugin.json but is in the Cursor marketplace`)
+  if (!only && !cursorNames.has(n)) err(`plugin "${n}" is in the Claude marketplace but not the Cursor one`)
+}
+for (const n of cursorNames) if (!claudeNames.has(n)) err(`plugin "${n}" is in the Cursor marketplace but not the Claude one`)
 
 const skillNames = new Map()
 
 for (const name of [...claudeNames].sort()) {
   const cEntry = claudeEntries.find((p) => p.name === name)
   const xEntry = cursorEntries.find((p) => p.name === name)
+  const only = claudeOnly(cEntry)
   const cDir = sourcePath(cEntry ?? {})
   const xDir = sourcePath(xEntry ?? {})
   if (!cDir) err(`plugin "${name}": no "source" in the Claude marketplace`)
-  if (!xDir) err(`plugin "${name}": no "source" in the Cursor marketplace`)
-  if (!cDir || !xDir) continue
+  if (!xDir && !only) err(`plugin "${name}": no "source" in the Cursor marketplace`)
+  if (!cDir || (!xDir && !only)) continue
 
   const cResolved = resolve(root, cDir)
-  const xResolved = resolve(root, pluginRoot, xDir)
-  if (cResolved !== xResolved) {
-    err(`plugin "${name}": the two marketplaces point at different directories (${cDir} vs ${join(pluginRoot, xDir)})`)
-    continue
-  }
   if (!existsSync(cResolved)) {
     err(`plugin "${name}": source directory ${cDir} does not exist`)
+    continue
+  }
+  if (xDir && cResolved !== resolve(root, pluginRoot, xDir)) {
+    err(`plugin "${name}": the two marketplaces point at different directories (${cDir} vs ${join(pluginRoot, xDir)})`)
     continue
   }
 
   // Each tool reads its own manifest out of the shared plugin directory.
   const manifests = {}
-  for (const [tool, rel] of [['Claude Code', '.claude-plugin/plugin.json'], ['Cursor', '.cursor-plugin/plugin.json']]) {
+  const tools = [['Claude Code', '.claude-plugin/plugin.json']]
+  if (!only) tools.push(['Cursor', '.cursor-plugin/plugin.json'])
+  for (const [tool, rel] of tools) {
     const abs = join(cResolved, rel)
     if (!existsSync(abs)) {
       err(`plugin "${name}": no ${rel}, so ${tool} cannot load it`)
@@ -92,20 +103,23 @@ for (const name of [...claudeNames].sort()) {
   // Four manifests carry the same facts; drift between them is the cost of dual support.
   const a = manifests['Claude Code']
   const b = manifests['Cursor']
+  const kw = (m) => JSON.stringify([...(m.keywords ?? [])].sort())
   if (a && b) {
     for (const field of ['description', 'version', 'license']) {
       if (JSON.stringify(a[field]) !== JSON.stringify(b[field])) {
         err(`plugin "${name}": "${field}" differs between the Claude and Cursor plugin.json`)
       }
     }
-    const kw = (m) => JSON.stringify([...(m.keywords ?? [])].sort())
     if (kw(a) !== kw(b)) err(`plugin "${name}": "keywords" differ between the Claude and Cursor plugin.json`)
-    for (const [entry, m, label] of [[cEntry, a, 'Claude'], [xEntry, b, 'Cursor']]) {
-      if (entry.description && m.description && entry.description !== m.description) {
-        err(`plugin "${name}": the ${label} marketplace description does not match its plugin.json`)
-      }
+    if (xEntry.description && b.description && xEntry.description !== b.description) {
+      err(`plugin "${name}": the Cursor marketplace description does not match its plugin.json`)
     }
-    // The Claude marketplace entry also repeats the license and keywords; Cursor's carries neither.
+  }
+  // The Claude marketplace entry repeats the description, license and keywords; Cursor's carries only the description.
+  if (a) {
+    if (cEntry.description && a.description && cEntry.description !== a.description) {
+      err(`plugin "${name}": the Claude marketplace description does not match its plugin.json`)
+    }
     if (cEntry.license && a.license && cEntry.license !== a.license) {
       err(`plugin "${name}": the Claude marketplace license does not match its plugin.json`)
     }

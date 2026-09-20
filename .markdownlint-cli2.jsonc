@@ -4,6 +4,9 @@
     "node_modules/**",
     ".claude/worktrees/**",
     // Upstream prose in the vendored plugins keeps its own style.
+    "plugins/hush/docs/**",
+    "plugins/hush/CHANGELOG.md",
+    "plugins/hush/tests/**",
     "plugins/razor/docs/**",
     "plugins/razor/CHANGELOG.md",
     "plugins/razor/tests/**"
