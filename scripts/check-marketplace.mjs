@@ -105,6 +105,13 @@ for (const name of [...claudeNames].sort()) {
         err(`plugin "${name}": the ${label} marketplace description does not match its plugin.json`)
       }
     }
+    // The Claude marketplace entry also repeats the license and keywords; Cursor's carries neither.
+    if (cEntry.license && a.license && cEntry.license !== a.license) {
+      err(`plugin "${name}": the Claude marketplace license does not match its plugin.json`)
+    }
+    if (cEntry.keywords && kw(cEntry) !== kw(a)) {
+      err(`plugin "${name}": the Claude marketplace keywords do not match its plugin.json`)
+    }
   }
 
   // Skills are the one thing both tools read from the same path, in the same format.
