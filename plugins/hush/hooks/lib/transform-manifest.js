@@ -92,7 +92,7 @@ function buildRecord(d) {
     // hush put bytes in the sidecar store for this tool call.
     sidecarPath: d.sidecarPath || null,
     // "session": the file lives in a directory the naming session owns and is
-    // deleted when that session ends (see hooks/lib/sidecar-store.js).
+    // deleted when that session ends (see hooks/lib/session-scratch.js).
     // "none": nothing was persisted, so nothing has to be cleaned up.
     retention: d.retention || 'none',
     fallback: d.fallback || spec.fallback || null,

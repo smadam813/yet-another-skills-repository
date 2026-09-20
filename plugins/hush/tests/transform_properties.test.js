@@ -44,7 +44,7 @@ const {
   FAILURE_RERUN_NOTE,
 } = require('../hooks/compress-tool-output');
 const { buildRecord, recoveryGap, sizeGap, fieldGap } = require('../hooks/lib/transform-manifest');
-const sidecarStore = require('../hooks/lib/sidecar-store');
+const sessionScratch = require('../hooks/lib/session-scratch');
 const { HOOKS_DIR } = require('./helpers');
 
 const ESC = '\u001b';
@@ -59,7 +59,7 @@ const SCRATCH = fs.mkdtempSync(path.join(os.tmpdir(), 'hush-props-'));
 const SIDECAR_SESSION = `hushprops${crypto.randomBytes(4).toString('hex')}`;
 after(() => {
   fs.rmSync(SCRATCH, { recursive: true, force: true });
-  sidecarStore.removeSession(SIDECAR_SESSION);
+  sessionScratch.removeSession(SIDECAR_SESSION);
 });
 
 // ---------------------------------------------------------------------------
@@ -663,14 +663,14 @@ describe('pinned: narrow edges of the current transforms', () => {
     const out = compressGrep(content, [], 'src', d, SIDECAR_SESSION);
     assert.strictEqual(out, content, 'the rewrite was not rejected — pick a shape whose summary really is bigger');
     assert.strictEqual(d.recovery, undefined, 'a rejected rewrite records no recovery location');
-    const parked = fs.readdirSync(sidecarStore.sessionDir(SIDECAR_SESSION));
+    const parked = fs.readdirSync(sessionScratch.sessionDir(SIDECAR_SESSION));
     assert.strictEqual(parked.length, 1, 'the copy written before the size check is left behind');
   });
 
   test('a session id shaped like a path traversal cannot steer the sentinel outside the sidecar root', () => {
     const sessionId = '../../../escaped';
-    const target = sidecarStore.notePath(sessionId);
-    const root = path.resolve(sidecarStore.SIDECAR_ROOT) + path.sep;
+    const target = sessionScratch.notePath(sessionId);
+    const root = path.resolve(sessionScratch.SIDECAR_ROOT) + path.sep;
     assert.ok(path.resolve(target).startsWith(root), 'the id is flattened to one path segment under the root');
     assert.ok(!path.relative(root, target).startsWith('..'));
 
@@ -679,7 +679,7 @@ describe('pinned: narrow edges of the current transforms', () => {
     const home = path.join(SCRATCH, 'note-home');
     fs.mkdirSync(home, { recursive: true });
     assert.strictEqual(claimSessionNote(sessionId, home), true);
-    assert.strictEqual(fs.readFileSync(path.join(home, sidecarStore.NOTE_FILE), 'utf-8'), '');
-    assert.deepStrictEqual(fs.readdirSync(home), [sidecarStore.NOTE_FILE], 'nothing lands outside the directory it was given');
+    assert.strictEqual(fs.readFileSync(path.join(home, sessionScratch.NOTE_FILE), 'utf-8'), '');
+    assert.deepStrictEqual(fs.readdirSync(home), [sessionScratch.NOTE_FILE], 'nothing lands outside the directory it was given');
   });
 });

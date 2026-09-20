@@ -19,7 +19,7 @@ const { spawnSync } = require('node:child_process');
 const { HOOKS_DIR } = require('./helpers');
 const { compress } = require('../hooks/compress-tool-output');
 const { buildSidecarBlock } = require('../hooks/precompact-summary');
-const { sessionDir, isSidecarPath, SIDECAR_ROOT, savedPath, addSaved } = require('../hooks/lib/sidecar-store');
+const { sessionDir, isSidecar, SIDECAR_ROOT, savedPath, addSaved } = require('../hooks/lib/session-scratch');
 
 const SCRATCH_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'hush-lifecycle-'));
 const realSessions = [];
@@ -102,23 +102,23 @@ describe('sidecar storage: a session owns its namespace', () => {
     assert.strictEqual(path.dirname(path.resolve(fileB)), path.resolve(sessionDir(b)));
     assert.strictEqual(fs.readFileSync(fileA, 'utf8'), BIG);
     assert.strictEqual(fs.readFileSync(fileB, 'utf8'), BIG);
-    assert.ok(isSidecarPath(fileA), 'a namespaced path is still recognized as a sidecar read');
+    assert.ok(isSidecar(fileA), 'a namespaced path is still recognized as a sidecar read');
   });
 
-  // The path reaching isSidecarPath comes from the model, which may have
+  // The path reaching isSidecar comes from the model, which may have
   // retyped what the digest printed. NTFS calls a case-only variant the same
   // file, and a full Read that reads as "not a sidecar" passes through
   // uncompressed -- the whole parked output back into context.
   test('a sidecar path in another case is still a sidecar read', { skip: process.platform !== 'win32' }, () => {
     const file = path.join(sessionDir('CaseFold1234'), 'abcd1234.txt');
-    assert.ok(isSidecarPath(file));
-    assert.ok(isSidecarPath(file.toUpperCase()), 'NTFS folds case, so the predicate must too');
-    assert.ok(isSidecarPath(file.toLowerCase()));
+    assert.ok(isSidecar(file));
+    assert.ok(isSidecar(file.toUpperCase()), 'NTFS folds case, so the predicate must too');
+    assert.ok(isSidecar(file.toLowerCase()));
   });
 
   test('a path outside the sidecar root is never a sidecar read', () => {
-    assert.strictEqual(isSidecarPath(path.join(os.tmpdir(), 'not-hush', 'x.txt')), false);
-    assert.strictEqual(isSidecarPath(SIDECAR_ROOT), false);
+    assert.strictEqual(isSidecar(path.join(os.tmpdir(), 'not-hush', 'x.txt')), false);
+    assert.strictEqual(isSidecar(SIDECAR_ROOT), false);
   });
 
   test('ids differing only in case share a directory where the filesystem folds case, and not where it does not', () => {

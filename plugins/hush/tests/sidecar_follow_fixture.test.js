@@ -10,7 +10,7 @@ const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
 const { compress } = require('../hooks/compress-tool-output');
-const { sessionDir } = require('../hooks/lib/sidecar-store');
+const { sessionDir } = require('../hooks/lib/session-scratch');
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'sidecar-follow-test-output.log');
 

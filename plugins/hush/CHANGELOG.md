@@ -3,6 +3,14 @@
 All notable changes to hush are documented here. The version number lives in
 `.claude-plugin/plugin.json`.
 
+## 1.12.3 — 2026-09-20
+
+One module, `hooks/lib/session-scratch.js`, now owns the sidecars in a
+session's scratch directory. It replaces `hooks/lib/sidecar-store.js`.
+The PostToolUse hook asks it to park a sidecar and the PreCompact hook
+asks it for the live ones. A new test suite covers park and list.
+Nothing the model sees changed.
+
 ## 1.12.2 — 2026-09-20
 
 One module, `hooks/lib/exit-trailer.js`, now owns the exit trailer that

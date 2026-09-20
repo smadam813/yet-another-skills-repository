@@ -787,7 +787,7 @@ describe('hook: enumeration carve-out (transcript-driven)', () => {
 
 describe('hook: once-per-session telemetry note', () => {
   const { claimSessionNote, hasHushNote, NOTE_TEXT } = require('../hooks/compress-tool-output');
-  const { sessionDir } = require('../hooks/lib/sidecar-store');
+  const { sessionDir } = require('../hooks/lib/session-scratch');
 
   // Unique per test-process so reruns never see a stale sentinel; every id
   // used gets its sidecar directory, sentinel included, removed in after().
@@ -1084,7 +1084,7 @@ describe('secrets guard: credential-shaped content is never persisted to a sidec
   // Every case in this block runs as session 'secrettest', so counting inside
   // that session's own directory is exact: a leftover from a crashed run in
   // another session's directory can no longer move this number.
-  const { sessionDir } = require('../hooks/lib/sidecar-store');
+  const { sessionDir } = require('../hooks/lib/session-scratch');
   const sideDir = sessionDir('secrettest');
   after(() => fs.rmSync(sideDir, { recursive: true, force: true }));
   function withSidecarOn(fn) {
@@ -1154,18 +1154,18 @@ describe('secrets guard: credential-shaped content is never persisted to a sidec
 });
 
 describe('unit + e2e: reads OF sidecar files are capped, never re-sidecared', () => {
-  const { isSidecarPath } = require('../hooks/compress-tool-output');
+  const { isSidecar } = require('../hooks/compress-tool-output');
   const NL = String.fromCharCode(10);
   const os2 = require('os');
   const sideDir = path.join(os2.tmpdir(), 'hush-sidecar');
 
-  test('isSidecarPath matches files under the sidecar root, session namespace included', () => {
-    assert.strictEqual(isSidecarPath(path.join(sideDir, 'sess1234', 'abc123.txt')), true);
-    assert.strictEqual(isSidecarPath(path.join(sideDir, 'abc123.txt')), true);
-    assert.strictEqual(isSidecarPath('/var/logs/app.log'), false);
-    assert.strictEqual(isSidecarPath(path.join(os2.tmpdir(), 'other', 'abc.txt')), false);
-    assert.strictEqual(isSidecarPath(sideDir), false, 'the root itself is not a sidecar file');
-    assert.strictEqual(isSidecarPath(undefined), false);
+  test('isSidecar matches files under the scratch root, session namespace included', () => {
+    assert.strictEqual(isSidecar(path.join(sideDir, 'sess1234', 'abc123.txt')), true);
+    assert.strictEqual(isSidecar(path.join(sideDir, 'abc123.txt')), true);
+    assert.strictEqual(isSidecar('/var/logs/app.log'), false);
+    assert.strictEqual(isSidecar(path.join(os2.tmpdir(), 'other', 'abc.txt')), false);
+    assert.strictEqual(isSidecar(sideDir), false, 'the root itself is not a sidecar file');
+    assert.strictEqual(isSidecar(undefined), false);
   });
 
   test('e2e: a FULL Read of a sidecar file returns the capped view, not another digest', () => {
@@ -1569,7 +1569,7 @@ describe('grep match-list compression', () => {
 // marker names the copy only when the copy is really there.
 describe('grep elision: the omitted matches are persisted', () => {
   const H = require('../hooks/compress-tool-output.js');
-  const { sessionDir } = require('../hooks/lib/sidecar-store');
+  const { sessionDir } = require('../hooks/lib/session-scratch');
 
   const sessions = [];
   after(() => { for (const id of sessions) fs.rmSync(sessionDir(id), { recursive: true, force: true }); });

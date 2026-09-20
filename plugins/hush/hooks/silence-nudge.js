@@ -36,7 +36,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { quietOff, OFF_TOKEN } = require("./lib/gate");
-const { sessionDir } = require("./lib/sidecar-store");
+const { sessionDir } = require("./lib/session-scratch");
 const { readInputAsync, emitContext, readTailLines, isRealUserPrompt } = require("./lib/harness");
 
 const nudgeEnv = String(process.env.HUSH_NUDGE || "").trim();
