@@ -8,10 +8,8 @@
 // detail: failing runs get a much larger cap and everything kept is verbatim.
 
 const fs = require("fs");
-const os = require("os");
-const path = require("path");
 const { readInput, emitToolOutput, decodeResponse, SHELL_FIELDS, lastUserPromptText } = require("./lib/harness");
-const { combineActions, buildRecord, recoveryGap, sizeGap, fieldGap, debugManifestPath, appendRecord } = require("./lib/transform-manifest");
+const { combineActions, buildRecord, recoveryGap, sizeGap, fieldGap, appendRecord } = require("./lib/transform-manifest");
 const sessionScratch = require("./lib/session-scratch");
 const { coreOff } = require("./lib/gate");
 const { decode: decodeTrailer, hasTrailer } = require("./lib/exit-trailer");
@@ -1042,35 +1040,6 @@ const NOTE_TEXT =
   "Omission is deterministic: a line is cut only if it matches no warning/error/failure " +
   "pattern, and the underlying files and command outputs are unchanged.";
 
-// Empty sentinel file, atomically claimed with wx so two hook fires racing on
-// parallel tool calls emit at most one note. Sessions without a session_id
-// (bare test harnesses) never emit — a shared "unknown" key would leak the
-// once-only state across unrelated runs. It lives in the session's sidecar
-// scratch (session scratch's notePath), so session-end-cleanup.js removes it
-// with the parked copies and the stale sweep catches it after a crash;
-// postcompact-rearm.js unlinks it at compaction. `dir` is a test seam only:
-// the directory to claim in, instead of the session's own.
-function claimSessionNote(sessionId, dir) {
-  if (typeof sessionId !== "string" || !sessionId) return false;
-  try {
-    const notePath = dir ? path.join(dir, sessionScratch.NOTE_FILE) : sessionScratch.notePath(sessionId);
-    // Refuse a pre-planted symlink at the sentinel path before wx even tries
-    // it — same residual-defense posture as safe-write's lstat gate.
-    try {
-      if (fs.lstatSync(notePath).isSymbolicLink()) return false;
-    } catch (e) {
-      if (e.code !== "ENOENT") return false;
-    }
-    // The session directory is created lazily by the first parked output; a
-    // note can fire before any output is parked, so create it here too.
-    fs.mkdirSync(path.dirname(notePath), { recursive: true });
-    fs.writeFileSync(notePath, "", { flag: "wx" });
-    return true;
-  } catch {
-    return false; // EEXIST (already noted) or unwritable tmp — never block the rewrite
-  }
-}
-
 function hasHushNote(updated) {
   try {
     return JSON.stringify(updated).includes("[hush");
@@ -1255,8 +1224,11 @@ function main() {
 
 function emit(updated, sessionId) {
   if (updated === undefined) return; // nothing shrank — stay silent
+  // The note goes out once per session. Session scratch holds the claim, so
+  // two hook fires racing on parallel tool calls emit at most one note.
+  // postcompact-rearm.js re-arms it after compaction.
   const noteRides =
-    process.env.HUSH_NOTE !== "off" && hasHushNote(updated) && claimSessionNote(sessionId);
+    process.env.HUSH_NOTE !== "off" && hasHushNote(updated) && sessionScratch.claimNote(sessionId);
   emitToolOutput(updated, noteRides ? { additionalContext: NOTE_TEXT } : null);
 }
 
@@ -1284,12 +1256,8 @@ module.exports = {
   pressureScale,
   compress,
   firstLine,
-  claimSessionNote,
   hasHushNote,
   deliver,
-  // Re-exported from lib/transform-manifest.js, which owns the record shape:
-  // scripts and tests that only need the manifest path keep one import.
-  debugManifestPath,
   NOTE_TEXT,
   compressGrep,
   containsSecret,

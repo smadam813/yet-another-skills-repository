@@ -1,34 +1,56 @@
 'use strict';
 
-// Session scratch: the one directory hush owns for a session, and the module
-// that writes into it. compress-tool-output.js parks a sidecar here and gets
-// a path back. precompact-summary.js asks for the live sidecars this session
-// parked. session-end-cleanup.js removes the directory. isSidecar decides
-// whether a Read of a path is a read of a sidecar.
+// Session scratch: the one directory hush owns for a session, and the one
+// module that writes into it. Hooks ask it for behavior, never for a path.
+// compress-tool-output.js parks a sidecar here and gets a path back, claims
+// the note, and adds to the running total. precompact-summary.js asks for
+// the live sidecars this session parked. postcompact-rearm.js re-arms the
+// note. silence-nudge.js resets and advances the react counter.
+// transform-manifest.js appends a debug record. session-end-cleanup.js
+// removes the directory. isSidecar decides whether a Read of a path is a
+// read of a sidecar. The path getters (savedPath, notePath, manifestPath)
+// serve a user's statusline script and the test suites, not the hooks.
 //
-// Layout: tmpdir/hush-sidecar/<session>/<content-hash>.txt — the directory IS
-// the registration. Two non-.txt files share the directory: saved.json, the
-// session's running compression total (see addSaved below), and hush-note, the
-// once-per-session telemetry note's sentinel (see notePath below). A flat shared directory made ownership a filename prefix
-// and, since files are content-addressed and an existing file is never
-// rewritten, let two sessions silently share one file: whoever's cleanup ran
-// first pulled the recovery location out from under the other. Per-session
-// directories cost duplicated bytes when two sessions produce identical output
-// and buy back a namespace that can be deleted whole.
+// Layout: tmpdir/hush-sidecar/<session>/ holds:
+//   <content-hash>.txt  a sidecar (parkSidecar). The directory IS the
+//                       registration.
+//   saved.json          the running compression total (addSaved).
+//   hush-note           the note sentinel: present means delivered
+//                       (claimNote, rearmNote).
+//   react-count         the react counter: mid-turn text blocks answered
+//                       this turn (resetReact, reactSeen).
+//   manifest.jsonl      the HUSH_DEBUG decision manifest (appendManifest).
+// Only the .txt entries are sidecars. listSidecars never names the others,
+// so the summarizer never offers one to the model. isSidecar says no to
+// them, so a Read of the manifest or the total passes through untouched.
+//
+// A flat shared directory made ownership a filename prefix and, since files
+// are content-addressed and an existing file is never rewritten, let two
+// sessions silently share one file: whoever's cleanup ran first pulled the
+// recovery location out from under the other. Per-session directories cost
+// duplicated bytes when two sessions produce identical output and buy back a
+// namespace that can be deleted whole.
 //
 // Retention is session-scoped: SessionEnd deletes this session's directory.
 // Anything left behind by a crash is caught by the age-graced sweep, which
-// only ever touches entries untouched for STALE_MS — a live concurrent
+// only ever touches entries untouched for STALE_MS. A live concurrent
 // session's directory has a fresh mtime (creating a file inside updates it),
 // so a sweep from another session's end can't take it.
 //
-// Every function here is fail-open: a missing directory is a no-op, and no
-// failure is worth raising into a hook.
+// Cleanup is a Core behavior: session-end-cleanup.js runs only while the Core
+// surface is on. The react counter is Quiet's one entry here, and it shares
+// Core's lifetime. With HUSH_CORE=off nothing removes it, and OS temp cleaning
+// takes it later. That is a known trade-off, not a bug: HUSH_CORE=off keeps
+// its pinned meaning of "no Core hook touches disk".
+//
+// The session id becomes one path segment here and nowhere else. Every
+// function here is fail-open: a missing directory is a no-op, and no failure
+// is worth raising into a hook.
 
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { safeWriteFileSync } = require('./safe-write');
+const { safeWriteFileSync, openGuardedSync } = require('./safe-write');
 
 const SIDECAR_ROOT = path.join(os.tmpdir(), 'hush-sidecar');
 
@@ -36,9 +58,9 @@ const SIDECAR_ROOT = path.join(os.tmpdir(), 'hush-sidecar');
 // long enough that no plausible session loses a file it still points at.
 const STALE_MS = 24 * 60 * 60 * 1000;
 
-// The session id becomes one path segment here and nowhere else: an
-// underscore replaces anything that isn't [A-Za-z0-9-], path separators and
-// traversal included.
+// An underscore replaces anything that isn't [A-Za-z0-9-], path separators
+// and traversal included, so a session id can never name a directory outside
+// the scratch root.
 // win32 folds the case: `ABCD1234` and `abcd1234` are one directory on NTFS,
 // so distinct-case ids have to resolve to the same name here too — otherwise a
 // cleanup for one id deletes the other's live files.
@@ -47,8 +69,10 @@ function sessionDir(sessionId) {
   return path.join(SIDECAR_ROOT, process.platform === 'win32' ? safe.toLowerCase() : safe);
 }
 
-// True for any file under the scratch root at any depth: a session directory
-// today, a stale flat-scheme leftover from an older run just the same.
+// True for a .txt file under the scratch root at any depth: a session
+// directory today, a stale flat-scheme leftover from an older run just the
+// same. The other entries in the layout are not sidecars: a Read of one must
+// pass through untouched, and must not count as a retrieval.
 // win32 folds the case here for the same reason sessionDir does: the path
 // arrives from the model, which may have retyped or lowercased what the digest
 // printed, and NTFS calls that the same file. A case-only mismatch used to read
@@ -60,7 +84,7 @@ function isSidecar(filePath) {
   const fold = (p) => (process.platform === 'win32' ? p.toLowerCase() : p);
   const resolved = fold(path.resolve(filePath.trim()));
   const root = fold(path.resolve(SIDECAR_ROOT) + path.sep);
-  return resolved.startsWith(root);
+  return resolved.startsWith(root) && resolved.endsWith('.txt');
 }
 
 // FNV-1a over the UTF-16 code units: cheap, and a collision only costs a
@@ -171,17 +195,106 @@ function savedPath(sessionId) {
   return path.join(sessionDir(sessionId), 'saved.json');
 }
 
-// The once-per-session telemetry note's sentinel: an empty file whose
-// existence says "delivered" (compress-tool-output.js claims it, postcompact-
-// rearm.js unlinks it to re-arm the note). It lives in the session directory
-// for the reason saved.json does: removeSession takes it at session end and
-// the stale sweep after a crash. A sentinel written to the tmpdir root instead
-// outlived every session that never reached SessionEnd — killed, crashed, or
-// closed without the event — and 32,000 of them piled up. Not .txt, so
-// precompact-summary never offers it to the summarizer as a recovery file.
-const NOTE_FILE = 'hush-note';
+// The note sentinel: an empty file whose existence says "delivered". It
+// lives in session scratch for the reason saved.json does: removeSession
+// takes it at session end and the stale sweep after a crash. An older hush
+// wrote the sentinel to the temp root instead. Every session that never
+// reached SessionEnd (killed, crashed, or closed without the event) left one
+// behind, and one user counted 32,000 of them.
 function notePath(sessionId) {
-  return path.join(sessionDir(sessionId), NOTE_FILE);
+  return path.join(sessionDir(sessionId), 'hush-note');
+}
+
+// Claims the note for this session: true exactly once, until rearmNote. The
+// claim is a wx create, so two hook fires racing on parallel tool calls
+// deliver at most one note. A session-less call never claims: a shared
+// "unknown" sentinel would leak the once-only state across unrelated runs.
+function claimNote(sessionId) {
+  if (typeof sessionId !== 'string' || !sessionId) return false;
+  try {
+    const { O_WRONLY, O_CREAT, O_EXCL } = fs.constants;
+    fs.closeSync(openGuardedSync(notePath(sessionId), O_WRONLY | O_CREAT | O_EXCL));
+    return true;
+  } catch {
+    return false; // EEXIST (already noted), a symlink, or unwritable tmp
+  }
+}
+
+// Re-arms the note: the next claim succeeds again. Compaction summarizes the
+// note away while the sentinel still says "delivered", so the PostCompact
+// hook calls this. Harmless when nothing was claimed.
+function rearmNote(sessionId) {
+  try {
+    fs.unlinkSync(notePath(sessionId));
+  } catch {
+    /* ENOENT fine; anything else is not worth breaking a session over */
+  }
+}
+
+// The react counter: how many mid-turn text blocks the nudge has already
+// answered this turn. Quiet's one entry in session scratch (see the header).
+// It goes through the safe write like saved.json, so a temp directory the
+// safe write refuses loses the counter as well as the sidecars: the nudge
+// then never fires for that session. That is the cost of one writer.
+function reactPath(sessionId) {
+  return path.join(sessionDir(sessionId), 'react-count');
+}
+
+// A new turn starts at zero.
+function resetReact(sessionId) {
+  if (typeof sessionId !== 'string' || !sessionId) return;
+  try {
+    safeWriteFileSync(reactPath(sessionId), '0');
+  } catch {
+    /* fail-open: an unwritable counter means no corrective, the cheap direction */
+  }
+}
+
+// True when `n` mid-turn text blocks is more than the stored count, and
+// stores `n`. So the nudge fires at most once per new block. The reminder
+// lands right after the block that earned it, then stays quiet until another
+// appears. Fail-silent on any trouble: no count means no injection.
+function reactSeen(sessionId, n) {
+  if (typeof sessionId !== 'string' || !sessionId) return false;
+  try {
+    const file = reactPath(sessionId);
+    let seen = 0;
+    try {
+      seen = Number(fs.readFileSync(file, 'utf8')) || 0;
+    } catch {
+      /* no counter yet: the turn starts at zero */
+    }
+    if (n <= seen) return false;
+    safeWriteFileSync(file, String(n));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// The HUSH_DEBUG decision manifest: one JSON line per handled tool output.
+// transform-manifest.js owns the record shape and the env gate; this module
+// owns where the lines go. It lives in session scratch, so session end
+// removes it with the rest.
+function manifestPath(sessionId) {
+  return path.join(sessionDir(sessionId), 'manifest.jsonl');
+}
+
+// Appends one record. An append cannot go through the atomic-rename safe
+// write, so it takes the guarded open instead.
+function appendManifest(sessionId, record) {
+  try {
+    const { O_WRONLY, O_CREAT, O_APPEND } = fs.constants;
+    const fd = openGuardedSync(manifestPath(sessionId), O_WRONLY | O_CREAT | O_APPEND);
+    try {
+      fs.writeSync(fd, JSON.stringify(record) + '\n');
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch {
+    /* fail-open: a lost manifest line never alters or blocks the compression
+       decision */
+  }
 }
 
 // Adds one tool call's before/after sizes to the total. Read-modify-write on
@@ -215,4 +328,12 @@ function addSaved(sessionId, bytesIn, bytesOut) {
   }
 }
 
-module.exports = { SIDECAR_ROOT, NOTE_FILE, sessionDir, isSidecar, parkSidecar, listSidecars, removeSession, sweepStale, savedPath, addSaved, notePath };
+module.exports = {
+  SIDECAR_ROOT, sessionDir, isSidecar,
+  parkSidecar, listSidecars,
+  removeSession, sweepStale,
+  savedPath, addSaved,
+  notePath, claimNote, rearmNote,
+  resetReact, reactSeen,
+  manifestPath, appendManifest,
+};

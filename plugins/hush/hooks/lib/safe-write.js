@@ -2,8 +2,9 @@
 
 // Symlink-refusing, atomic-rename file write.
 //
-// The function below is duplicated verbatim in another plugin in this
-// marketplace; mirror any functional fix.
+// safeWriteFileSync began as a verbatim copy of the one in plugins/razor.
+// hush's copy has since pulled the symlink check out into refuseSymlink.
+// Mirror any functional fix between the two.
 //
 // Throws on refusal or I/O failure; every call site wraps the call in
 // try/catch, so a throw here degrades to the feature silently skipping
@@ -18,6 +19,33 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
+
+// The O_NOFOLLOW open flag, or 0 where the platform has none (win32).
+const O_NOFOLLOW = typeof fs.constants.O_NOFOLLOW === 'number' ? fs.constants.O_NOFOLLOW : 0;
+
+// Throws when a symlink sits at `target`, or when lstat fails for any reason
+// other than the file not existing. hush writes the symlink refusal once,
+// here. The safe write runs it, and so does openGuardedSync. The
+// lstat check alone leaves a race between the check and the write. An
+// O_NOFOLLOW open closes that race where the platform honors the flag. On
+// win32 the lstat check is the accepted fallback (see the header).
+function refuseSymlink(target) {
+  try {
+    if (fs.lstatSync(target).isSymbolicLink()) throw new Error('safe-write: target is a symlink');
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e;
+  }
+}
+
+// Opens `target` for a write that cannot go through the atomic rename: the
+// note's exclusive claim and the manifest append. Refuses a symlink at the
+// path, creates the parent, and adds O_NOFOLLOW to `flags`. Returns the fd;
+// the caller closes it.
+function openGuardedSync(target, flags) {
+  refuseSymlink(target);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  return fs.openSync(target, flags | O_NOFOLLOW, 0o600);
+}
 
 function safeWriteFileSync(target, content) {
   const dir = path.dirname(target);
@@ -60,14 +88,9 @@ function safeWriteFileSync(target, content) {
   }
 
   const realTarget = path.join(realDir, path.basename(target));
-  try {
-    if (fs.lstatSync(realTarget).isSymbolicLink()) throw new Error('safe-write: target is a symlink');
-  } catch (e) {
-    if (e.code !== 'ENOENT') throw e;
-  }
+  refuseSymlink(realTarget);
 
   const tmpPath = path.join(realDir, `.${path.basename(target)}.${process.pid}.${crypto.randomBytes(4).toString('hex')}.tmp`);
-  const O_NOFOLLOW = typeof fs.constants.O_NOFOLLOW === 'number' ? fs.constants.O_NOFOLLOW : 0;
   const fd = fs.openSync(tmpPath, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | O_NOFOLLOW, 0o600);
   try {
     fs.writeSync(fd, content);
@@ -91,4 +114,4 @@ function safeWriteFileSync(target, content) {
   }
 }
 
-module.exports = { safeWriteFileSync };
+module.exports = { safeWriteFileSync, openGuardedSync };

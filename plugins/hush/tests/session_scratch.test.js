@@ -1,16 +1,21 @@
 'use strict';
 
-// Session scratch is the one module that parks a sidecar and lists the live
-// ones. These tests drive it through its interface against the real temp
-// root, one fresh session id per test. Each asserts on what a later call
-// returns. after() removes every session through removeSession.
+// Session scratch is the one module that writes into a session's directory:
+// it parks a sidecar and lists the live ones, claims and re-arms the note,
+// keeps the react counter, and appends the debug manifest. These tests drive
+// it through its interface against the real temp root, one fresh session id
+// per test. Each asserts on what a later call returns. after() removes every
+// session through removeSession.
 
 const { test, describe, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { parkSidecar, listSidecars, isSidecar, removeSession, sessionDir } = require('../hooks/lib/session-scratch');
+const {
+  parkSidecar, listSidecars, isSidecar, removeSession, sessionDir,
+  claimNote, rearmNote, notePath, resetReact, reactSeen, appendManifest, manifestPath,
+} = require('../hooks/lib/session-scratch');
 
 const sessions = [];
 function freshSessionId(tag) {
@@ -97,5 +102,124 @@ describe('session scratch: park fails open', () => {
     fs.writeFileSync(sessionDir(id), 'not a directory');
     assert.strictEqual(parkSidecar(id, 'anything'), null);
     fs.rmSync(sessionDir(id), { force: true });
+  });
+});
+
+describe('session scratch: the note sentinel', () => {
+  test('claiming twice yields one claim', () => {
+    const id = freshSessionId('claim');
+    assert.strictEqual(claimNote(id), true);
+    assert.strictEqual(claimNote(id), false);
+  });
+
+  test('re-arm then claim yields one claim again', () => {
+    const id = freshSessionId('rearm');
+    assert.strictEqual(claimNote(id), true);
+    rearmNote(id);
+    assert.strictEqual(claimNote(id), true);
+    assert.strictEqual(claimNote(id), false);
+  });
+
+  test('re-arming a session that never claimed is a no-op', () => {
+    const id = freshSessionId('rearm-none');
+    rearmNote(id);
+    assert.strictEqual(fs.existsSync(sessionDir(id)), false, 're-arm creates no directory');
+  });
+
+  test('a session-less claim never succeeds', () => {
+    assert.strictEqual(claimNote(''), false);
+    assert.strictEqual(claimNote(undefined), false);
+  });
+
+  test('a symlink at the sentinel path refuses the claim', { skip: process.platform === 'win32' }, () => {
+    const id = freshSessionId('claim-symlink');
+    const victim = path.join(sessionDir(id), 'victim');
+    fs.mkdirSync(sessionDir(id), { recursive: true });
+    fs.writeFileSync(victim, 'keep');
+    fs.symlinkSync(victim, notePath(id));
+    assert.strictEqual(claimNote(id), false);
+    assert.strictEqual(fs.readFileSync(victim, 'utf8'), 'keep');
+  });
+
+  test('the sentinel is not a sidecar', () => {
+    const id = freshSessionId('claim-not-sidecar');
+    claimNote(id);
+    assert.deepStrictEqual(listSidecars(id), []);
+    assert.strictEqual(isSidecar(notePath(id)), false);
+  });
+});
+
+describe('session scratch: the react counter', () => {
+  test('the count is monotonic within a turn', () => {
+    const id = freshSessionId('react');
+    resetReact(id);
+    assert.strictEqual(reactSeen(id, 1), true, 'first block above zero');
+    assert.strictEqual(reactSeen(id, 1), false, 'same block again');
+    assert.strictEqual(reactSeen(id, 2), true, 'a new block');
+    assert.strictEqual(reactSeen(id, 1), false, 'never below the stored count');
+  });
+
+  test('a new turn resets the count', () => {
+    const id = freshSessionId('react-reset');
+    resetReact(id);
+    assert.strictEqual(reactSeen(id, 3), true);
+    resetReact(id);
+    assert.strictEqual(reactSeen(id, 1), true, 'after a reset, one block is new again');
+  });
+
+  test('with no counter on disk, any block above zero is new', () => {
+    const id = freshSessionId('react-fresh');
+    assert.strictEqual(reactSeen(id, 1), true);
+    assert.strictEqual(reactSeen(id, 0), false);
+  });
+
+  test('a session-less count is never stored', () => {
+    assert.strictEqual(reactSeen('', 1), false);
+    assert.strictEqual(reactSeen(undefined, 1), false);
+  });
+
+  test('the counter is not a sidecar', () => {
+    const id = freshSessionId('react-not-sidecar');
+    resetReact(id);
+    reactSeen(id, 1);
+    assert.deepStrictEqual(listSidecars(id), []);
+  });
+});
+
+describe('session scratch: the debug manifest', () => {
+  test('a record lands inside the session directory, one JSON line per append', () => {
+    const id = freshSessionId('manifest');
+    appendManifest(id, { tool: 'Bash', action: 'cap' });
+    appendManifest(id, { tool: 'Read', action: 'passthrough' });
+    const file = manifestPath(id);
+    assert.strictEqual(path.dirname(path.resolve(file)), path.resolve(sessionDir(id)));
+    const lines = fs.readFileSync(file, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+    assert.deepStrictEqual(lines, [{ tool: 'Bash', action: 'cap' }, { tool: 'Read', action: 'passthrough' }]);
+  });
+
+  test('the manifest is not a sidecar', () => {
+    const id = freshSessionId('manifest-not-sidecar');
+    appendManifest(id, { action: 'cap' });
+    assert.deepStrictEqual(listSidecars(id), []);
+    assert.strictEqual(isSidecar(manifestPath(id)), false);
+  });
+
+  test('removeSession takes the manifest with the rest', () => {
+    const id = freshSessionId('manifest-remove');
+    parkSidecar(id, 'parked');
+    appendManifest(id, { action: 'sidecar' });
+    assert.strictEqual(removeSession(id), true);
+    assert.strictEqual(fs.existsSync(manifestPath(id)), false);
+    assert.strictEqual(fs.existsSync(sessionDir(id)), false);
+  });
+
+  test('a symlink at the manifest path refuses the append', { skip: process.platform === 'win32' }, () => {
+    const id = freshSessionId('manifest-symlink');
+    const victim = path.join(sessionDir(id), 'victim');
+    fs.mkdirSync(sessionDir(id), { recursive: true });
+    fs.writeFileSync(victim, '');
+    fs.symlinkSync(victim, manifestPath(id));
+    appendManifest(id, { action: 'cap' });
+    assert.strictEqual(fs.readFileSync(victim, 'utf8'), '');
   });
 });

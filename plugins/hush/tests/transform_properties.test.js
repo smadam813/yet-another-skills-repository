@@ -40,7 +40,6 @@ const {
   stripAnsi,
   resolveCarriageReturns,
   compressGrep,
-  claimSessionNote,
   FAILURE_RERUN_NOTE,
 } = require('../hooks/compress-tool-output');
 const { buildRecord, recoveryGap, sizeGap, fieldGap } = require('../hooks/lib/transform-manifest');
@@ -485,10 +484,14 @@ describe('e2e: main() routes every path through the same boundary', () => {
     return dir;
   }
 
+  // Each e2e run gets its own scratch TEMP, so the one manifest under it is
+  // the one the hook run wrote, whichever session id the case used.
   function records(dir) {
-    const file = fs.readdirSync(dir).find((f) => /^hush-debug-.*\.jsonl$/.test(f));
+    const root = path.join(dir, 'hush-sidecar');
+    if (!fs.existsSync(root)) return [];
+    const file = fs.readdirSync(root).map((s) => path.join(root, s, 'manifest.jsonl')).find((f) => fs.existsSync(f));
     if (!file) return [];
-    return fs.readFileSync(path.join(dir, file), 'utf-8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
+    return fs.readFileSync(file, 'utf-8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
   }
 
   test('a fold that costs more than it saves ships the original and records why', () => {
@@ -668,18 +671,19 @@ describe('pinned: narrow edges of the current transforms', () => {
   });
 
   test('a session id shaped like a path traversal cannot steer the sentinel outside the sidecar root', () => {
-    const sessionId = '../../../escaped';
+    const sessionId = `../../../escaped${crypto.randomBytes(4).toString('hex')}`;
     const target = sessionScratch.notePath(sessionId);
     const root = path.resolve(sessionScratch.SIDECAR_ROOT) + path.sep;
     assert.ok(path.resolve(target).startsWith(root), 'the id is flattened to one path segment under the root');
     assert.ok(!path.relative(root, target).startsWith('..'));
 
-    // The test seam names the directory outright, and the id plays no part in
-    // the file name: the sentinel is the fixed hush-note inside that directory.
-    const home = path.join(SCRATCH, 'note-home');
-    fs.mkdirSync(home, { recursive: true });
-    assert.strictEqual(claimSessionNote(sessionId, home), true);
-    assert.strictEqual(fs.readFileSync(path.join(home, sessionScratch.NOTE_FILE), 'utf-8'), '');
-    assert.deepStrictEqual(fs.readdirSync(home), [sessionScratch.NOTE_FILE], 'nothing lands outside the directory it was given');
+    // The claim lands under the flattened path and parks no sidecar.
+    try {
+      assert.strictEqual(sessionScratch.claimNote(sessionId), true);
+      assert.strictEqual(fs.readFileSync(target, 'utf-8'), '');
+      assert.deepStrictEqual(sessionScratch.listSidecars(sessionId), []);
+    } finally {
+      sessionScratch.removeSession(sessionId);
+    }
   });
 });

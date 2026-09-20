@@ -786,7 +786,7 @@ describe('hook: enumeration carve-out (transcript-driven)', () => {
 });
 
 describe('hook: once-per-session telemetry note', () => {
-  const { claimSessionNote, hasHushNote, NOTE_TEXT } = require('../hooks/compress-tool-output');
+  const { hasHushNote, NOTE_TEXT } = require('../hooks/compress-tool-output');
   const { sessionDir } = require('../hooks/lib/session-scratch');
 
   // Unique per test-process so reruns never see a stale sentinel; every id
@@ -864,16 +864,7 @@ describe('hook: once-per-session telemetry note', () => {
     assert.match(out.updatedToolOutput, /\[hush hook: \d+ lines omitted/);
   });
 
-  test('unit: claimSessionNote claims exactly once per id; hasHushNote spots markers in any shape', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hush-note-unit-'));
-    try {
-      assert.strictEqual(claimSessionNote('s1', dir), true);
-      assert.strictEqual(claimSessionNote('s1', dir), false);
-      assert.strictEqual(claimSessionNote('', dir), false);
-      assert.strictEqual(claimSessionNote(undefined, dir), false);
-    } finally {
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
+  test('unit: hasHushNote spots notes in any shape', () => {
     assert.strictEqual(hasHushNote('x\n[hush hook: 3 lines omitted from this view, none with warnings/errors/failures]'), true);
     assert.strictEqual(hasHushNote({ file: { content: '[hush: previous line repeated 4x]' } }), true);
     assert.strictEqual(hasHushNote({ stdout: 'plain text' }), false);
@@ -1166,6 +1157,36 @@ describe('unit + e2e: reads OF sidecar files are capped, never re-sidecared', ()
     assert.strictEqual(isSidecar(path.join(os2.tmpdir(), 'other', 'abc.txt')), false);
     assert.strictEqual(isSidecar(sideDir), false, 'the root itself is not a sidecar file');
     assert.strictEqual(isSidecar(undefined), false);
+  });
+
+  test('the other session scratch entries are not sidecar reads', () => {
+    for (const name of ['manifest.jsonl', 'saved.json', 'hush-note', 'react-count']) {
+      assert.strictEqual(isSidecar(path.join(sideDir, 'sess1234', name)), false, name);
+    }
+  });
+
+  test('e2e: a FULL Read of the debug manifest passes through untouched and is no retrieval', () => {
+    const { manifestPath, removeSession } = require('../hooks/lib/session-scratch');
+    const id = `hush-manifest-read-${Date.now()}`;
+    const lines = Array.from({ length: 2000 }, (_, i) => JSON.stringify({ tool: 'Bash', action: 'cap', i })).join(NL);
+    const file = manifestPath(id);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, lines + NL);
+    try {
+      const r = runHook('compress-tool-output.js', {
+        tool_name: 'Read',
+        session_id: id,
+        tool_input: { file_path: file },
+        tool_response: { type: 'text', file: { filePath: file, content: lines, numLines: 2000, startLine: 1, totalLines: 2000 } },
+      }, { HUSH_DEBUG: '1' });
+      assert.strictEqual(hookOutput(r), null, 'the read passes through: the hook stays silent');
+      const records = fs.readFileSync(file, 'utf-8').trim().split(NL).map((l) => JSON.parse(l));
+      const rec = records[records.length - 1];
+      assert.strictEqual(rec.tool, 'Read');
+      assert.strictEqual(rec.retrieval, false, 'reading the manifest is not a sidecar retrieval');
+    } finally {
+      removeSession(id);
+    }
   });
 
   test('e2e: a FULL Read of a sidecar file returns the capped view, not another digest', () => {
@@ -1677,12 +1698,10 @@ describe('grep elision: the omitted matches are persisted', () => {
 // and a rewrite that removed detail is only ever emitted alongside recovery
 // metadata that says where the detail still is.
 describe('every transform is accounted for, and no lossy view ships without recovery', () => {
-  const { debugManifestPath } = require('../hooks/compress-tool-output');
+  const { manifestPath, removeSession } = require('../hooks/lib/session-scratch');
   const sessions = [];
-  const sidecarFiles = [];
   after(() => {
-    for (const id of sessions) fs.rmSync(debugManifestPath(id), { force: true });
-    for (const f of sidecarFiles) fs.rmSync(f, { force: true });
+    for (const id of sessions) removeSession(id);
   });
 
   function newSession(label) {
@@ -1728,12 +1747,11 @@ describe('every transform is accounted for, and no lossy view ships without reco
     test(`${c.label}: one record, and recovery metadata whenever detail was removed`, () => {
       const id = newSession(c.label);
       const res = runHook('compress-tool-output.js', { ...c.input, session_id: id }, { HUSH_DEBUG: '1', ...c.env });
-      const file = debugManifestPath(id);
+      const file = manifestPath(id);
       assert.strictEqual(fs.existsSync(file), true, 'the transform left a record');
       const records = fs.readFileSync(file, 'utf-8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l));
       assert.strictEqual(records.length, 1, 'exactly one record per handled tool output');
       const r = records[0];
-      if (r.recovery === 'sidecar') sidecarFiles.push(r.recoveryPath);
 
       assert.strictEqual(r.preserved + r.omitted, r.linesIn, 'the record accounts for every input line');
       assert.ok(r.bytesOut <= r.bytesIn, 'a transform never delivers more than it was given');

@@ -36,7 +36,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { quietOff, OFF_TOKEN } = require("./lib/gate");
-const { sessionDir } = require("./lib/session-scratch");
+const { resetReact, reactSeen } = require("./lib/session-scratch");
 const { readInputAsync, emitContext, readTailLines, isRealUserPrompt } = require("./lib/harness");
 
 const nudgeEnv = String(process.env.HUSH_NUDGE || "").trim();
@@ -74,20 +74,11 @@ function styleKeepsQuiet(pluginRoot = path.join(__dirname, "..")) {
   }
 }
 
-// The default's corrective state: how many mid-turn text blocks have already
-// been answered with a reminder this turn. Lives beside the session's other
-// scratch, so Core's session-end cleanup clears it; with Core off nothing
-// reaps it and it is left for OS temp cleaning. Fail-open in the cheap
-// direction — an unreadable transcript or counter means no injection.
-function reactFile(sessionId) {
-  return path.join(sessionDir(sessionId), "react-count");
-}
-function resetReact(sessionId) {
-  try {
-    fs.mkdirSync(sessionDir(sessionId), { recursive: true });
-    fs.writeFileSync(reactFile(sessionId), "0");
-  } catch { /* fail open */ }
-}
+// The react counter in session scratch (resetReact, reactSeen) holds the
+// default's state: how many mid-turn text blocks the hook has answered this
+// turn. Fail-open in the cheap direction: an unreadable transcript or counter
+// means no injection.
+
 // Count assistant text blocks since the last real human prompt — mid-turn
 // text, because the turn's own final message cannot exist yet while a
 // PostToolUse hook is firing. Fail-SILENT on any trouble: no count means no
@@ -120,23 +111,8 @@ function countMidTurnText(transcriptPath) {
 // Fires at most once per NEW text block: the reminder lands right after the
 // block that earned it, then stays quiet until another appears.
 function reactShouldFire(sessionId, transcriptPath) {
-  try {
-    const n = countMidTurnText(transcriptPath);
-    if (n === 0) return false;
-    const f = reactFile(sessionId);
-    let seen = 0;
-    try {
-      seen = Number(fs.readFileSync(f, "utf8")) || 0;
-    } catch {
-      seen = 0;
-    }
-    if (n <= seen) return false;
-    fs.mkdirSync(path.dirname(f), { recursive: true });
-    fs.writeFileSync(f, String(n));
-    return true;
-  } catch {
-    return false;
-  }
+  const n = countMidTurnText(transcriptPath);
+  return n > 0 && reactSeen(sessionId, n);
 }
 
 // Pure text selection for a given event under the current mode. Returns null
