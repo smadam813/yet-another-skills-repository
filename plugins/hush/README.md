@@ -48,6 +48,7 @@ Hush is a vendored copy of [V-Songbird/hush](https://github.com/V-Songbird/hush)
 - Upstream repo files that a plugin does not need are removed: `AGENTS.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `.claude/rules/`, `.github/workflows/test.yml`, and `scripts/git-hooks/`.
 - Both skill bodies lose their opening H1 to pass the checker.
 - The `craft-style` skill quotes its `description` because the value contains a colon.
+- The `craft-style` skill body starts with a comment that disables the MD038 lint rule. Two of its code spans name the H2 heading prefix and keep the trailing space on purpose.
 - This README replaces the upstream one.
 
 To pull a newer release, see the vendored plugins section of the repo [CLAUDE.md](../../CLAUDE.md).

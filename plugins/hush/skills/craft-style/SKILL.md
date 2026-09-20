@@ -6,6 +6,8 @@ argument-hint: "[voice description]"
 allowed-tools: Read, Write, Edit, Glob, Bash, PowerShell, AskUserQuestion
 ---
 
+<!-- markdownlint-disable MD038 -->
+
 Builds and manages output styles the user owns: their voice, hush's machinery. The mechanics that make hush cheap — silence between tool calls, one structured final message, the hard caps — are copied byte for byte. The voice around them is rewritten to the user's taste.
 
 ## 1. Take stock
