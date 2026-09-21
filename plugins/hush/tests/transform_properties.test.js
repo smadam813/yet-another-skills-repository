@@ -33,6 +33,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const {
+  settingsFromEnv,
   compress,
   deliver,
   isKeepLine,
@@ -47,6 +48,10 @@ const sessionScratch = require('../hooks/lib/session-scratch');
 const { HOOKS_DIR } = require('./helpers');
 
 const ESC = '\u001b';
+
+// Every in-process call runs against the real session scratch under the
+// default settings. A spawned hook builds the same object in main().
+const DEPS = { scratch: sessionScratch, settings: settingsFromEnv({}) };
 
 // This file never wants the on-disk manifest: deliver() appends a record when
 // HUSH_DEBUG=1, and a few hundred generated cases would write a few hundred
@@ -165,7 +170,7 @@ function shipped(decision, updated, data) {
     return true;
   };
   try {
-    deliver(decision, updated, data);
+    deliver(decision, updated, data, DEPS);
   } finally {
     process.stdout.write = real;
   }
@@ -176,7 +181,7 @@ function shipped(decision, updated, data) {
 /** main()'s Bash-string branch, in the order main() runs it. */
 function deliverShellString(c) {
   const decision = { bytesIn: c.text.length };
-  const out = compress(c.text, c.exitCode, c.isDump, c.enumerate, c.relevance, 1, null, true, false, decision);
+  const out = compress(c.text, c.exitCode, c.isDump, c.enumerate, c.relevance, 1, null, true, false, decision, DEPS);
   decision.bytesOut = out.length;
   if (!decision.recovery) decision.recovery = 'rerun-command';
   const updated = out !== c.text ? out : undefined;
@@ -196,7 +201,7 @@ describe('property: compress() over generated output', () => {
     for (let n = 0; n < CASES; n++) {
       const c = generate(BASE_SEED + n);
       const d = {};
-      const out = compress(c.text, c.exitCode, c.isDump, c.enumerate, c.relevance, 1, null, true, false, d);
+      const out = compress(c.text, c.exitCode, c.isDump, c.enumerate, c.relevance, 1, null, true, false, d, DEPS);
       const outLines = new Set(out.split('\n'));
       for (const keep of keepLinesOf(c.text)) {
         assert.ok(
@@ -210,7 +215,7 @@ describe('property: compress() over generated output', () => {
   test('no escape sequence and no bare carriage return reaches the view', () => {
     for (let n = 0; n < CASES; n++) {
       const c = generate(BASE_SEED + n);
-      const out = compress(c.text, c.exitCode, c.isDump, c.enumerate, c.relevance, 1, null, true, false, {});
+      const out = compress(c.text, c.exitCode, c.isDump, c.enumerate, c.relevance, 1, null, true, false, {}, DEPS);
       assert.ok(!out.includes(ESC), `seed ${c.seed}: an ANSI escape survived`);
       assert.ok(!out.includes('\r'), `seed ${c.seed}: a carriage return survived`);
     }
@@ -220,7 +225,7 @@ describe('property: compress() over generated output', () => {
     for (let n = 0; n < CASES; n++) {
       const c = generate(BASE_SEED + n);
       const d = {};
-      const out = compress(c.text, c.exitCode, c.isDump, c.enumerate, c.relevance, 1, null, true, false, d);
+      const out = compress(c.text, c.exitCode, c.isDump, c.enumerate, c.relevance, 1, null, true, false, d, DEPS);
       const content = out.split('\n').filter((l) => !/^\[hush(?: hook)?: /.test(l));
       assert.ok(content.length <= d.linesIn, `seed ${c.seed}: ${content.length} content lines out of ${d.linesIn} in`);
       assert.strictEqual(d.omitted, Math.max(0, d.linesIn - content.length), `seed ${c.seed}: the omitted count disagrees with the view`);
@@ -230,8 +235,8 @@ describe('property: compress() over generated output', () => {
   test('the same input compresses to the same bytes every time', () => {
     for (let n = 0; n < CASES; n++) {
       const c = generate(BASE_SEED + n);
-      const once = compress(c.text, c.exitCode, c.isDump, c.enumerate, c.relevance, 1, null, true, false, {});
-      const twice = compress(c.text, c.exitCode, c.isDump, c.enumerate, c.relevance, 1, null, true, false, {});
+      const once = compress(c.text, c.exitCode, c.isDump, c.enumerate, c.relevance, 1, null, true, false, {}, DEPS);
+      const twice = compress(c.text, c.exitCode, c.isDump, c.enumerate, c.relevance, 1, null, true, false, {}, DEPS);
       assert.strictEqual(once, twice, `seed ${c.seed}: compress is not deterministic`);
       // ...and so is the generator, or none of the seeds above mean anything.
       assert.strictEqual(generate(c.seed).text, c.text, `seed ${c.seed}: the generator is not deterministic`);
@@ -317,7 +322,7 @@ const HOOK_BUDGET_MS = 5000;
 describe('binary and huge output', () => {
   const run = (text, exitCode, noSidecar = true, sessionId = null) => {
     const d = {};
-    const out = compress(text, exitCode, false, false, [], 1, sessionId, noSidecar, false, d);
+    const out = compress(text, exitCode, false, false, [], 1, sessionId, noSidecar, false, d, DEPS);
     return { out, d };
   };
 
@@ -382,7 +387,7 @@ describe('binary and huge output', () => {
     // sidecar bails before touching disk, and nothing larger is ever shipped.
     const text = 'a'.repeat(HUGE_LINE_BYTES / 4) + '\nERROR: boom';
     const decision = { bytesIn: text.length };
-    const out = compress(text, 1, false, false, [], 1, SIDECAR_SESSION, false, false, decision);
+    const out = compress(text, 1, false, false, [], 1, SIDECAR_SESSION, false, false, decision, DEPS);
     assert.notStrictEqual(decision.action, 'sidecar', 'a structureless payload was parked as a digest');
     decision.bytesOut = out.length;
     decision.recovery = decision.recovery || 'rerun-command';
@@ -623,7 +628,7 @@ describe('pinned: narrow edges of the current transforms', () => {
   test('an all-kept failing run still reaches deliver() with a rerun footer and nothing omitted', () => {
     const d = {};
     const text = Array.from({ length: 300 }, (_, i) => `ERROR ${i}: connection refused`).join('\n');
-    const out = compress(text, 1, false, false, [], 1, null, true, false, d);
+    const out = compress(text, 1, false, false, [], 1, null, true, false, d, DEPS);
     assert.strictEqual(d.omitted, 0, 'nothing was elided');
     assert.ok(out.includes(FAILURE_RERUN_NOTE), 'the footer rides on a view that cut nothing');
     // Which is exactly why deliver() drops it: here the footer is pure growth.
@@ -632,7 +637,7 @@ describe('pinned: narrow edges of the current transforms', () => {
 
   test('identical failure lines are never folded into a repeat count', () => {
     const text = Array.from({ length: 8 }, () => 'ERROR: connection refused').join('\n');
-    const out = compress(text, 1, false, false, [], 1, null, true, false, {});
+    const out = compress(text, 1, false, false, [], 1, null, true, false, {}, DEPS);
     assert.strictEqual(out.split('\n').filter((l) => l === 'ERROR: connection refused').length, 8);
     assert.ok(!out.includes('previous line repeated'));
   });
@@ -663,7 +668,7 @@ describe('pinned: narrow edges of the current transforms', () => {
       return `${f}:${i}:x`;
     }).join('\n');
     const d = {};
-    const out = compressGrep(content, [], 'src', d, SIDECAR_SESSION);
+    const out = compressGrep(content, [], 'src', d, SIDECAR_SESSION, DEPS);
     assert.strictEqual(out, content, 'the rewrite was not rejected — pick a shape whose summary really is bigger');
     assert.strictEqual(d.recovery, undefined, 'a rejected rewrite records no recovery location');
     const parked = fs.readdirSync(sessionScratch.sessionDir(SIDECAR_SESSION));

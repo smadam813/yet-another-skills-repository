@@ -19,7 +19,12 @@ const { spawnSync } = require('node:child_process');
 const { HOOKS_DIR } = require('./helpers');
 const { compress, settingsFromEnv } = require('../hooks/compress-tool-output');
 const { buildSidecarBlock } = require('../hooks/precompact-summary');
-const { sessionDir, isSidecar, SIDECAR_ROOT, savedPath, addSaved } = require('../hooks/lib/session-scratch');
+const sessionScratch = require('../hooks/lib/session-scratch');
+const { sessionDir, isSidecar, SIDECAR_ROOT, savedPath, addSaved } = sessionScratch;
+
+// The in-process compress() calls run against the real session scratch.
+const deps = (env = {}) => ({ scratch: sessionScratch, settings: settingsFromEnv(env) });
+const DEPS = deps();
 
 const SCRATCH_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'hush-lifecycle-'));
 const realSessions = [];
@@ -83,8 +88,8 @@ describe('sidecar storage: a session owns its namespace', () => {
   test('two sessions producing identical output get a file each, in their own directories', () => {
     const a = freshSessionId('iso-a');
     const b = freshSessionId('iso-b');
-    const fileA = pathFrom(compress(BIG, 0, true, false, [], 1, a));
-    const fileB = pathFrom(compress(BIG, 0, true, false, [], 1, b));
+    const fileA = pathFrom(compress(BIG, 0, true, false, [], 1, a, undefined, undefined, undefined, DEPS));
+    const fileB = pathFrom(compress(BIG, 0, true, false, [], 1, b, undefined, undefined, undefined, DEPS));
 
     assert.notStrictEqual(fileA, fileB, 'identical content is no longer one shared file');
     assert.strictEqual(path.dirname(path.resolve(fileA)), path.resolve(sessionDir(a)));
@@ -127,8 +132,8 @@ describe('sidecar storage: a session owns its namespace', () => {
 
   test('the same output twice in one session reuses the one file', () => {
     const id = freshSessionId('idempotent');
-    const first = pathFrom(compress(BIG, 0, true, false, [], 1, id));
-    const second = pathFrom(compress(BIG, 0, true, false, [], 1, id));
+    const first = pathFrom(compress(BIG, 0, true, false, [], 1, id, undefined, undefined, undefined, DEPS));
+    const second = pathFrom(compress(BIG, 0, true, false, [], 1, id, undefined, undefined, undefined, DEPS));
     assert.strictEqual(first, second);
     assert.strictEqual(fs.readdirSync(sessionDir(id)).length, 1);
   });
@@ -145,7 +150,7 @@ describe('sidecar storage: a failed write never costs the output', () => {
     // Template collapse is pinned off so the fallback is demonstrably the
     // ordinary line cap: every line in BIG shares one shape, and collapsing
     // them would keep the view under the cap and hide which path ran.
-    const noTemplate = settingsFromEnv({ HUSH_TEMPLATE: 'off' });
+    const noTemplate = deps({ HUSH_TEMPLATE: 'off' });
     const out = compress(BIG, 0, true, false, [], 1, id, undefined, undefined, undefined, noTemplate);
     assert.doesNotMatch(out, /saved in full to/, 'no pointer to a file that was never written');
     assert.match(out, /lines omitted from this view/, 'falls through to the ordinary inline cap');
@@ -263,7 +268,7 @@ describe('sidecar cleanup: crash leftovers', () => {
 describe('sidecar lifetime: compaction keeps every path valid', () => {
   test('the PreCompact summary names this session\'s files and they are still there afterwards', () => {
     const id = freshSessionId('compact');
-    const file = pathFrom(compress(BIG, 0, true, false, [], 1, id));
+    const file = pathFrom(compress(BIG, 0, true, false, [], 1, id, undefined, undefined, undefined, DEPS));
 
     const block = buildSidecarBlock(id);
     assert.ok(block, 'the summary gets a block naming the parked output');

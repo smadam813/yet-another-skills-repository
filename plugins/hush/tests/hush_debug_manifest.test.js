@@ -12,9 +12,14 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { runHook, hookOutput } = require('./helpers');
-const { deliver } = require('../hooks/compress-tool-output');
+const { deliver, settingsFromEnv } = require('../hooks/compress-tool-output');
 const { buildRecord, recoveryGap } = require('../hooks/lib/transform-manifest');
-const { manifestPath, removeSession } = require('../hooks/lib/session-scratch');
+const sessionScratch = require('../hooks/lib/session-scratch');
+const { manifestPath, removeSession } = sessionScratch;
+
+// The in-process deliver() calls below run against the real session scratch,
+// so the manifest they assert on is the file on disk.
+const DEPS = { scratch: sessionScratch, settings: settingsFromEnv({}) };
 
 const sids = [];
 function sid(label) {
@@ -497,7 +502,8 @@ describe('transform manifest: the recovery boundary', () => {
       deliver(
         { action: 'cap', bytesIn: 400, bytesOut: 90, linesIn: 100, omitted: 40 },
         'a rewritten view with detail removed',
-        { tool_name: 'Bash', session_id: id }
+        { tool_name: 'Bash', session_id: id },
+        DEPS
       );
     } finally {
       process.stdout.write = original;
@@ -520,7 +526,8 @@ describe('transform manifest: the recovery boundary', () => {
       deliver(
         { action: 'cap', bytesIn: 400, bytesOut: 90, linesIn: 100, omitted: 40, recovery: 'rerun-command' },
         'a rewritten view with detail removed',
-        { tool_name: 'Bash', session_id: id }
+        { tool_name: 'Bash', session_id: id },
+        DEPS
       );
     } finally {
       process.stdout.write = original;
@@ -545,7 +552,8 @@ describe('transform manifest: the recovery boundary', () => {
       deliver(
         { action: 'cap', bytesIn: 400, bytesOut: 90, linesIn: 100, omitted: 40 },
         'a rewritten view with detail removed',
-        { tool_name: 'Bash', session_id: id }
+        { tool_name: 'Bash', session_id: id },
+        DEPS
       );
     } finally {
       process.stdout.write = original;

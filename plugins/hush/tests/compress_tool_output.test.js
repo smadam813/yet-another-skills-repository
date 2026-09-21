@@ -19,25 +19,32 @@ const {
   isLogPath,
   requestsEnumeration,
   compress,
+  compressGrep,
   firstLine,
   signalCensus,
   exitNote,
   FAILURE_RERUN_NOTE,
 } = require('../hooks/compress-tool-output');
 const { decode } = require('../hooks/lib/exit-trailer');
+const sessionScratch = require('../hooks/lib/session-scratch');
 
+// The transforms take `deps`: the real session scratch and a settings
+// object. An in-process call builds it here; a spawned hook builds it in
+// main() from the child's environment.
+const deps = (env = {}) => ({ scratch: sessionScratch, settings: settingsFromEnv(env) });
+const DEFAULTS = deps();
 // The sidecar is on by default. The inline-cap cases here turn it off: in
 // process with a settings object, and in a spawned hook with the child's
 // environment. The sidecar suites below turn it back on the same two ways.
-const INLINE = settingsFromEnv({ HUSH_SIDECAR: 'off' });
-const INLINE_NO_TEMPLATE = settingsFromEnv({ HUSH_SIDECAR: 'off', HUSH_TEMPLATE: 'off' });
-const NO_TEMPLATE = settingsFromEnv({ HUSH_TEMPLATE: 'off' });
+const INLINE = deps({ HUSH_SIDECAR: 'off' });
+const INLINE_NO_TEMPLATE = deps({ HUSH_SIDECAR: 'off', HUSH_TEMPLATE: 'off' });
+const NO_TEMPLATE = deps({ HUSH_TEMPLATE: 'off' });
 const runHook = (name, input, env) => helpers.runHook(name, input, { HUSH_SIDECAR: 'off', ...env });
 
-// Calls compress() with the inline-cap settings and leaves the tail arguments
+// Calls compress() with the inline-cap deps and leaves the tail arguments
 // (session, sidecar bypass, host truncation, decision) at their defaults.
-function compressInline(text, exitCode, isDump = false, enumerate = false, relevance = [], scale = 1, settings = INLINE) {
-  return compress(text, exitCode, isDump, enumerate, relevance, scale, null, undefined, undefined, undefined, settings);
+function compressInline(text, exitCode, isDump = false, enumerate = false, relevance = [], scale = 1, d = INLINE) {
+  return compress(text, exitCode, isDump, enumerate, relevance, scale, null, undefined, undefined, undefined, d);
 }
 
 describe('unit: transforms', () => {
@@ -356,7 +363,7 @@ describe('unit: collapseTemplates', () => {
 
   test('HUSH_TEMPLATE=off passes lines through untouched', () => {
     const lines = Array.from({ length: 8 }, (_, i) => `INFO worker-${i} processing job ${8000 + i}`);
-    assert.deepStrictEqual(collapseTemplates(lines, [], NO_TEMPLATE), lines);
+    assert.deepStrictEqual(collapseTemplates(lines, [], NO_TEMPLATE.settings), lines);
   });
 
   // The collapse footer claims prompt-named lines are
@@ -388,7 +395,7 @@ describe('unit: collapseTemplates', () => {
 describe('template collapse: the view states its own recovery', () => {
   const { TEMPLATE_COLLAPSE_NOTE } = require('../hooks/compress-tool-output');
 
-  const run = (text) => compress(text, 0, false, false, [], 1, null, true, false, {});
+  const run = (text) => compress(text, 0, false, false, [], 1, null, true, false, {}, DEFAULTS);
 
   test('a collapsed view carries the recovery footer exactly once, naming the ranged read', () => {
     const out = run(Array.from({ length: 30 }, (_, i) => `INFO worker-${i} processing job ${8000 + i}`).join('\n'));
@@ -407,7 +414,7 @@ describe('template collapse: the view states its own recovery', () => {
   test('a uniform run of failing lines is never collapsed, however identical the shape', () => {
     const lines = Array.from({ length: 400 }, (_, i) => `not ok ${i + 1} - renders the widget tree`);
     lines.push('# fail 400');
-    const out = compress(lines.join('\n'), 1, false, false, [], 1, null, true, false, {});
+    const out = compress(lines.join('\n'), 1, false, false, [], 1, null, true, false, {}, DEFAULTS);
     assert.ok(!out.includes('similar lines collapsed'), 'nothing collapsed');
     assert.ok(!out.includes(TEMPLATE_COLLAPSE_NOTE), 'so the collapse footer makes no claim here');
     assert.strictEqual((out.match(/^not ok /gm) || []).length, 400, 'every failing line is visible');
@@ -1010,7 +1017,7 @@ describe('unit + e2e: sidecar digests for very large outputs', () => {
   })();
 
   test('a huge output becomes a line-numbered digest and the full text lands in the sidecar file', () => {
-    const digest = comp(bigLog, 0, true, false, ['ioredis'], 1, 'sidetest');
+    const digest = comp(bigLog, 0, true, false, ['ioredis'], 1, 'sidetest', undefined, undefined, undefined, DEFAULTS);
     assert.ok(digest.startsWith('[hush hook: this output is'), 'digest opens with the provenance header');
     assert.match(digest, /this output is \d+ non-empty lines \(\d+ errors?\)/, 'header carries the category census, not a bare count');
     assert.match(digest, /re-run the command — a second run is not guaranteed to reproduce this output/, 'missing-file fallback is present and conditional');
@@ -1025,26 +1032,26 @@ describe('unit + e2e: sidecar digests for very large outputs', () => {
 
   test('below the threshold the normal capped view still applies', () => {
     const small = Array.from({ length: 300 }, (_, i) => 'l' + i).join(NL);
-    const out = comp(small, 0, false, false, [], 1, 'sidetest');
+    const out = comp(small, 0, false, false, [], 1, 'sidetest', undefined, undefined, undefined, DEFAULTS);
     assert.doesNotMatch(out, /saved in full to/);
     assert.match(out, /lines omitted from this view/);
   });
 
   test('the enumeration carve-out is exempt — nothing moves to a file', () => {
-    const out = comp(bigLog, 0, true, true, [], 1, 'sidetest');
+    const out = comp(bigLog, 0, true, true, [], 1, 'sidetest', undefined, undefined, undefined, DEFAULTS);
     assert.doesNotMatch(out, /saved in full to/);
   });
 
   test('same content re-fires to the same file (idempotent)', () => {
-    const d1 = comp(bigLog, 0, true, false, [], 1, 'sidetest');
-    const d2 = comp(bigLog, 0, true, false, [], 1, 'sidetest');
+    const d1 = comp(bigLog, 0, true, false, [], 1, 'sidetest', undefined, undefined, undefined, DEFAULTS);
+    const d2 = comp(bigLog, 0, true, false, [], 1, 'sidetest', undefined, undefined, undefined, DEFAULTS);
     assert.strictEqual(pathFrom(d1), pathFrom(d2));
   });
 
   test('prompt-named lines join the digest', () => {
     const ls = Array.from({ length: 2000 }, (_, i) => 'info filler line ' + i + ' padding padding');
     ls[1000] = '    "node_modules/ioredis": { "version": "5.4.1" },';
-    const digest = comp(ls.join(NL), 0, true, false, ['ioredis'], 1, 'sidetest');
+    const digest = comp(ls.join(NL), 0, true, false, ['ioredis'], 1, 'sidetest', undefined, undefined, undefined, DEFAULTS);
     pathFrom(digest);
     assert.ok(digest.includes('5.4.1'), 'relevance line is in the digest, not only the file');
   });
@@ -1117,7 +1124,7 @@ describe('secrets guard: credential-shaped content is never persisted to a sidec
 
   test('control: the identical shape without a secret still sidecars', () => {
     const before = sidecarFileCount();
-    const out = comp(bigLog(null), 0, true, false, [], 1, 'secrettest');
+    const out = comp(bigLog(null), 0, true, false, [], 1, 'secrettest', undefined, undefined, undefined, DEFAULTS);
     assert.match(out, /saved in full to/, 'clean content still gets the sidecar treatment');
     assert.strictEqual(sidecarFileCount(), before + 1, 'exactly one new sidecar file appeared');
     const m = out.match(/saved in full to ([^;]+);/);
@@ -1234,7 +1241,7 @@ describe('signal-first digest + compound-error signal matching', () => {
     const lines = [];
     for (let i = 0; i < 700; i++) lines.push('[' + i + '/700] compile mod_' + i + ' ... ok (46ms) with some padding to widen the line');
     lines[690] = 'ERROR EBUILD01 link-failed: ReferenceError: retries is not defined';
-    const digest = compress(lines.join(NL), 1, false, false, [], 1, 'sigfirst');
+    const digest = compress(lines.join(NL), 1, false, false, [], 1, 'sigfirst', undefined, undefined, undefined, DEFAULTS);
     pathFrom(digest);
     const errPos = digest.indexOf('ReferenceError');
     const noisePos = digest.indexOf('compile mod_0 ');
@@ -1249,7 +1256,7 @@ describe('signal-first digest + compound-error signal matching', () => {
 
   test('a digest with no signal lines still emits the structural section', () => {
     const lines = Array.from({ length: 700 }, (_, i) => 'plain info line ' + i + ' padded out a bit for width here');
-    const digest = compress(lines.join(NL), 0, true, false, [], 1, 'nosig');
+    const digest = compress(lines.join(NL), 0, true, false, [], 1, 'nosig', undefined, undefined, undefined, DEFAULTS);
     pathFrom(digest);
     assert.ok(!digest.includes('Signal lines ('), 'no signal header when there are none');
     assert.ok(digest.includes('Structure (head + tail'), 'structural section header present');
@@ -1292,7 +1299,7 @@ describe('census-grade sidecar digests', () => {
     const lines = [];
     for (let i = 0; i < 200; i++) lines.push('info ' + i);
     lines[5] = 'ERROR only one signal line';
-    const digest = comp2(lines.join(NL), 0, true, false, [], 1, 'fewsignals');
+    const digest = comp2(lines.join(NL), 0, true, false, [], 1, 'fewsignals', undefined, undefined, undefined, DEFAULTS);
     pathFrom(digest);
     assert.ok(!digest.includes('Other signal lines'), 'nothing unshown, so no "not shown" line');
   });
@@ -1304,7 +1311,7 @@ describe('census-grade sidecar digests', () => {
     // first 10 + last 10 signal indices, leaving 30 unshown in the middle —
     // enough to exceed the 15-entry cap and exercise the "+more" tail.
     for (let i = 0; i < 50; i++) lines[100 + i * 10] = 'ERROR item ' + i;
-    const digest = comp2(lines.join(NL), 0, true, false, [], 1, 'manysignals');
+    const digest = comp2(lines.join(NL), 0, true, false, [], 1, 'manysignals', undefined, undefined, undefined, DEFAULTS);
     pathFrom(digest);
     assert.match(digest, /Other signal lines \(not shown\): (L\d+, ){14}L\d+ \.\.\. \(\+\d+ more\)/, 'capped at 15 numbers with a remaining-count tail');
     const m = digest.match(/Other signal lines \(not shown\): ([^\n]+)/);
@@ -1320,7 +1327,7 @@ describe('census-grade sidecar digests', () => {
     lines[12] = 'FAILURE suite red';
     lines[13] = 'CRITICAL disk full';
     lines[14] = 'DEPRECATED old api';
-    const digest = comp2(lines.join(NL), 1, false, false, [], 1, 'budget2KB');
+    const digest = comp2(lines.join(NL), 1, false, false, [], 1, 'budget2KB', undefined, undefined, undefined, DEFAULTS);
     pathFrom(digest);
     const structAt = digest.indexOf('Structure (head + tail');
     assert.ok(structAt > -1, 'structure section present');
@@ -1348,7 +1355,7 @@ describe('the keep vocabulary, pinned category by category', () => {
   const cappedView = (sample) => {
     const lines = Array.from({ length: 200 }, (_, i) => filler(i));
     lines[100] = sample;
-    return comp3(lines.join(NL), 0, false, false, [], 1, 'keepvocab', true, false);
+    return comp3(lines.join(NL), 0, false, false, [], 1, 'keepvocab', true, false, undefined, DEFAULTS);
   };
 
   const KEEP_SAMPLES = [
@@ -1398,7 +1405,7 @@ describe('the keep vocabulary, pinned category by category', () => {
       'DEPRECATED formatAmount takes one argument now',
     ];
     samples.forEach((s, i) => { lines[100 + i * 100] = s; });
-    const digest = comp3(lines.join(NL), 0, true, false, [], 1, 'censusvocab');
+    const digest = comp3(lines.join(NL), 0, true, false, [], 1, 'censusvocab', undefined, undefined, undefined, DEFAULTS);
     pathFrom(digest);
     const census = '3 errors, 3 failures, 1 critical, 3 warnings, 1 deprecation';
     assert.ok(digest.includes(`(${census})`), `header census drifted: ${digest.slice(0, 400)}`);
@@ -1416,7 +1423,7 @@ describe('shell-scoped sidecar upper bound (host-truncation guard)', () => {
   function bigText(chars) { const a = []; let n = 0; while (a.join(NL).length < chars) { a.push('info line ' + n + ' padding padding padding padding ' + n); n++; } return a.join(NL); }
 
   test('a shell output in the 15-28KB window still sidecars', () => {
-    const out = compress(bigText(20000), 0, false, false, [], 1, 's', undefined, true);
+    const out = compress(bigText(20000), 0, false, false, [], 1, 's', undefined, true, undefined, DEFAULTS);
     pathFrom(out);
     assert.match(out, /saved in full to/, 'sidecar active in the sweet spot');
   });
@@ -1433,13 +1440,13 @@ describe('shell-scoped sidecar upper bound (host-truncation guard)', () => {
   });
 
   test('a large Read is exempt — full content reaches the hook, sidecar still helps', () => {
-    const out = compress(bigText(36000), 0, true, false, [], 1, 's', false);
+    const out = compress(bigText(36000), 0, true, false, [], 1, 's', false, undefined, undefined, DEFAULTS);
     pathFrom(out);
     assert.match(out, /saved in full to/, 'Read path keeps sidecaring big files');
   });
 
   test('HUSH_SIDECAR_SHELL_MAX tunes the bound', () => {
-    const lowered = settingsFromEnv({ HUSH_SIDECAR_SHELL_MAX: '18000' });
+    const lowered = deps({ HUSH_SIDECAR_SHELL_MAX: '18000' });
     const out = compress(bigText(20000), 0, false, false, [], 1, 's', undefined, true, undefined, lowered);
     assert.doesNotMatch(out, /saved in full to/, '20KB now exceeds the lowered bound');
     assert.match(out, /as hush received it/, 'so the copy drops its "in full" claim');
@@ -1579,7 +1586,7 @@ describe('grep elision: the omitted matches are persisted', () => {
     const id = newSession('persist');
     const content = matchList(['src/a.js', 'src/b.js'], 40);
     const decision = {};
-    const out = H.compressGrep(content, [], 'src', decision, id);
+    const out = H.compressGrep(content, [], 'src', decision, id, DEFAULTS);
 
     const named = savedPath(out);
     assert.ok(named, `the summary names the parked copy: ${out.split('\n').filter((l) => l.startsWith('[hush'))[0]}`);
@@ -1594,8 +1601,8 @@ describe('grep elision: the omitted matches are persisted', () => {
   test('the same result twice in one session reuses the one file', () => {
     const id = newSession('idempotent');
     const content = matchList(['src/a.js'], 60);
-    H.compressGrep(content, [], 'src', {}, id);
-    H.compressGrep(content, [], 'src', {}, id);
+    H.compressGrep(content, [], 'src', {}, id, DEFAULTS);
+    H.compressGrep(content, [], 'src', {}, id, DEFAULTS);
     assert.strictEqual(fs.readdirSync(sessionDir(id)).length, 1);
   });
 
@@ -1615,7 +1622,7 @@ describe('grep elision: the omitted matches are persisted', () => {
     const id = newSession('secret');
     const content = matchList(['src/keys.js'], 60, (i) => `const key_${i} = "sk-ABCDEFGHIJKLMNOP${i}0000";`);
     const decision = {};
-    const out = H.compressGrep(content, [], 'src', decision, id);
+    const out = H.compressGrep(content, [], 'src', decision, id, DEFAULTS);
     assert.strictEqual(savedPath(out), null, 'a secret-bearing match list is not written out');
     assert.ok(out.includes('re-run with a narrower pattern'));
     assert.strictEqual(decision.recovery, undefined);
@@ -1824,5 +1831,112 @@ describe('unit: exit code and signal', () => {
     const out = hookOutput(r).hookSpecificOutput.updatedToolOutput;
     assert.match(out, /\[hush: exit 137 \(SIGKILL\)\]$/);
     assert.ok(!out.includes('[[hush:exit='), 'the raw marker never reaches the model');
+  });
+});
+
+// Session scratch and the turn reader arrive as parameters. A test passes an
+// in-memory scratch and a stub turn, so nothing here touches the disk or
+// the environment.
+describe('deps: scratch and turn arrive as parameters', () => {
+  const { readTurn, deliver, NOTE_TEXT } = require('../hooks/compress-tool-output');
+  const NL = String.fromCharCode(10);
+
+  // An in-memory session scratch with the functions the hook calls.
+  function memoryScratch() {
+    const calls = { parked: [], manifest: [], saved: [], claimed: [] };
+    return {
+      calls,
+      isSidecar: () => false,
+      parkSidecar(sessionId, content) {
+        calls.parked.push({ sessionId, content });
+        return `/memory/${sessionId}/parked.txt`;
+      },
+      appendManifest(sessionId, record) {
+        calls.manifest.push({ sessionId, record });
+      },
+      addSaved(sessionId, bytesIn, bytesOut) {
+        calls.saved.push({ sessionId, bytesIn, bytesOut });
+        return true;
+      },
+      claimNote(sessionId) {
+        calls.claimed.push(sessionId);
+        return true;
+      },
+    };
+  }
+
+  function captureStdout(fn) {
+    const chunks = [];
+    const real = process.stdout.write;
+    process.stdout.write = (s) => { chunks.push(String(s)); return true; };
+    try {
+      fn();
+    } finally {
+      process.stdout.write = real;
+    }
+    return chunks.join('');
+  }
+
+  test('readTurn returns the last human prompt and the transcript size', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hush-turn-'));
+    const file = path.join(dir, 't.jsonl');
+    const entry = { type: 'user', uuid: 'u', origin: { kind: 'human' }, message: { role: 'user', content: 'report every warning' } };
+    fs.writeFileSync(file, JSON.stringify(entry) + NL);
+    try {
+      assert.deepStrictEqual(readTurn(file), { promptText: 'report every warning', bytes: fs.statSync(file).size });
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('readTurn on a missing transcript gives an empty prompt and no size', () => {
+    assert.deepStrictEqual(readTurn(path.join(os.tmpdir(), 'hush-no-such-transcript.jsonl')), { promptText: '', bytes: undefined });
+    assert.deepStrictEqual(readTurn(undefined), { promptText: '', bytes: undefined });
+  });
+
+  test('compress parks the sidecar through deps.scratch', () => {
+    const scratch = memoryScratch();
+    const lines = Array.from({ length: 700 }, (_, i) => 'plain info line ' + i + ' padded out a bit for width here');
+    const decision = {};
+    const out = compress(lines.join(NL), 0, true, false, [], 1, 'mem', undefined, undefined, decision, { scratch, settings: settingsFromEnv({}) });
+    assert.strictEqual(scratch.calls.parked.length, 1);
+    assert.strictEqual(scratch.calls.parked[0].sessionId, 'mem');
+    assert.strictEqual(scratch.calls.parked[0].content, lines.join(NL));
+    assert.match(out, /saved in full to \/memory\/mem\/parked\.txt;/);
+    assert.strictEqual(decision.action, 'sidecar');
+    assert.strictEqual(decision.sidecarPath, '/memory/mem/parked.txt');
+  });
+
+  test('compressGrep parks the match list through deps.scratch', () => {
+    const scratch = memoryScratch();
+    const content = Array.from({ length: 80 }, (_, i) => `src/a.js:${i + 1}: const value_${i} = ${'x'.repeat(60)};`).join(NL);
+    const decision = {};
+    const out = compressGrep(content, [], 'src', decision, 'mem', { scratch, settings: settingsFromEnv({}) });
+    assert.strictEqual(scratch.calls.parked.length, 1);
+    assert.match(out, /saved to \/memory\/mem\/parked\.txt /);
+    assert.strictEqual(decision.recoveryPath, '/memory/mem/parked.txt');
+  });
+
+  test('deliver appends the manifest, adds the total, and claims the note through deps.scratch', () => {
+    const scratch = memoryScratch();
+    const deps = { scratch, settings: settingsFromEnv({}) };
+    const decision = { action: 'cap', bytesIn: 400, bytesOut: 90, linesIn: 100, omitted: 40, recovery: 'rerun-command' };
+    const prevDebug = process.env.HUSH_DEBUG;
+    process.env.HUSH_DEBUG = '1';
+    let raw;
+    try {
+      raw = captureStdout(() => deliver(decision, '[hush hook: a view]', { tool_name: 'Bash', session_id: 'mem' }, deps));
+    } finally {
+      if (prevDebug === undefined) delete process.env.HUSH_DEBUG;
+      else process.env.HUSH_DEBUG = prevDebug;
+    }
+    assert.strictEqual(scratch.calls.manifest.length, 1);
+    assert.strictEqual(scratch.calls.manifest[0].sessionId, 'mem');
+    assert.strictEqual(scratch.calls.manifest[0].record.action, 'cap');
+    assert.deepStrictEqual(scratch.calls.saved, [{ sessionId: 'mem', bytesIn: 400, bytesOut: 90 }]);
+    assert.deepStrictEqual(scratch.calls.claimed, ['mem']);
+    const emitted = JSON.parse(raw);
+    assert.strictEqual(emitted.hookSpecificOutput.updatedToolOutput, '[hush hook: a view]');
+    assert.strictEqual(emitted.hookSpecificOutput.additionalContext, NOTE_TEXT);
   });
 });

@@ -9,8 +9,10 @@ const { test, describe, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
-const { compress } = require('../hooks/compress-tool-output');
-const { sessionDir } = require('../hooks/lib/session-scratch');
+const { compress, settingsFromEnv } = require('../hooks/compress-tool-output');
+const sessionScratch = require('../hooks/lib/session-scratch');
+const { sessionDir } = sessionScratch;
+const DEPS = { scratch: sessionScratch, settings: settingsFromEnv({}) };
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'sidecar-follow-test-output.log');
 
@@ -35,7 +37,7 @@ describe('a long test log follows through to the sidecar', () => {
       delete process.env.HUSH_SIDECAR;
       let digest;
       try {
-        digest = compress(content, undefined, true, false, [], 1, SESSION);
+        digest = compress(content, undefined, true, false, [], 1, SESSION, undefined, undefined, undefined, DEPS);
       } finally {
         process.env.HUSH_SIDECAR = prev;
       }
