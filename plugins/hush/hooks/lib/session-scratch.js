@@ -2,7 +2,7 @@
 
 // Session scratch: the one directory hush owns for a session, and the one
 // module that writes into it. Hooks ask it for behavior, never for a path.
-// compress-tool-output.js parks a sidecar here and gets a path back, claims
+// lib/transform.js parks a sidecar here and gets a path back, claims
 // the note, and adds to the running total. precompact-summary.js asks for
 // the live sidecars this session parked. postcompact-rearm.js re-arms the
 // note. silence-nudge.js resets and advances the react counter.

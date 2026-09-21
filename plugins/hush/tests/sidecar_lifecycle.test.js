@@ -17,7 +17,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const { HOOKS_DIR, makeDeps } = require('./helpers');
-const { compress } = require('../hooks/compress-tool-output');
+const { compress } = require('../hooks/lib/transform');
 const { buildSidecarBlock } = require('../hooks/precompact-summary');
 const { sessionDir, isSidecar, SIDECAR_ROOT, savedPath, addSaved } = require('../hooks/lib/session-scratch');
 

@@ -7,7 +7,7 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert');
 require('./helpers');
-const { settingsFromEnv } = require('../hooks/compress-tool-output');
+const { settingsFromEnv } = require('../hooks/lib/transform');
 
 describe('settingsFromEnv', () => {
   test('an empty environment yields the documented defaults', () => {

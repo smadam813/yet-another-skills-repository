@@ -1,6 +1,6 @@
 'use strict';
 
-// Shared transcript-tail helpers. compress-tool-output needs the current
+// Shared transcript-tail helpers. The PostToolUse hook needs the current
 // turn's real human prompt from the session JSONL; the tail-read and the
 // turn-boundary schema live here so the origin.kind/isMeta rules have one home
 // rather than being restated at a call site.

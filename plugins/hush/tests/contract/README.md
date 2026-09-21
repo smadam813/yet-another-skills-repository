@@ -49,7 +49,7 @@ pinning the machine it was generated on.
 
 hush only emits when it actually shrinks something, so a fixture below a
 threshold produces an empty golden and pins nothing. The thresholds, from
-`settingsFromEnv` in `hooks/compress-tool-output.js`, at their defaults:
+`settingsFromEnv` in `hooks/lib/transform.js`, at their defaults:
 
 | Path | Needs |
 | --- | --- |
