@@ -43,7 +43,7 @@ const {
 } = require('../hooks/lib/transform');
 const { buildRecord, recoveryGap, sizeGap, fieldGap } = require('../hooks/lib/transform-manifest');
 const sessionScratch = require('../hooks/lib/session-scratch');
-const { makeDeps, memoryDeps } = require('./helpers');
+const { makeDeps, memoryDeps, withDebug } = require('./helpers');
 
 const ESC = '\u001b';
 
@@ -458,24 +458,30 @@ describe('deliver(): one boundary, one fallback', () => {
 // ---------------------------------------------------------------------------
 
 describe('e2e: the transform routes every path through the same boundary', () => {
-  // One fire against an in-memory scratch: what the adapter would emit, and
-  // the record the transform returned beside it.
-  const fire = (payload) => transform(payload, memoryDeps());
+  // One fire against an in-memory scratch with the gate on: what the adapter
+  // would emit, the record the transform returned, and what scratch received.
+  function fire(payload) {
+    const deps = memoryDeps();
+    const result = withDebug('1', () => transform(payload, deps));
+    return { ...result, calls: deps.scratch.calls };
+  }
 
   test('a fold that costs more than it saves ships the original and records why', () => {
-    const { updated, record } = fire({
+    const { updated, record, calls } = fire({
       hook_event_name: 'PostToolUse',
       tool_name: 'Bash',
       session_id: 'growcase',
       tool_input: { command: 'node build.js' },
       tool_response: 'a\na\na\na\na\na\na\na',
     });
-    assert.strictEqual(updated, undefined, `a larger rewrite was shipped: ${updated}`);
+    assert.strictEqual(updated, undefined, `a larger view shipped: ${updated}`);
+    assert.strictEqual(calls.manifest.length, 1);
+    assert.strictEqual(calls.manifest[0].record, record);
     assert.strictEqual(record.action, 'rejected-not-smaller');
     assert.strictEqual(record.bytesOut, record.bytesIn);
     assert.match(record.fallback, /bytes against/);
     // The original ships whole, so the record may not claim lines were left out.
-    assert.strictEqual(record.omitted, 0, 'a rejected rewrite still reported omission');
+    assert.strictEqual(record.omitted, 0, 'a rejected view still reported omission');
     assert.strictEqual(record.preserved, record.linesIn);
     assert.strictEqual(record.retention, 'none');
   });
@@ -492,7 +498,7 @@ describe('e2e: the transform routes every path through the same boundary', () =>
       tool_input: { command: 'node build.js' },
       tool_response: 'a\na\na\na\na\na\na\na\n[[hush:exit=',
     });
-    assert.strictEqual(updated, undefined, `a growing rewrite shipped, raw prefix and all: ${updated}`);
+    assert.strictEqual(updated, undefined, `a growing view shipped, raw prefix and all: ${updated}`);
     assert.strictEqual(record.action, 'rejected-not-smaller');
     assert.strictEqual(record.bytesOut, record.bytesIn);
   });
@@ -505,7 +511,7 @@ describe('e2e: the transform routes every path through the same boundary', () =>
       tool_input: { command: 'node build.js' },
       tool_response: { stdout: 'a\na\na\na\na\na\na\na', stderr: '[[hush:exit=', exitCode: 0 },
     });
-    assert.strictEqual(updated, undefined, `a growing rewrite shipped, raw prefix and all: ${JSON.stringify(updated)}`);
+    assert.strictEqual(updated, undefined, `a growing view shipped, raw prefix and all: ${JSON.stringify(updated)}`);
     assert.strictEqual(record.action, 'rejected-not-smaller');
   });
 
@@ -517,7 +523,7 @@ describe('e2e: the transform routes every path through the same boundary', () =>
       tool_input: { command: 'node build.js' },
       tool_response: 'a\na\na\na\na\na\na\na\n[[hush:exit=0]]',
     });
-    assert.notStrictEqual(updated, undefined, 'the sanitizing rewrite was dropped, so the raw wrapper reaches the model');
+    assert.notStrictEqual(updated, undefined, 'the transform dropped the sanitizing view, so the raw wrapper reaches the model');
     assert.ok(!updated.includes('[[hush:exit='), 'the wrapper marker survived into the view');
   });
 
@@ -558,7 +564,7 @@ describe('e2e: the transform routes every path through the same boundary', () =>
       tool_input: { file_path: file, offset: 1, limit: 200 },
       tool_response: { file: { filePath: file, content } },
     });
-    assert.strictEqual(updated, undefined, 'a range read was rewritten');
+    assert.strictEqual(updated, undefined, 'the transform gave a range read a view');
     assert.strictEqual(record.action, 'passthrough');
   });
 });

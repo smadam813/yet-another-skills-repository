@@ -6,7 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const helpers = require('./helpers');
-const { hookOutput, makeDeps, memoryDeps } = helpers;
+const { hookOutput, makeDeps, memoryDeps, withDebug } = helpers;
 const {
   settingsFromEnv,
   transform,
@@ -1020,14 +1020,15 @@ describe('unit + e2e: sidecar digests for very large outputs', () => {
   });
 
   test('e2e: a big log Read is delivered as a digest and the note still rides once', () => {
-    const { updated, context } = fire({
+    const deps = memoryDeps();
+    const { updated, context } = transform({
       tool_name: 'Read',
       session_id: 'side',
       tool_input: { file_path: '/var/logs/app.log' },
       tool_response: { type: 'text', file: { filePath: '/var/logs/app.log', content: bigLog, numLines: 2000, startLine: 1, totalLines: 2000 } },
-    }, { HUSH_SIDECAR: '' });
-    assert.match(updated.file.content, /saved in full to/);
-    assert.ok(context, 'telemetry note rides the first sidecar rewrite too');
+    }, deps);
+    assert.strictEqual(pathFrom(updated.file.content), deps.scratch.calls.parked[0].path, 'the digest names the parked copy');
+    assert.ok(context, 'telemetry note rides the first sidecar view too');
   });
 });
 
@@ -1095,8 +1096,8 @@ describe('secrets guard: credential-shaped content is never persisted to a sidec
   });
 });
 
-// A Read of a sidecar is told apart by its path under the scratch root, so
-// the e2e cases fire against the session scratch module.
+// The transform tells a sidecar Read apart by its path under the scratch
+// root, so the e2e cases fire against the session scratch module.
 describe('unit + e2e: reads OF sidecar files are capped, never re-sidecared', () => {
   const { isSidecar } = require('../hooks/lib/session-scratch');
   const NL = String.fromCharCode(10);
@@ -1479,14 +1480,14 @@ describe('grep match-list compression', () => {
     assert.ok(out.includes('app.js: 60 matches, 3 shown'), 'redis hits every line, so the token is dropped as too common');
   });
 
-  test('the transform rewrites an oversized Grep content result and mirrors the shape', () => {
+  test('the transform gives an oversized Grep content result a view that mirrors the shape', () => {
     const content = grepContent(['src/a.js', 'src/b.js'], 40);
     const { updated } = fire({
       tool_name: 'Grep',
       tool_input: { pattern: 'value', output_mode: 'content' },
       tool_response: { mode: 'content', numFiles: 2, filenames: [], content, numLines: 80, totalLines: 80 },
     });
-    assert.ok(updated, 'expected a rewrite');
+    assert.ok(updated, 'expected a view');
     assert.strictEqual(updated.mode, 'content');
     assert.strictEqual(updated.totalLines, 80);
     assert.ok(updated.content.includes('match lines omitted'));
@@ -1643,9 +1644,9 @@ describe('every transform is accounted for, and no lossy view ships without reco
   for (const c of cases) {
     test(`${c.label}: one record, and recovery metadata whenever detail was removed`, () => {
       const deps = memoryDeps({ HUSH_SIDECAR: 'off', ...c.env });
-      const { updated: out, record: r } = transform({ ...c.input, session_id: c.label }, deps);
-      assert.ok(r, 'the transform left a record');
-      assert.strictEqual(deps.scratch.calls.saved.length, 1, 'exactly one record per handled tool output');
+      const { updated: out, record: r } = withDebug('1', () => transform({ ...c.input, session_id: c.label }, deps));
+      assert.strictEqual(deps.scratch.calls.manifest.length, 1, 'exactly one record per handled tool output');
+      assert.strictEqual(deps.scratch.calls.manifest[0].record, r, 'the record scratch received is the one returned');
 
       assert.strictEqual(r.preserved + r.omitted, r.linesIn, 'the record accounts for every input line');
       assert.ok(r.bytesOut <= r.bytesIn, 'a transform never delivers more than it was given');
@@ -1831,15 +1832,7 @@ describe('deps: scratch and turn arrive as parameters', () => {
     const scratch = memoryScratch();
     const deps = { ...DEFAULTS, scratch };
     const decision = { action: 'cap', bytesIn: 400, bytesOut: 90, linesIn: 100, omitted: 40, recovery: 'rerun-command' };
-    const prevDebug = process.env.HUSH_DEBUG;
-    process.env.HUSH_DEBUG = '1';
-    let result;
-    try {
-      result = deliver(decision, '[hush hook: a view]', { tool_name: 'Bash', session_id: 'mem' }, deps);
-    } finally {
-      if (prevDebug === undefined) delete process.env.HUSH_DEBUG;
-      else process.env.HUSH_DEBUG = prevDebug;
-    }
+    const result = withDebug('1', () => deliver(decision, '[hush hook: a view]', { tool_name: 'Bash', session_id: 'mem' }, deps));
     assert.strictEqual(scratch.calls.manifest.length, 1);
     assert.strictEqual(scratch.calls.manifest[0].sessionId, 'mem');
     assert.strictEqual(scratch.calls.manifest[0].record.action, 'cap');

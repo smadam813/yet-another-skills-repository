@@ -1,10 +1,10 @@
 'use strict';
 
-// HUSH_DEBUG=1 decision manifest. One record per handled tool output,
-// including every do-nothing path, handed to session scratch as one JSON
-// line. Never handed over without the env gate; never changes what any
-// compression path produces (see the `decision` side-channel comments in
-// hooks/lib/transform.js).
+// HUSH_DEBUG=1 decision manifest. The transform hands session scratch one
+// JSON line per handled tool output, including every do-nothing path. It
+// hands nothing over without the env gate, and the gate never changes what
+// any compression path produces (see the `decision` side-channel comments
+// in hooks/lib/transform.js).
 //
 // The cases here call the transform with an in-memory scratch and assert on
 // the records that scratch received. Only the adapter's own gates (the Core
@@ -13,22 +13,20 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
-const { runHook, hookOutput, memoryDeps } = require('./helpers');
+const { runHook, hookOutput, memoryDeps, withDebug } = require('./helpers');
 const { transform, deliver } = require('../hooks/lib/transform');
 const { buildRecord, recoveryGap } = require('../hooks/lib/transform-manifest');
 const { manifestPath, removeSession } = require('../hooks/lib/session-scratch');
 
-// appendRecord reads the HUSH_DEBUG gate from the environment on every call,
-// so a case sets the gate around its call and restores it after.
-function withDebug(value, fn) {
-  const prev = process.env.HUSH_DEBUG;
-  if (value === undefined) delete process.env.HUSH_DEBUG;
-  else process.env.HUSH_DEBUG = value;
+// A spawned hook with the gate on, for the adapter's own gates. Returns the
+// hook's stdout and whether a manifest file appeared under `label`.
+function spawnGated(label, payload, env) {
+  const id = `hush-debug-test-${label}-${process.pid}-${Date.now()}`;
   try {
-    return fn();
+    const r = runHook('compress-tool-output.js', { ...payload, session_id: id }, { HUSH_DEBUG: '1', ...env });
+    return { out: hookOutput(r), manifest: fs.existsSync(manifestPath(id)) };
   } finally {
-    if (prev === undefined) delete process.env.HUSH_DEBUG;
-    else process.env.HUSH_DEBUG = prev;
+    removeSession(id);
   }
 }
 
@@ -64,25 +62,15 @@ describe('HUSH_DEBUG manifest: gate', () => {
   });
 
   test('unwatched, unhandled tools never get a line, even with the gate on', () => {
-    const id = `hush-debug-test-gate-unhandled-${process.pid}-${Date.now()}`;
-    try {
-      const r = runHook('compress-tool-output.js', { tool_name: 'Glob', session_id: id, tool_response: 'x'.repeat(500) }, { HUSH_DEBUG: '1' });
-      assert.strictEqual(hookOutput(r), null);
-      assert.strictEqual(fs.existsSync(manifestPath(id)), false);
-    } finally {
-      removeSession(id);
-    }
+    const { out, manifest } = spawnGated('gate-unhandled', { tool_name: 'Glob', tool_response: 'x'.repeat(500) });
+    assert.strictEqual(out, null);
+    assert.strictEqual(manifest, false);
   });
 
   test('HUSH_DISABLE=1 suppresses the manifest too — nothing was handled', () => {
-    const id = `hush-debug-test-gate-disabled-${process.pid}-${Date.now()}`;
-    try {
-      const r = runHook('compress-tool-output.js', { tool_name: 'Bash', session_id: id, tool_response: uniqueLines(300) }, { HUSH_DEBUG: '1', HUSH_DISABLE: '1' });
-      assert.strictEqual(hookOutput(r), null);
-      assert.strictEqual(fs.existsSync(manifestPath(id)), false);
-    } finally {
-      removeSession(id);
-    }
+    const { out, manifest } = spawnGated('gate-disabled', { tool_name: 'Bash', tool_response: uniqueLines(300) }, { HUSH_DISABLE: '1' });
+    assert.strictEqual(out, null);
+    assert.strictEqual(manifest, false);
   });
 });
 
@@ -232,8 +220,8 @@ describe('adversarial no-op fixtures', () => {
     // A single-line payload leaves buildSidecarDigest's head/tail trim nothing
     // to cut, so maybeSidecar bails (digest would be larger than the source)
     // and compress() falls through to the ordinary inline cap — also a no-op
-    // for one line. Nothing is parked, and the manifest reflects the true
-    // no-op instead of a digest that grew past the input.
+    // for one line. The transform parks nothing, and the manifest reflects
+    // the true no-op instead of a digest that grew past the input.
     assert.strictEqual(entry.action, 'passthrough');
     assert.strictEqual(entry.bytesIn, minified.length);
     assert.strictEqual(entry.bytesOut, entry.bytesIn);
