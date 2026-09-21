@@ -11,10 +11,14 @@ const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { runHook, hookOutput } = require('./helpers');
+const { runHook, hookOutput, makeDeps } = require('./helpers');
 const { deliver } = require('../hooks/compress-tool-output');
 const { buildRecord, recoveryGap } = require('../hooks/lib/transform-manifest');
 const { manifestPath, removeSession } = require('../hooks/lib/session-scratch');
+
+// The in-process deliver() calls below run against the session scratch
+// module, so the manifest they assert on is the file on disk.
+const DEPS = makeDeps();
 
 const sids = [];
 function sid(label) {
@@ -497,7 +501,8 @@ describe('transform manifest: the recovery boundary', () => {
       deliver(
         { action: 'cap', bytesIn: 400, bytesOut: 90, linesIn: 100, omitted: 40 },
         'a rewritten view with detail removed',
-        { tool_name: 'Bash', session_id: id }
+        { tool_name: 'Bash', session_id: id },
+        DEPS
       );
     } finally {
       process.stdout.write = original;
@@ -520,7 +525,8 @@ describe('transform manifest: the recovery boundary', () => {
       deliver(
         { action: 'cap', bytesIn: 400, bytesOut: 90, linesIn: 100, omitted: 40, recovery: 'rerun-command' },
         'a rewritten view with detail removed',
-        { tool_name: 'Bash', session_id: id }
+        { tool_name: 'Bash', session_id: id },
+        DEPS
       );
     } finally {
       process.stdout.write = original;
@@ -545,7 +551,8 @@ describe('transform manifest: the recovery boundary', () => {
       deliver(
         { action: 'cap', bytesIn: 400, bytesOut: 90, linesIn: 100, omitted: 40 },
         'a rewritten view with detail removed',
-        { tool_name: 'Bash', session_id: id }
+        { tool_name: 'Bash', session_id: id },
+        DEPS
       );
     } finally {
       process.stdout.write = original;

@@ -172,6 +172,7 @@ describe('precompact-summary hook', () => {
 
   test('end to end mixed session: the parked output is named, the capped and untouched ones leave nothing to name', () => {
     const { compress } = require('../hooks/compress-tool-output');
+    const deps = require('./helpers').makeDeps();
     const session = freshSessionId();
     const prevSidecar = process.env.HUSH_SIDECAR;
     delete process.env.HUSH_SIDECAR;
@@ -180,9 +181,9 @@ describe('precompact-summary hook', () => {
     const tiny = 'done\n';
     let digest;
     try {
-      digest = compress(big, 0, true, false, [], 1, session); // parks a sidecar
-      compress(medium, 0, false, false, [], 1, session); // capped, nothing parked
-      assert.strictEqual(compress(tiny, 0, false, false, [], 1, session), tiny, 'small output untouched');
+      digest = compress(big, 0, true, false, [], 1, session, undefined, undefined, undefined, deps); // parks a sidecar
+      compress(medium, 0, false, false, [], 1, session, undefined, undefined, undefined, deps); // capped, nothing parked
+      assert.strictEqual(compress(tiny, 0, false, false, [], 1, session, undefined, undefined, undefined, deps), tiny, 'small output untouched');
     } finally {
       if (prevSidecar === undefined) delete process.env.HUSH_SIDECAR;
       else process.env.HUSH_SIDECAR = prevSidecar;

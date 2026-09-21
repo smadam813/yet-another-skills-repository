@@ -30,4 +30,12 @@ function hookOutput(result) {
   return out ? JSON.parse(out) : null;
 }
 
-module.exports = { runHook, hookOutput, HOOKS_DIR };
+// The `deps` an in-process transform call takes: the session scratch module
+// and the settings built from `env`. A spawned hook builds the same object
+// in main() from the child's environment.
+function makeDeps(env = {}) {
+  const { settingsFromEnv } = require('../hooks/compress-tool-output');
+  return { scratch: require('../hooks/lib/session-scratch'), settings: settingsFromEnv(env) };
+}
+
+module.exports = { runHook, hookOutput, HOOKS_DIR, makeDeps };

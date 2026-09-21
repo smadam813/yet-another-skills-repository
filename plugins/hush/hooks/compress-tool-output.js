@@ -10,6 +10,8 @@
 const fs = require("fs");
 const { readInput, emitToolOutput, decodeResponse, SHELL_FIELDS, lastUserPromptText } = require("./lib/harness");
 const { combineActions, buildRecord, recoveryGap, sizeGap, fieldGap, appendRecord } = require("./lib/transform-manifest");
+// Only main() uses this module. It builds `deps` from it and passes `deps`
+// down. No function below main() uses it.
 const sessionScratch = require("./lib/session-scratch");
 const { coreOff } = require("./lib/gate");
 const { decode: decodeTrailer, hasTrailer } = require("./lib/exit-trailer");
@@ -56,9 +58,30 @@ function settingsFromEnv(env) {
   });
 }
 
-// A transform whose caller passes no settings runs under the defaults, not
-// the environment. Only main() reads the environment.
+// collapseTemplates, called on its own, runs under the defaults, not the
+// environment. Only main() reads the environment.
 const DEFAULT_SETTINGS = settingsFromEnv({});
+
+// main() builds `deps` once per fire: `{ scratch, turn, settings }`. Every
+// function below main() that parks a sidecar, claims the note, adds to the
+// running total, or appends the manifest takes it. `scratch` is the session
+// scratch module in the hook and an in-memory object in a test. `turn` is
+// readTurn below. `settings` is what settingsFromEnv returns. No function
+// below main() requires session scratch or the transcript reader itself.
+//
+// The turn reader. The last human prompt drives the enumeration carve-out
+// and relevance preservation. The transcript's size drives pressure scaling.
+// A missing transcript (bare harness) gives an empty prompt and no size,
+// and pressureScale reads no size as no pressure.
+function readTurn(transcriptPath) {
+  let bytes;
+  try {
+    bytes = fs.statSync(transcriptPath).size;
+  } catch {
+    /* no transcript (bare harness): no size */
+  }
+  return { promptText: lastUserPromptText(transcriptPath), bytes };
+}
 
 // eslint-disable-next-line no-control-regex
 const ANSI_RE = /\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*(?:\x07|\x1b\\)/g;
@@ -526,7 +549,7 @@ function requestsEnumeration(prompt) {
 const GREP_MATCH_RE = /^(.*?):(\d+):/;
 const GREP_SINGLE_RE = /^\d+:/;
 
-function compressGrep(content, relevanceTokens, fileLabel, decision, sessionId, settings = DEFAULT_SETTINGS) {
+function compressGrep(content, relevanceTokens, fileLabel, decision, sessionId, deps) {
   const lines = content.split("\n");
   if (decision) { decision.linesIn = lines.length; decision.omitted = 0; }
   const named = relevanceMatcher(lines, relevanceTokens);
@@ -574,7 +597,7 @@ function compressGrep(content, relevanceTokens, fileLabel, decision, sessionId, 
   // Written BEFORE the marker that names it, and only named when the write
   // actually landed — a retrieval instruction pointing at a file that isn't
   // there is worse than the re-run advice it replaced.
-  const saved = persistGrepMatches(content, sessionId, settings);
+  const saved = persistGrepMatches(content, sessionId, deps);
   const markerHead =
     `[hush hook: ${omitted} match lines omitted from this view; every matched file is counted below, ` +
     `and every warning/error-shaped match was kept. `;
@@ -827,11 +850,12 @@ function mayPark(content, settings) {
 // Parking the complete list turns retrieval into one Read. Returns the path
 // when the copy is really there, null when it is not — the caller words its
 // marker from that answer, never the other way round.
-function persistGrepMatches(content, sessionId, settings) {
-  return mayPark(content, settings) ? sessionScratch.parkSidecar(sessionId, content) : null;
+function persistGrepMatches(content, sessionId, deps) {
+  return mayPark(content, deps.settings) ? deps.scratch.parkSidecar(sessionId, content) : null;
 }
 
-function maybeSidecar(cleaned, relevanceTokens, sessionId, hostMayTruncate, failed, settings) {
+function maybeSidecar(cleaned, relevanceTokens, sessionId, hostMayTruncate, failed, deps) {
+  const { settings } = deps;
   if (!settings.sidecar) return null;
   if (typeof cleaned !== "string" || cleaned.length < settings.sidecarMin) return null;
   // A shell output at/above this size may already have been cut by Claude Code
@@ -877,7 +901,7 @@ function maybeSidecar(cleaned, relevanceTokens, sessionId, hostMayTruncate, fail
     // second check keeps the size invariant. A file parked in that one-path
     // window stays on disk unnamed, as a rejected grep collapse's copy does.
     if (view("").length >= cleaned.length) return null;
-    const file = sessionScratch.parkSidecar(sessionId, cleaned);
+    const file = deps.scratch.parkSidecar(sessionId, cleaned);
     if (!file) return null;
     const out = view(file);
     if (out.length >= cleaned.length) return null;
@@ -895,14 +919,15 @@ function maybeSidecar(cleaned, relevanceTokens, sessionId, hostMayTruncate, fail
 // the capped view the digest replaced — worst case is the old inline
 // behavior, by construction) but never re-sidecar them, or the middle of the
 // file would become unreachable. Range reads (offset/limit) come back small
-// and pass untouched — that's the intended path the digest teaches.
-const isSidecar = sessionScratch.isSidecar;
+// and pass untouched — that's the intended path the digest teaches. main()
+// calls deps.scratch.isSidecar.
 
 // `decision`, when passed, is mutated with the single action token that
 // classifies what this call actually did (see HUSH_DEBUG below) — purely an
 // observation side-channel: the return value is identical whether or not a
 // decision object is supplied.
-function compress(text, exitCode, isDump, enumerate, relevanceTokens, scale, sessionId, noSidecar, hostMayTruncate, decision, settings = DEFAULT_SETTINGS) {
+function compress(text, exitCode, isDump, enumerate, relevanceTokens, scale, sessionId, noSidecar, hostMayTruncate, decision, deps) {
+  const { settings } = deps;
   const original = String(text);
   const cleaned = resolveCarriageReturns(stripAnsi(original));
   const linesIn = cleaned.split("\n").length;
@@ -911,7 +936,7 @@ function compress(text, exitCode, isDump, enumerate, relevanceTokens, scale, ses
   // whether the sidecar's shell-window guard steps aside (see maybeSidecar).
   const failed = looksLikeFailure(cleaned, exitCode);
   if (!enumerate && !noSidecar) {
-    const side = maybeSidecar(cleaned, relevanceTokens, sessionId, hostMayTruncate, failed, settings);
+    const side = maybeSidecar(cleaned, relevanceTokens, sessionId, hostMayTruncate, failed, deps);
     if (side !== null) {
       if (decision) {
         decision.action = "sidecar";
@@ -998,7 +1023,7 @@ function mustSanitize(response) {
 // three: the rewrite is dropped, the ORIGINAL output stands untouched, and the
 // record carries the reason. Checked here rather than at each call site so a
 // transform added later inherits the boundary instead of restating it.
-function deliver(decision, updated, data, settings = DEFAULT_SETTINGS) {
+function deliver(decision, updated, data, deps) {
   const record = buildRecord({
     ...decision,
     tool: decision.tool || data.tool_name,
@@ -1027,13 +1052,13 @@ function deliver(decision, updated, data, settings = DEFAULT_SETTINGS) {
       out = undefined;
     }
   }
-  appendRecord(record);
+  appendRecord(record, deps.scratch);
   // The one number a statusline can show: how much tool output arrived versus
   // how much was actually delivered. Every handled output passes through here
   // with both sizes already computed, so the running total costs a read and a
   // write and nothing else.
-  sessionScratch.addSaved(record.session, record.bytesIn, record.bytesOut);
-  emit(out, data.session_id, settings);
+  deps.scratch.addSaved(record.session, record.bytesIn, record.bytesOut);
+  emit(out, data.session_id, deps);
 }
 
 function extractExitCode(response) {
@@ -1077,24 +1102,17 @@ function main() {
 
   if (!WATCHED_TOOLS.has(data.tool_name)) return;
 
-  // main() reads the environment here and nowhere else.
-  const settings = settingsFromEnv(process.env);
+  // main() reads the environment here and nowhere else, and builds the one
+  // `deps` every path below takes.
+  const deps = { scratch: sessionScratch, turn: readTurn, settings: settingsFromEnv(process.env) };
+  const { settings } = deps;
 
   const response = data.tool_response;
-  // One transcript tail-read per hook fire: the turn's human prompt drives the
-  // enumeration carve-out (uncapped) and relevance preservation (prompt-named
-  // identifiers survive the cap); the transcript's size drives pressure scaling.
-  const promptText = lastUserPromptText(data.transcript_path);
-  const enumerate = requestsEnumeration(promptText);
-  const relevance = extractRelevanceTokens(promptText);
-  let scale = 1;
-  if (settings.adaptive) {
-    try {
-      scale = pressureScale(fs.statSync(data.transcript_path).size);
-    } catch {
-      /* no transcript (bare harness): stay at 1 */
-    }
-  }
+  // One transcript read per hook fire.
+  const turn = deps.turn(data.transcript_path);
+  const enumerate = requestsEnumeration(turn.promptText);
+  const relevance = extractRelevanceTokens(turn.promptText);
+  const scale = settings.adaptive ? pressureScale(turn.bytes) : 1;
   let updated;
 
   if (data.tool_name === "Read") {
@@ -1104,7 +1122,7 @@ function main() {
     const decoded = decodeResponse(response);
     const file = decoded.kind === "file" ? decoded.file : undefined;
     const filePath = (data.tool_input && data.tool_input.file_path) || (file && file.filePath);
-    const sideRead = isSidecar(filePath);
+    const sideRead = deps.scratch.isSidecar(filePath);
     // An explicit offset/limit means the model is navigating to a specific
     // slice — often after a capped view's own marker invited it — and that
     // slice must come back verbatim or the follow-up loop never resolves.
@@ -1114,7 +1132,7 @@ function main() {
     if (file && typeof file.content === "string") {
       const decision = { tool: "Read", bytesIn: file.content.length, bytesOut: file.content.length, retrieval: sideRead };
       if (!isRangeRead && (isLogPath(filePath) || isGeneratedPath(filePath) || sideRead)) {
-        const out = compress(file.content, undefined, true, enumerate, relevance, scale, data.session_id, sideRead, undefined, decision, settings);
+        const out = compress(file.content, undefined, true, enumerate, relevance, scale, data.session_id, sideRead, undefined, decision, deps);
         decision.bytesOut = out.length;
         // Whatever this view left out is still on disk, at the path Read was
         // given — the sidecar path (set by compress) wins when there is one.
@@ -1134,9 +1152,9 @@ function main() {
         decision.action = "passthrough";
         decision.linesIn = file.content.split("\n").length;
       }
-      return deliver(decision, updated, data, settings);
+      return deliver(decision, updated, data, deps);
     }
-    return emit(updated, data.session_id, settings);
+    return emit(updated, data.session_id, deps);
   }
 
   if (data.tool_name === "Grep") {
@@ -1148,7 +1166,7 @@ function main() {
     const content = decoded.kind === "content" ? decoded.text : null;
     // Watched but not a shape hush ever touches — still a handled output, so
     // it still gets one record.
-    if (content === null) return deliver({ tool: "Grep", action: "passthrough", bytesIn: 0, linesIn: 0 }, undefined, data, settings);
+    if (content === null) return deliver({ tool: "Grep", action: "passthrough", bytesIn: 0, linesIn: 0 }, undefined, data, deps);
     const ti = data.tool_input || {};
     const contextual =
       ti["-A"] !== undefined || ti["-B"] !== undefined || ti["-C"] !== undefined || ti.context !== undefined || ti.multiline === true;
@@ -1159,7 +1177,7 @@ function main() {
         (typeof ti.path === "string" && ti.path) ||
         (response.filenames && response.filenames[0]) ||
         undefined;
-      out = compressGrep(content, relevance, label, decision, data.session_id, settings);
+      out = compressGrep(content, relevance, label, decision, data.session_id, deps);
     }
     decision.bytesOut = out.length;
     decision.action = out === content ? "passthrough" : "grep-collapse";
@@ -1174,7 +1192,7 @@ function main() {
     if (out !== content) {
       updated = { ...response, content: out, numLines: out.split("\n").length };
     }
-    return deliver(decision, updated, data, settings);
+    return deliver(decision, updated, data, deps);
   }
 
   const isDump = isFileDump(firstLine(data.tool_input && data.tool_input.command));
@@ -1187,12 +1205,12 @@ function main() {
     // untrustworthy "[hush: exit N]" note gets appended.
     const exitCode = wrapped ? wrapped.exitCode : undefined;
     const decision = { bytesIn: response.length };
-    let out = compress(wrapped ? wrapped.cleanText : response, exitCode ?? undefined, isDump, enumerate, relevance, scale, data.session_id, undefined, true, decision, settings);
+    let out = compress(wrapped ? wrapped.cleanText : response, exitCode ?? undefined, isDump, enumerate, relevance, scale, data.session_id, undefined, true, decision, deps);
     if (wrapped && exitCode !== null) out += `\n${exitNote(exitCode)}`;
     decision.bytesOut = out.length;
     if (!decision.recovery) decision.recovery = "rerun-command";
     if (out !== response) updated = out;
-    return deliver(decision, updated, data, settings);
+    return deliver(decision, updated, data, deps);
   } else if (response && typeof response === "object") {
     const wrapped =
       decodeTrailer(response.stdout) || decodeTrailer(response.stderr) || decodeTrailer(response.output);
@@ -1215,7 +1233,7 @@ function main() {
         bytesIn += next[field].length;
         const fieldWrapped = decodeTrailer(next[field]);
         const decision = {};
-        let out = compress(fieldWrapped ? fieldWrapped.cleanText : next[field], exitCode ?? undefined, isDump, enumerate, relevance, scale, data.session_id, undefined, true, decision, settings);
+        let out = compress(fieldWrapped ? fieldWrapped.cleanText : next[field], exitCode ?? undefined, isDump, enumerate, relevance, scale, data.session_id, undefined, true, decision, deps);
         if (fieldWrapped && exitCode !== null) out += `\n${exitNote(exitCode)}`;
         actions.push(decision.action || "passthrough");
         bytesOut += out.length;
@@ -1241,20 +1259,20 @@ function main() {
         { ...combined, bytesIn, bytesOut, linesIn, omitted, action: combineActions(actions), recovery: combined.recovery || "rerun-command" },
         updated,
         data,
-        settings
+        deps
       );
     }
   }
 
-  emit(updated, data.session_id, settings);
+  emit(updated, data.session_id, deps);
 }
 
-function emit(updated, sessionId, settings) {
+function emit(updated, sessionId, deps) {
   if (updated === undefined) return; // nothing shrank — stay silent
   // The note goes out once per session. Session scratch holds the claim, so
   // two hook fires racing on parallel tool calls emit at most one note.
   // postcompact-rearm.js re-arms it after compaction.
-  const noteRides = settings.note && hasHushNote(updated) && sessionScratch.claimNote(sessionId);
+  const noteRides = deps.settings.note && hasHushNote(updated) && deps.scratch.claimNote(sessionId);
   emitToolOutput(updated, noteRides ? { additionalContext: NOTE_TEXT } : null);
 }
 
@@ -1262,6 +1280,7 @@ if (require.main === module) main();
 
 module.exports = {
   settingsFromEnv,
+  readTurn,
   stripAnsi,
   signalCensus,
   resolveCarriageReturns,
@@ -1277,7 +1296,6 @@ module.exports = {
   isFileDump,
   isLogPath,
   isGeneratedPath,
-  isSidecar,
   requestsEnumeration,
   extractRelevanceTokens,
   pressureScale,

@@ -16,10 +16,8 @@
 // gate: recoveryGap is a correctness check on what gets emitted, so it cannot
 // depend on an env var. Only the on-disk manifest append stays behind
 // HUSH_DEBUG=1 — no measured I/O cost check has been run on always-on manifest
-// writing, so persisting stays opt-in. Session scratch owns where the
-// manifest lives (see hooks/lib/session-scratch.js).
-
-const { appendManifest } = require('./session-scratch');
+// writing, so persisting stays opt-in. The caller passes the session scratch
+// that owns where the manifest lives (see hooks/lib/session-scratch.js).
 
 // The action taxonomy. `lossy` means the view this action produces can leave
 // input lines out of itself, which is exactly the set recoveryGap polices;
@@ -164,10 +162,11 @@ function fieldGap(original, updated) {
 // manifest. A harness measuring hush cannot otherwise see "ran but kept the
 // original" (cap no-op, rejected MCP table, untouched Read). The manifest
 // shows every decision, the do-nothing ones included, and changes nothing
-// any path produces.
-function appendRecord(record) {
+// any path produces. `scratch` is the session scratch the caller passes: the
+// session scratch module in the hook, an in-memory object in a test.
+function appendRecord(record, scratch) {
   if (process.env.HUSH_DEBUG !== '1') return;
-  appendManifest(record.session, record);
+  scratch.appendManifest(record.session, record);
 }
 
 module.exports = {
