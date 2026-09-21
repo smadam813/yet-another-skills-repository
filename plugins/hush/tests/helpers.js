@@ -52,8 +52,7 @@ function memoryDeps(env = {}, { claim, promptText, bytes } = {}) {
 }
 
 // appendRecord reads the HUSH_DEBUG gate from the environment on every call,
-// so a case sets the gate around its call and restores it after. `value`
-// undefined clears the gate.
+// so a case sets the gate around its call and restores it after.
 function withDebug(value, fn) {
   const prev = process.env.HUSH_DEBUG;
   if (value === undefined) delete process.env.HUSH_DEBUG;
