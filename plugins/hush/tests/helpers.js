@@ -97,4 +97,17 @@ function memoryScratch({ claim = true } = {}) {
   };
 }
 
-module.exports = { runHook, hookOutput, HOOKS_DIR, makeDeps, memoryDeps, stubTurn, memoryScratch, withDebug };
+// One fire of the transform the way the adapter calls it. Returns what the
+// transform returned, plus the `calls` the in-memory scratch recorded and the
+// `deps` the call took. `env` is the settings environment. `opts`:
+//   debug   the HUSH_DEBUG gate for the call, '1' unless a case says otherwise
+//   disk    true fires against the session scratch module (no `calls` then),
+//           for a case whose assertion is about the disk
+//   claim, promptText, bytes   as memoryDeps
+function fire(payload, env = {}, { debug = '1', disk = false, ...turn } = {}) {
+  const deps = disk ? makeDeps(env) : memoryDeps(env, turn);
+  const result = withDebug(debug, () => require('../hooks/lib/transform').transform(payload, deps));
+  return { ...result, calls: deps.scratch.calls, deps };
+}
+
+module.exports = { runHook, hookOutput, HOOKS_DIR, makeDeps, memoryDeps, stubTurn, memoryScratch, withDebug, fire };

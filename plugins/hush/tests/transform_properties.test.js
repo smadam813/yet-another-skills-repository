@@ -38,12 +38,11 @@ const {
   stripAnsi,
   resolveCarriageReturns,
   compressGrep,
-  transform,
   FAILURE_RERUN_NOTE,
 } = require('../hooks/lib/transform');
 const { buildRecord, recoveryGap, sizeGap, fieldGap } = require('../hooks/lib/transform-manifest');
 const sessionScratch = require('../hooks/lib/session-scratch');
-const { makeDeps, memoryDeps, withDebug } = require('./helpers');
+const { makeDeps, fire } = require('./helpers');
 
 const ESC = '\u001b';
 
@@ -458,14 +457,6 @@ describe('deliver(): one boundary, one fallback', () => {
 // ---------------------------------------------------------------------------
 
 describe('e2e: the transform routes every path through the same boundary', () => {
-  // One fire against an in-memory scratch with the gate on: what the adapter
-  // would emit, the record the transform returned, and what scratch received.
-  function fire(payload) {
-    const deps = memoryDeps();
-    const result = withDebug('1', () => transform(payload, deps));
-    return { ...result, calls: deps.scratch.calls };
-  }
-
   test('a fold that costs more than it saves ships the original and records why', () => {
     const { updated, record, calls } = fire({
       hook_event_name: 'PostToolUse',

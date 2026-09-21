@@ -13,7 +13,7 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
-const { runHook, hookOutput, memoryDeps, withDebug } = require('./helpers');
+const { runHook, hookOutput, memoryDeps, withDebug, fire } = require('./helpers');
 const { transform, deliver } = require('../hooks/lib/transform');
 const { buildRecord, recoveryGap } = require('../hooks/lib/transform-manifest');
 const { manifestPath, removeSession } = require('../hooks/lib/session-scratch');
@@ -28,15 +28,6 @@ function spawnGated(label, payload, env) {
   } finally {
     removeSession(id);
   }
-}
-
-// One fire with the gate on unless `opts.debug` says otherwise: the
-// transform's result, plus what the in-memory scratch received. The rest of
-// `opts` reaches memoryDeps, so a case can set the prompt.
-function fire(payload, env = {}, { debug = '1', ...opts } = {}) {
-  const deps = memoryDeps(env, opts);
-  const result = withDebug(debug, () => transform(payload, deps));
-  return { ...result, calls: deps.scratch.calls };
 }
 
 // The one record scratch received for the fire.

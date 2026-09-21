@@ -37,12 +37,8 @@ const INLINE_NO_TEMPLATE = makeDeps({ HUSH_SIDECAR: 'off', HUSH_TEMPLATE: 'off' 
 const NO_TEMPLATE = makeDeps({ HUSH_TEMPLATE: 'off' });
 const runHook = (name, input, env) => helpers.runHook(name, input, { HUSH_SIDECAR: 'off', ...env });
 
-// One fire of the transform the way the adapter calls it, over an in-memory
-// scratch and a stub turn. `opts` reaches memoryDeps. A case whose assertion
-// is about the disk (a sidecar the next Read sees, a note sentinel, a parked
-// file that must exist) fires against the session scratch module instead.
-const fire = (payload, env, opts) => transform(payload, memoryDeps({ HUSH_SIDECAR: 'off', ...env }, opts));
-const fireOnDisk = (payload, env) => transform(payload, makeDeps({ HUSH_SIDECAR: 'off', ...env }));
+// The in-process fires turn the sidecar off the same way runHook does.
+const fire = (payload, env, opts) => helpers.fire(payload, { HUSH_SIDECAR: 'off', ...env }, opts);
 
 // Calls compress() with the inline-cap deps and leaves the tail arguments
 // (session, sidecar bypass, host truncation, decision) at their defaults.
@@ -786,53 +782,53 @@ describe('transform: once-per-session telemetry note', () => {
   const noisy = Array.from({ length: 500 }, (_, i) => `l${i}`).join('\n');
 
   test('first compressing fire in a session rides the rewrite with the telemetry note', () => {
-    const { updated, context } = fireOnDisk({
+    const { updated, context } = fire({
       tool_name: 'Bash',
       session_id: sid('first'),
       tool_response: noisy,
-    });
+    }, {}, { disk: true });
     assert.match(updated, /\[hush hook: \d+ lines omitted/);
     assert.strictEqual(context, NOTE_TEXT);
   });
 
   test('second fire in the same session stays note-free — the rewrite alone', () => {
     const id = sid('dedup');
-    const first = fireOnDisk({ tool_name: 'Bash', session_id: id, tool_response: noisy });
-    const second = fireOnDisk({ tool_name: 'Bash', session_id: id, tool_response: noisy });
+    const first = fire({ tool_name: 'Bash', session_id: id, tool_response: noisy }, {}, { disk: true });
+    const second = fire({ tool_name: 'Bash', session_id: id, tool_response: noisy }, {}, { disk: true });
     assert.strictEqual(first.context, NOTE_TEXT);
     assert.strictEqual(second.context, undefined);
     assert.match(second.updated, /\[hush hook: \d+ lines omitted/);
   });
 
   test('a new session re-arms the note', () => {
-    fireOnDisk({ tool_name: 'Bash', session_id: sid('a'), tool_response: noisy });
-    const other = fireOnDisk({ tool_name: 'Bash', session_id: sid('b'), tool_response: noisy });
+    fire({ tool_name: 'Bash', session_id: sid('a'), tool_response: noisy }, {}, { disk: true });
+    const other = fire({ tool_name: 'Bash', session_id: sid('b'), tool_response: noisy }, {}, { disk: true });
     assert.strictEqual(other.context, NOTE_TEXT);
   });
 
   test('a rewrite that leaves no [hush note gets no telemetry note either', () => {
     // ANSI stripping alone changes the text without inserting any marker.
-    const { updated, context } = fireOnDisk({
+    const { updated, context } = fire({
       tool_name: 'Bash',
       session_id: sid('nomarker'),
       tool_response: '\x1b[32mok\x1b[0m all good',
-    });
+    }, {}, { disk: true });
     assert.ok(!updated.includes('[hush'));
     assert.strictEqual(context, undefined);
   });
 
   test('no session_id, no note — bare harnesses never share sentinel state', () => {
-    const { context } = fireOnDisk({ tool_name: 'Bash', tool_response: noisy });
+    const { context } = fire({ tool_name: 'Bash', tool_response: noisy }, {}, { disk: true });
     assert.strictEqual(context, undefined);
   });
 
   test('HUSH_NOTE=off suppresses the note, never the rewrite', () => {
-    const { updated, context } = fireOnDisk({
+    const { updated, context } = fire({
       tool_name: 'Bash', session_id: sid('gated'), tool_response: noisy,
     }, { HUSH_NOTE: 'off' });
     assert.strictEqual(context, undefined);
     assert.match(updated, /\[hush hook: \d+ lines omitted/);
-  });
+  }, {}, { disk: true });
 
   test('unit: hasHushNote spots notes in any shape', () => {
     assert.strictEqual(hasHushNote('x\n[hush hook: 3 lines omitted from this view, none with warnings/errors/failures]'), true);
@@ -1020,14 +1016,13 @@ describe('unit + e2e: sidecar digests for very large outputs', () => {
   });
 
   test('e2e: a big log Read is delivered as a digest and the note still rides once', () => {
-    const deps = memoryDeps();
-    const { updated, context } = transform({
+    const { updated, context, calls } = fire({
       tool_name: 'Read',
       session_id: 'side',
       tool_input: { file_path: '/var/logs/app.log' },
       tool_response: { type: 'text', file: { filePath: '/var/logs/app.log', content: bigLog, numLines: 2000, startLine: 1, totalLines: 2000 } },
-    }, deps);
-    assert.strictEqual(pathFrom(updated.file.content), deps.scratch.calls.parked[0].path, 'the digest names the parked copy');
+    }, { HUSH_SIDECAR: '' });
+    assert.strictEqual(pathFrom(updated.file.content), calls.parked[0].path, 'the digest names the parked copy');
     assert.ok(context, 'telemetry note rides the first sidecar view too');
   });
 });
@@ -1127,12 +1122,12 @@ describe('unit + e2e: reads OF sidecar files are capped, never re-sidecared', ()
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, lines + NL);
     try {
-      const { updated, record } = fireOnDisk({
+      const { updated, record } = fire({
         tool_name: 'Read',
         session_id: id,
         tool_input: { file_path: file },
         tool_response: { type: 'text', file: { filePath: file, content: lines, numLines: 2000, startLine: 1, totalLines: 2000 } },
-      });
+      }, {}, { disk: true });
       assert.strictEqual(updated, undefined, 'the read passes through: no view');
       assert.strictEqual(record.tool, 'Read');
       assert.strictEqual(record.retrieval, false, 'reading the manifest is not a sidecar retrieval');
@@ -1147,18 +1142,18 @@ describe('unit + e2e: reads OF sidecar files are capped, never re-sidecared', ()
     fs.mkdirSync(sideDir, { recursive: true });
     fs.writeFileSync(f, big);
     try {
-      const { updated } = fireOnDisk({
+      const { updated } = fire({
         tool_name: 'Read',
         session_id: 'hush-test-sideread-' + Date.now(),
         tool_input: { file_path: f },
         tool_response: { type: 'text', file: { filePath: f, content: big, numLines: 2000, startLine: 1, totalLines: 2000 } },
-      }, { HUSH_SIDECAR: '' });
+      }, { HUSH_SIDECAR: '' }, { disk: true });
       const content = updated.file.content;
       assert.doesNotMatch(content, /saved in full to/, 'never re-sidecared');
       assert.match(content, /lines omitted from this view/, 'capped like a log');
       assert.ok(content.includes('ERROR item 0'), 'signal lines survive');
     } finally { fs.rmSync(f, { force: true }); }
-  });
+  }, {}, { disk: true });
 
   test('e2e: a small range Read of a sidecar file passes untouched', () => {
     const f = path.join(sideDir, 'test-rangeread.txt');
@@ -1166,15 +1161,15 @@ describe('unit + e2e: reads OF sidecar files are capped, never re-sidecared', ()
     fs.writeFileSync(f, 'whole file');
     try {
       const range = Array.from({ length: 12 }, (_, i) => 'line ' + (500 + i)).join(NL);
-      const { updated } = fireOnDisk({
+      const { updated } = fire({
         tool_name: 'Read',
         session_id: 'hush-test-siderange-' + Date.now(),
         tool_input: { file_path: f, offset: 500, limit: 12 },
         tool_response: { type: 'text', file: { filePath: f, content: range, numLines: 12, startLine: 500, totalLines: 2000 } },
-      }, { HUSH_SIDECAR: '' });
+      }, { HUSH_SIDECAR: '' }, { disk: true });
       assert.strictEqual(updated, undefined, 'nothing to shrink, no view');
     } finally { fs.rmSync(f, { force: true }); }
-  });
+  }, {}, { disk: true });
 });
 
 describe('signal-first digest + compound-error signal matching', () => {
@@ -1592,16 +1587,16 @@ describe('grep elision: the omitted matches are persisted', () => {
   test('end to end: the delivered Grep view names a file that exists', () => {
     const id = newSession('hook');
     const content = matchList(['src/a.js', 'src/b.js'], 40);
-    const { updated } = fireOnDisk({
+    const { updated } = fire({
       tool_name: 'Grep', session_id: id,
       tool_input: { pattern: 'value_', path: 'src', output_mode: 'content' },
       tool_response: { mode: 'content', content, numLines: content.split('\n').length },
-    }, { HUSH_SIDECAR: 'on' });
+    }, { HUSH_SIDECAR: 'on' }, { disk: true });
     const named = savedPath(updated.content);
     assert.ok(named, 'the delivered view names the parked copy');
     assert.strictEqual(fs.readFileSync(named, 'utf8'), content);
     assert.strictEqual(updated.numLines, updated.content.split('\n').length);
-  });
+  }, {}, { disk: true });
 });
 
 // Every Core transform routes through the one manifest record,
@@ -1643,10 +1638,9 @@ describe('every transform is accounted for, and no lossy view ships without reco
 
   for (const c of cases) {
     test(`${c.label}: one record, and recovery metadata whenever detail was removed`, () => {
-      const deps = memoryDeps({ HUSH_SIDECAR: 'off', ...c.env });
-      const { updated: out, record: r } = withDebug('1', () => transform({ ...c.input, session_id: c.label }, deps));
-      assert.strictEqual(deps.scratch.calls.manifest.length, 1, 'exactly one record per handled tool output');
-      assert.strictEqual(deps.scratch.calls.manifest[0].record, r, 'the record scratch received is the one returned');
+      const { updated: out, record: r, calls } = fire({ ...c.input, session_id: c.label }, c.env);
+      assert.strictEqual(calls.manifest.length, 1, 'exactly one record per handled tool output');
+      assert.strictEqual(calls.manifest[0].record, r, 'the record scratch received is the one returned');
 
       assert.strictEqual(r.preserved + r.omitted, r.linesIn, 'the record accounts for every input line');
       assert.ok(r.bytesOut <= r.bytesIn, 'a transform never delivers more than it was given');
@@ -1657,7 +1651,7 @@ describe('every transform is accounted for, and no lossy view ships without reco
           assert.ok(r.recoveryPath, `${c.label} named ${r.recovery} recovery with no path`);
         }
         if (r.recovery === 'sidecar') {
-          assert.strictEqual(deps.scratch.calls.parked[0].path, r.recoveryPath, 'the recovery copy was parked before the view referencing it is delivered');
+          assert.strictEqual(calls.parked[0].path, r.recoveryPath, 'the recovery copy was parked before the view referencing it is delivered');
         }
       }
       if (!out) {
