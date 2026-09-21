@@ -36,11 +36,36 @@ function hookOutput(result) {
 // and the real transcript.
 function makeDeps(env = {}) {
   const { settingsFromEnv } = require('../hooks/lib/transform');
+  return { scratch: require('../hooks/lib/session-scratch'), turn: stubTurn(), settings: settingsFromEnv(env) };
+}
+
+// A turn reader that answers with a fixed prompt and transcript size.
+const stubTurn = (promptText = '', bytes = undefined) => () => ({ promptText, bytes });
+
+// An in-memory session scratch with the functions the transform calls. It
+// records every call, so a test asserts on what the transform handed it.
+// `claim` is what claimNote answers: false plays a fire that lost the race.
+function memoryScratch({ claim = true } = {}) {
+  const calls = { parked: [], manifest: [], saved: [], claimed: [] };
   return {
-    scratch: require('../hooks/lib/session-scratch'),
-    turn: () => ({ promptText: '', bytes: undefined }),
-    settings: settingsFromEnv(env),
+    calls,
+    isSidecar: () => false,
+    parkSidecar(sessionId, content) {
+      calls.parked.push({ sessionId, content });
+      return `/memory/${sessionId}/parked.txt`;
+    },
+    appendManifest(sessionId, record) {
+      calls.manifest.push({ sessionId, record });
+    },
+    addSaved(sessionId, bytesIn, bytesOut) {
+      calls.saved.push({ sessionId, bytesIn, bytesOut });
+      return true;
+    },
+    claimNote(sessionId) {
+      calls.claimed.push(sessionId);
+      return claim;
+    },
   };
 }
 
-module.exports = { runHook, hookOutput, HOOKS_DIR, makeDeps };
+module.exports = { runHook, hookOutput, HOOKS_DIR, makeDeps, stubTurn, memoryScratch };

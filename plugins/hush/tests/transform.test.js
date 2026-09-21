@@ -8,34 +8,9 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert');
 const { transform, settingsFromEnv, NOTE_TEXT } = require('../hooks/lib/transform');
+const { memoryScratch, stubTurn } = require('./helpers');
 
 const NL = String.fromCharCode(10);
-
-// An in-memory session scratch with the functions the transform calls.
-function memoryScratch({ claim = true } = {}) {
-  const calls = { parked: [], manifest: [], saved: [], claimed: [] };
-  return {
-    calls,
-    isSidecar: () => false,
-    parkSidecar(sessionId, content) {
-      calls.parked.push({ sessionId, content });
-      return `/memory/${sessionId}/parked.txt`;
-    },
-    appendManifest(sessionId, record) {
-      calls.manifest.push({ sessionId, record });
-    },
-    addSaved(sessionId, bytesIn, bytesOut) {
-      calls.saved.push({ sessionId, bytesIn, bytesOut });
-      return true;
-    },
-    claimNote(sessionId) {
-      calls.claimed.push(sessionId);
-      return claim;
-    },
-  };
-}
-
-const stubTurn = (promptText = '', bytes = undefined) => () => ({ promptText, bytes });
 
 function makeDeps(env = {}, scratchOpts) {
   return { scratch: memoryScratch(scratchOpts), turn: stubTurn(), settings: settingsFromEnv(env) };
@@ -57,8 +32,8 @@ describe('transform: a shell payload through the sidecar path', () => {
     const { updated, record, context } = transform(payload, deps);
 
     assert.strictEqual(typeof updated, 'string');
-    // A shell output this size may already have been cut by the host, so
-    // the digest says "as hush received it" rather than "in full".
+    // The host may already have cut a shell output this size, so the digest
+    // says "as hush received it" rather than "in full".
     assert.match(updated, /saved to \/memory\/mem\/parked\.txt as hush received it;/);
     assert.ok(updated.length < payload.tool_response.length, 'the view is smaller than the input');
 
@@ -127,7 +102,7 @@ describe('transform: silence and rejection carry a record', () => {
     assert.strictEqual(deps.scratch.calls.saved.length, 1);
   });
 
-  test('a view the record cannot back is dropped and the record says why', () => {
+  test('deliver drops a view the record cannot back, and the record says why', () => {
     // 300 empty lines: the capped-failure footer costs more than the lines it
     // stands for, so the view is not smaller and the boundary drops it.
     const deps = makeDeps({ HUSH_SIDECAR: 'off' });

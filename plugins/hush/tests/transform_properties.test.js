@@ -10,7 +10,7 @@
 //   2. A structured transform preserves every field or does not run.
 //   3. A transform that is not smaller is rejected.
 //
-// All three are enforced in ONE place — deliver() in hooks/lib/transform.js —
+// ONE place enforces all three — deliver() in hooks/lib/transform.js —
 // and the fallback for all three is the same: drop the view and ship the
 // original untouched. So the assertions below run on what deliver() actually
 // SHIPS, not on what compress() happened to return.
@@ -157,9 +157,9 @@ const CASES = 400;
 /**
  * Runs deliver() and returns what actually reached the model — the view it
  * shipped, or undefined when it dropped one and let the original stand. It
- * runs in-process so a few hundred cases stay cheap; the e2e cases below
- * spawn the real hook on the same shapes, which is what pins that the hook
- * really routes everything through this one function.
+ * runs in-process so a few hundred cases stay cheap. The e2e cases below
+ * spawn the real hook on the same shapes. That pins that the hook really
+ * routes everything through this one function.
  */
 function shipped(decision, updated, data) {
   return deliver(decision, updated, data, DEPS).updated;

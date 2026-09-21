@@ -2,15 +2,15 @@
 
 // The Core transform: from a raw PostToolUse payload and its dependencies to
 // a view, a record, and an optional note. transform() at the bottom is the
-// one interface. It routes by tool, checks the record against the three
-// invariants, writes the manifest and the running total through session
+// one interface. It routes by tool and checks the record against the three
+// invariants. It writes the manifest and the running total through session
 // scratch, decides the once-per-session note, and returns. Nothing here
-// writes to stdout; hooks/compress-tool-output.js is the adapter that reads
+// writes to stdout. hooks/compress-tool-output.js is the adapter that reads
 // stdin, calls transform(), and emits.
 //
-// The transforms shrink Bash/PowerShell output — plus Read results for
-// log-shaped and machine-generated files, hush's own sidecars, and oversized
-// Grep match lists — before they enter context. Deterministic text
+// The transforms shrink Bash/PowerShell output before it enters context.
+// They also shrink Read results for log-shaped and machine-generated files,
+// hush's own sidecars, and oversized Grep match lists. Deterministic text
 // transforms only — no heuristic ever touches failure detail: failing runs
 // get a much larger cap and everything kept is verbatim.
 //
@@ -64,7 +64,7 @@ function settingsFromEnv(env) {
 // environment. Only the hook reads the environment.
 const DEFAULT_SETTINGS = settingsFromEnv({});
 
-// `deps` is `{ scratch, turn, settings }`, built once per fire by the hook.
+// `deps` is `{ scratch, turn, settings }`. The hook builds it once per fire.
 // Every function below that parks a sidecar, claims the note, adds to the
 // running total, or appends the manifest takes it. `scratch` is the session
 // scratch module in the hook and an in-memory object in a test. `turn` is the
@@ -1013,10 +1013,10 @@ function mustSanitize(response) {
 // record carries the reason. Checked here rather than at each call site so a
 // transform added later inherits the boundary instead of restating it.
 //
-// Returns what the adapter emits: `updated` is the view or undefined for
-// silence, `record` is the checked manifest record, and `context` is the
-// note text when this call claims it. The record is appended and the running
-// total updated through `deps.scratch` before the note is claimed, so a test
+// Returns what the adapter emits. `updated` is the view or undefined for
+// silence. `record` is the checked manifest record. `context` is the note
+// text when this call claims it. The call appends the record and adds to the
+// running total through `deps.scratch` before it claims the note, so a test
 // that reads the scratch sees the same order the hook produces.
 function deliver(decision, updated, payload, deps) {
   const record = buildRecord({

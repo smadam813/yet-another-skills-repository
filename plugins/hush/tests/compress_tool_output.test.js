@@ -1834,31 +1834,8 @@ describe('unit: exit code and signal', () => {
 describe('deps: scratch and turn arrive as parameters', () => {
   const { deliver, pressureScale, NOTE_TEXT } = require('../hooks/lib/transform');
   const { readTurn } = require('../hooks/lib/harness');
+  const { memoryScratch } = helpers;
   const NL = String.fromCharCode(10);
-
-  // An in-memory session scratch with the functions the hook calls.
-  function memoryScratch() {
-    const calls = { parked: [], manifest: [], saved: [], claimed: [] };
-    return {
-      calls,
-      isSidecar: () => false,
-      parkSidecar(sessionId, content) {
-        calls.parked.push({ sessionId, content });
-        return `/memory/${sessionId}/parked.txt`;
-      },
-      appendManifest(sessionId, record) {
-        calls.manifest.push({ sessionId, record });
-      },
-      addSaved(sessionId, bytesIn, bytesOut) {
-        calls.saved.push({ sessionId, bytesIn, bytesOut });
-        return true;
-      },
-      claimNote(sessionId) {
-        calls.claimed.push(sessionId);
-        return true;
-      },
-    };
-  }
 
   test('readTurn returns the last human prompt and the transcript size', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hush-turn-'));

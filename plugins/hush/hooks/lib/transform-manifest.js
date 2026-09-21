@@ -4,7 +4,7 @@
 // with it: a view that shows less than it was given must name where the rest
 // is recoverable from.
 //
-// Every transform in compress-tool-output.js reports through buildRecord, so
+// Every transform in lib/transform.js reports through buildRecord, so
 // the accounting is written once instead of per call site: identity (tool +
 // action), input and output size, preserved and omitted line counts, recovery
 // location, session ownership, retention state, and the reason a transform
@@ -77,7 +77,7 @@ function buildRecord(d) {
     omitted,
     recovery: d.recovery || null,
     recoveryPath: d.recoveryPath || null,
-    // The parked file, whenever compress-tool-output.js wrote one — reported
+    // The parked file, whenever lib/transform.js wrote one — reported
     // independently of `recovery`, which names the route it ADVISES rather
     // than every copy it made. Those differ: re-running a command is a genuine
     // recovery route, so a shell output can land on `rerun-command` with a null

@@ -6,14 +6,19 @@ All notable changes to hush are documented here. The version number lives in
 ## 1.12.7 — 2026-09-20
 
 The Core transform is now a module. `hooks/lib/transform.js` exports
-`transform(payload, { scratch, turn, settings })`, which returns
-`{ updated, record, context }`: the view or `undefined` for silence, the
-manifest record checked against the three invariants, and the note text
-when this call claims it. The record and the running total go through
-`scratch` before the call returns. Nothing in the module writes to stdout.
-`hooks/compress-tool-output.js` is now an adapter: it gates, reads stdin,
-builds the dependencies, calls the transform, and emits. `readTurn` lives
-in `hooks/lib/harness.js`. Nothing the model sees changed.
+`transform(payload, { scratch, turn, settings })`. It returns
+`{ updated, record, context }`. `updated` is the view, or `undefined` for
+silence. `record` is the manifest record, checked against the three
+invariants. `context` is the note text when this call claims the note.
+The call writes the record and the running total through `scratch` before
+it returns. Nothing in the module writes to stdout.
+
+`hooks/compress-tool-output.js` is now an adapter. It gates, reads stdin,
+builds the dependencies, calls the transform, and emits. It exports
+nothing.
+
+`readTurn` now lives in `hooks/lib/harness.js`. Nothing the model sees
+changed.
 
 ## 1.12.6 — 2026-09-20
 

@@ -491,7 +491,7 @@ describe('transform manifest: the recovery boundary', () => {
     assert.strictEqual(recoveryGap(buildRecord({ action: 'passthrough', linesIn: 100, omitted: 5 })), null);
   });
 
-  test('transformed output is not returned when the record cannot back it', () => {
+  test('deliver drops the view when the record cannot back it', () => {
     const id = sid('boundary-drop');
     process.env.HUSH_DEBUG = '1';
     let result;
@@ -505,7 +505,7 @@ describe('transform manifest: the recovery boundary', () => {
     } finally {
       delete process.env.HUSH_DEBUG;
     }
-    assert.strictEqual(result.updated, undefined, 'the view is dropped — the original output stands');
+    assert.strictEqual(result.updated, undefined, 'deliver dropped the view — the original stands');
     assert.strictEqual(result.record.action, 'rejected-no-recovery');
     const [e] = readManifest(id);
     assert.strictEqual(e.action, 'rejected-no-recovery');
@@ -513,7 +513,7 @@ describe('transform manifest: the recovery boundary', () => {
     assert.strictEqual(e.bytesOut, e.bytesIn, 'nothing was delivered, so nothing was saved');
   });
 
-  test('the same view IS returned once the record names where the detail went', () => {
+  test('deliver returns the same view once the record names where the detail went', () => {
     const id = sid('boundary-pass');
     process.env.HUSH_DEBUG = '1';
     let result;
