@@ -7,12 +7,8 @@
 
 const { test, describe } = require('node:test');
 const assert = require('node:assert');
-const { transform, settingsFromEnv, NOTE_TEXT } = require('../hooks/lib/transform');
-const { memoryScratch, stubTurn } = require('./helpers');
-
-function makeDeps(env = {}, scratchOpts) {
-  return { scratch: memoryScratch(scratchOpts), turn: stubTurn(), settings: settingsFromEnv(env) };
-}
+const { transform, NOTE_TEXT } = require('../hooks/lib/transform');
+const { memoryDeps: makeDeps, stubTurn } = require('./helpers');
 
 const wideLines = (n) => Array.from({ length: n }, (_, i) => 'plain info line ' + i + ' padded out a bit for width here');
 

@@ -28,10 +28,8 @@
 const { test, describe, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { spawnSync } = require('node:child_process');
 const {
   compress,
   deliver,
@@ -40,11 +38,12 @@ const {
   stripAnsi,
   resolveCarriageReturns,
   compressGrep,
+  transform,
   FAILURE_RERUN_NOTE,
 } = require('../hooks/lib/transform');
 const { buildRecord, recoveryGap, sizeGap, fieldGap } = require('../hooks/lib/transform-manifest');
 const sessionScratch = require('../hooks/lib/session-scratch');
-const { HOOKS_DIR, makeDeps } = require('./helpers');
+const { makeDeps, memoryDeps } = require('./helpers');
 
 const ESC = '\u001b';
 
@@ -54,14 +53,12 @@ const DEPS = makeDeps();
 
 // This file never wants the on-disk manifest: deliver() appends a record when
 // HUSH_DEBUG=1, and a few hundred generated cases would write a few hundred
-// lines into the developer's temp directory. The manifest's own behavior is
-// exercised by the spawned hooks further down, each with its own scratch TEMP.
+// lines into the developer's temp directory. The e2e cases further down read
+// the record the transform returns instead.
 process.env.HUSH_DEBUG = '0';
 
-const SCRATCH = fs.mkdtempSync(path.join(os.tmpdir(), 'hush-props-'));
 const SIDECAR_SESSION = `hushprops${crypto.randomBytes(4).toString('hex')}`;
 after(() => {
-  fs.rmSync(SCRATCH, { recursive: true, force: true });
   sessionScratch.removeSession(SIDECAR_SESSION);
 });
 
@@ -457,55 +454,30 @@ describe('deliver(): one boundary, one fallback', () => {
 });
 
 // ---------------------------------------------------------------------------
-// End to end: the real hook, on the shapes the properties found
+// End to end: the transform, on the shapes the properties found
 // ---------------------------------------------------------------------------
 
-describe('e2e: the hook routes every path through the same boundary', () => {
-  function runHookIn(name, tempDir, stdinData, env) {
-    return spawnSync('node', [path.join(HOOKS_DIR, name)], {
-      input: JSON.stringify(stdinData),
-      encoding: 'utf-8',
-      timeout: 30000,
-      env: { ...process.env, HUSH_DEBUG: '1', HUSH_DISABLE: '0', ...(env || {}), TEMP: tempDir, TMP: tempDir, TMPDIR: tempDir },
-    });
-  }
-
-  function temp(tag) {
-    const dir = path.join(SCRATCH, `e2e-${tag}`);
-    fs.mkdirSync(dir, { recursive: true });
-    return dir;
-  }
-
-  // Each e2e run gets its own scratch TEMP, so the one manifest under it is
-  // the one the hook run wrote, whichever session id the case used.
-  function records(dir) {
-    const root = path.join(dir, 'hush-sidecar');
-    if (!fs.existsSync(root)) return [];
-    const file = fs.readdirSync(root).map((s) => path.join(root, s, 'manifest.jsonl')).find((f) => fs.existsSync(f));
-    if (!file) return [];
-    return fs.readFileSync(file, 'utf-8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
-  }
+describe('e2e: the transform routes every path through the same boundary', () => {
+  // One fire against an in-memory scratch: what the adapter would emit, and
+  // the record the transform returned beside it.
+  const fire = (payload) => transform(payload, memoryDeps());
 
   test('a fold that costs more than it saves ships the original and records why', () => {
-    const dir = temp('grow');
-    const r = runHookIn('compress-tool-output.js', dir, {
+    const { updated, record } = fire({
       hook_event_name: 'PostToolUse',
       tool_name: 'Bash',
       session_id: 'growcase',
       tool_input: { command: 'node build.js' },
       tool_response: 'a\na\na\na\na\na\na\na',
     });
-    assert.strictEqual(r.status, 0, r.stderr);
-    assert.strictEqual(r.stdout, '', `a larger rewrite was shipped: ${r.stdout}`);
-    const rec = records(dir);
-    assert.strictEqual(rec.length, 1);
-    assert.strictEqual(rec[0].action, 'rejected-not-smaller');
-    assert.strictEqual(rec[0].bytesOut, rec[0].bytesIn);
-    assert.match(rec[0].fallback, /bytes against/);
+    assert.strictEqual(updated, undefined, `a larger rewrite was shipped: ${updated}`);
+    assert.strictEqual(record.action, 'rejected-not-smaller');
+    assert.strictEqual(record.bytesOut, record.bytesIn);
+    assert.match(record.fallback, /bytes against/);
     // The original ships whole, so the record may not claim lines were left out.
-    assert.strictEqual(rec[0].omitted, 0, 'a rejected rewrite still reported omission');
-    assert.strictEqual(rec[0].preserved, rec[0].linesIn);
-    assert.strictEqual(rec[0].retention, 'none');
+    assert.strictEqual(record.omitted, 0, 'a rejected rewrite still reported omission');
+    assert.strictEqual(record.preserved, record.linesIn);
+    assert.strictEqual(record.retention, 'none');
   });
 
   // The size exemption belongs to output a marker will actually be stripped
@@ -513,97 +485,81 @@ describe('e2e: the hook routes every path through the same boundary', () => {
   // host truncates raw output around 29KB and can cut a real marker mid-text,
   // and hush's own source or docs dumped to stdout carry the literal prefix.
   test('a bare exit-marker prefix earns no size exemption — the same payload without it is refused', () => {
-    const dir = temp('bareprefix');
-    const r = runHookIn('compress-tool-output.js', dir, {
+    const { updated, record } = fire({
       hook_event_name: 'PostToolUse',
       tool_name: 'Bash',
       session_id: 'bareprefix',
       tool_input: { command: 'node build.js' },
       tool_response: 'a\na\na\na\na\na\na\na\n[[hush:exit=',
     });
-    assert.strictEqual(r.status, 0, r.stderr);
-    assert.strictEqual(r.stdout, '', `a growing rewrite shipped, raw prefix and all: ${r.stdout}`);
-    const rec = records(dir);
-    assert.strictEqual(rec[0].action, 'rejected-not-smaller');
-    assert.strictEqual(rec[0].bytesOut, rec[0].bytesIn);
+    assert.strictEqual(updated, undefined, `a growing rewrite shipped, raw prefix and all: ${updated}`);
+    assert.strictEqual(record.action, 'rejected-not-smaller');
+    assert.strictEqual(record.bytesOut, record.bytesIn);
   });
 
   test('a bare exit-marker prefix in one field earns no exemption for growth in another', () => {
-    const dir = temp('bareprefix-obj');
-    const r = runHookIn('compress-tool-output.js', dir, {
+    const { updated, record } = fire({
       hook_event_name: 'PostToolUse',
       tool_name: 'Bash',
       session_id: 'bareprefixobj',
       tool_input: { command: 'node build.js' },
       tool_response: { stdout: 'a\na\na\na\na\na\na\na', stderr: '[[hush:exit=', exitCode: 0 },
     });
-    assert.strictEqual(r.status, 0, r.stderr);
-    assert.strictEqual(r.stdout, '', `a growing rewrite shipped, raw prefix and all: ${r.stdout}`);
-    assert.strictEqual(records(dir)[0].action, 'rejected-not-smaller');
+    assert.strictEqual(updated, undefined, `a growing rewrite shipped, raw prefix and all: ${JSON.stringify(updated)}`);
+    assert.strictEqual(record.action, 'rejected-not-smaller');
   });
 
   test('a complete marker still buys the exemption — stripping it is not a bargain', () => {
-    const dir = temp('realmarker');
-    const r = runHookIn('compress-tool-output.js', dir, {
+    const { updated } = fire({
       hook_event_name: 'PostToolUse',
       tool_name: 'Bash',
       session_id: 'realmarker',
       tool_input: { command: 'node build.js' },
       tool_response: 'a\na\na\na\na\na\na\na\n[[hush:exit=0]]',
     });
-    assert.strictEqual(r.status, 0, r.stderr);
-    assert.notStrictEqual(r.stdout, '', 'the sanitizing rewrite was dropped, so the raw wrapper reaches the model');
-    assert.ok(!r.stdout.includes('[[hush:exit='), 'the wrapper marker survived into the view');
+    assert.notStrictEqual(updated, undefined, 'the sanitizing rewrite was dropped, so the raw wrapper reaches the model');
+    assert.ok(!updated.includes('[[hush:exit='), 'the wrapper marker survived into the view');
   });
 
   test('a genuinely smaller rewrite still ships, with its recovery named', () => {
-    const dir = temp('shrink');
     const payload = Array.from({ length: 400 }, (_, i) => `2026-07-28 worker ${i % 9} handled request ${i} ok`).join('\n');
-    const r = runHookIn('compress-tool-output.js', dir, {
+    const { updated, record } = fire({
       hook_event_name: 'PostToolUse',
       tool_name: 'Bash',
       session_id: 'shrinkcase',
       tool_input: { command: 'node build.js' },
       tool_response: payload,
     });
-    assert.strictEqual(r.status, 0, r.stderr);
-    const updated = JSON.parse(r.stdout).hookSpecificOutput.updatedToolOutput;
     assert.ok(updated.length < payload.length);
-    const rec = records(dir);
-    assert.strictEqual(rec.length, 1);
-    assert.ok(rec[0].bytesOut < rec[0].bytesIn);
-    assert.ok(rec[0].recovery, 'a lossy delivery named no recovery');
+    assert.ok(record.bytesOut < record.bytesIn);
+    assert.ok(record.recovery, 'a lossy delivery named no recovery');
   });
 
   test('a failing run whose every line is kept ships whole rather than growing a footer', () => {
-    const dir = temp('failkeep');
     const payload = Array.from({ length: 300 }, (_, i) => `ERROR ${i}: connection refused`).join('\n');
-    const r = runHookIn('compress-tool-output.js', dir, {
+    const { updated, record } = fire({
       hook_event_name: 'PostToolUse',
       tool_name: 'Bash',
       session_id: 'failkeep',
       tool_input: { command: 'node build.js' },
       tool_response: payload,
     });
-    assert.strictEqual(r.status, 0, r.stderr);
-    assert.strictEqual(r.stdout, '', 'a view that elided nothing and grew a footer was shipped');
-    assert.strictEqual(records(dir)[0].action, 'rejected-not-smaller');
+    assert.strictEqual(updated, undefined, 'a view that elided nothing and grew a footer was shipped');
+    assert.strictEqual(record.action, 'rejected-not-smaller');
   });
 
   test('a range read comes back verbatim, however adversarial the slice', () => {
-    const dir = temp('range');
     const content = `${ESC}[31mERROR: kept\u0000raw${ESC}[0m\r\n` + 'a\na\na\na\na\n'.repeat(40);
-    const file = path.join(dir, 'app.log');
-    const r = runHookIn('compress-tool-output.js', dir, {
+    const file = '/var/logs/app.log';
+    const { updated, record } = fire({
       hook_event_name: 'PostToolUse',
       tool_name: 'Read',
       session_id: 'rangecase',
       tool_input: { file_path: file, offset: 1, limit: 200 },
       tool_response: { file: { filePath: file, content } },
     });
-    assert.strictEqual(r.status, 0, r.stderr);
-    assert.strictEqual(r.stdout, '', 'a range read was rewritten');
-    assert.strictEqual(records(dir)[0].action, 'passthrough');
+    assert.strictEqual(updated, undefined, 'a range read was rewritten');
+    assert.strictEqual(record.action, 'passthrough');
   });
 });
 

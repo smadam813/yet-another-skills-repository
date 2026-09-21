@@ -1,83 +1,99 @@
 'use strict';
 
-// HUSH_DEBUG=1 decision manifest. One JSON line per handled
-// tool output — including every do-nothing path — appended to manifest.jsonl
-// in session scratch. Never emitted without the env gate;
-// never changes what any compression path actually produces (see the
-// `decision` side-channel comments in hooks/lib/transform.js).
+// HUSH_DEBUG=1 decision manifest. One record per handled tool output,
+// including every do-nothing path, handed to session scratch as one JSON
+// line. Never handed over without the env gate; never changes what any
+// compression path produces (see the `decision` side-channel comments in
+// hooks/lib/transform.js).
+//
+// The cases here call the transform with an in-memory scratch and assert on
+// the records that scratch received. Only the adapter's own gates (the Core
+// switch, the watched-tools check) still spawn the hook.
 
-const { test, describe, after } = require('node:test');
+const { test, describe } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
-const os = require('os');
-const path = require('path');
-const { runHook, hookOutput, makeDeps } = require('./helpers');
-const { deliver } = require('../hooks/lib/transform');
+const { runHook, hookOutput, memoryDeps } = require('./helpers');
+const { transform, deliver } = require('../hooks/lib/transform');
 const { buildRecord, recoveryGap } = require('../hooks/lib/transform-manifest');
 const { manifestPath, removeSession } = require('../hooks/lib/session-scratch');
 
-// The in-process deliver() calls below run against the session scratch
-// module, so the manifest they assert on is the file on disk.
-const DEPS = makeDeps();
-
-const sids = [];
-function sid(label) {
-  const id = `hush-debug-test-${label}-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  sids.push(id);
-  return id;
+// appendRecord reads the HUSH_DEBUG gate from the environment on every call,
+// so a case sets the gate around its call and restores it after.
+function withDebug(value, fn) {
+  const prev = process.env.HUSH_DEBUG;
+  if (value === undefined) delete process.env.HUSH_DEBUG;
+  else process.env.HUSH_DEBUG = value;
+  try {
+    return fn();
+  } finally {
+    if (prev === undefined) delete process.env.HUSH_DEBUG;
+    else process.env.HUSH_DEBUG = prev;
+  }
 }
-// The manifest lives in session scratch, so removing the session takes it
-// with the sidecars: a test that left either behind would grow tmpdir on
-// every run of the suite.
-after(() => {
-  for (const id of sids) removeSession(id);
-});
 
-function readManifest(sessionId) {
-  const file = manifestPath(sessionId);
-  if (!fs.existsSync(file)) return [];
-  return fs.readFileSync(file, 'utf-8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l));
+// One fire with the gate on unless `opts.debug` says otherwise: the
+// transform's result, plus what the in-memory scratch received. The rest of
+// `opts` reaches memoryDeps, so a case can set the prompt.
+function fire(payload, env = {}, { debug = '1', ...opts } = {}) {
+  const deps = memoryDeps(env, opts);
+  const result = withDebug(debug, () => transform(payload, deps));
+  return { ...result, calls: deps.scratch.calls };
+}
+
+// The one record scratch received for the fire.
+function received(calls) {
+  assert.strictEqual(calls.manifest.length, 1, `expected exactly one record, got ${calls.manifest.length}`);
+  return calls.manifest[0].record;
 }
 
 const uniqueLines = (n) => Array.from({ length: n }, (_, i) => `line ${i} of the fixture, unique content`).join('\n');
 
 describe('HUSH_DEBUG manifest: gate', () => {
-  test('off by default — no manifest file at all', () => {
-    const id = sid('gate-off');
-    // Pinned off explicitly: runHook inherits process.env, so an ambient
-    // HUSH_DEBUG=1 in the developer's shell would otherwise turn this gate
-    // test into a false failure.
-    runHook('compress-tool-output.js', { tool_name: 'Bash', session_id: id, tool_response: uniqueLines(300) }, { HUSH_DEBUG: '0' });
-    assert.strictEqual(fs.existsSync(manifestPath(id)), false);
+  test('off by default — no record reaches scratch', () => {
+    const deps = memoryDeps();
+    const { record } = withDebug(undefined, () => transform({ tool_name: 'Bash', session_id: 'gate-off', tool_response: uniqueLines(300) }, deps));
+    const { calls } = deps.scratch;
+    assert.ok(record, 'the record is still built and checked');
+    assert.deepStrictEqual(calls.manifest, []);
   });
 
   test('HUSH_DEBUG=0 (or anything but "1") still stays off', () => {
-    const id = sid('gate-zero');
-    runHook('compress-tool-output.js', { tool_name: 'Bash', session_id: id, tool_response: uniqueLines(300) }, { HUSH_DEBUG: '0' });
-    assert.strictEqual(fs.existsSync(manifestPath(id)), false);
+    const { calls } = fire({ tool_name: 'Bash', session_id: 'gate-zero', tool_response: uniqueLines(300) }, {}, { debug: '0' });
+    assert.deepStrictEqual(calls.manifest, []);
   });
 
   test('unwatched, unhandled tools never get a line, even with the gate on', () => {
-    const id = sid('gate-unhandled');
-    runHook('compress-tool-output.js', { tool_name: 'Glob', session_id: id, tool_response: 'x'.repeat(500) }, { HUSH_DEBUG: '1' });
-    assert.deepStrictEqual(readManifest(id), []);
+    const id = `hush-debug-test-gate-unhandled-${process.pid}-${Date.now()}`;
+    try {
+      const r = runHook('compress-tool-output.js', { tool_name: 'Glob', session_id: id, tool_response: 'x'.repeat(500) }, { HUSH_DEBUG: '1' });
+      assert.strictEqual(hookOutput(r), null);
+      assert.strictEqual(fs.existsSync(manifestPath(id)), false);
+    } finally {
+      removeSession(id);
+    }
   });
 
   test('HUSH_DISABLE=1 suppresses the manifest too — nothing was handled', () => {
-    const id = sid('gate-disabled');
-    runHook('compress-tool-output.js', { tool_name: 'Bash', session_id: id, tool_response: uniqueLines(300) }, { HUSH_DEBUG: '1', HUSH_DISABLE: '1' });
-    assert.strictEqual(fs.existsSync(manifestPath(id)), false);
+    const id = `hush-debug-test-gate-disabled-${process.pid}-${Date.now()}`;
+    try {
+      const r = runHook('compress-tool-output.js', { tool_name: 'Bash', session_id: id, tool_response: uniqueLines(300) }, { HUSH_DEBUG: '1', HUSH_DISABLE: '1' });
+      assert.strictEqual(hookOutput(r), null);
+      assert.strictEqual(fs.existsSync(manifestPath(id)), false);
+    } finally {
+      removeSession(id);
+    }
   });
 });
 
 describe('HUSH_DEBUG manifest: one honest line per decision path', () => {
   test('cap — a big passing shell output gets truncated', () => {
-    const id = sid('cap');
     const body = uniqueLines(200); // well under sidecar's 15000 chars, well over the 60-line pass cap
     // uniqueLines shares one shape (only the number token varies) — pin
     // template-collapse off so this isolates capLines specifically.
-    runHook('compress-tool-output.js', { tool_name: 'Bash', session_id: id, tool_response: body }, { HUSH_DEBUG: '1', HUSH_TEMPLATE: 'off' });
-    const [entry] = readManifest(id);
+    const { record, calls } = fire({ tool_name: 'Bash', session_id: 'cap', tool_response: body }, { HUSH_TEMPLATE: 'off' });
+    const entry = received(calls);
+    assert.strictEqual(entry, record, 'scratch received the record the transform returned');
     assert.strictEqual(entry.tool, 'Bash');
     assert.strictEqual(entry.action, 'cap');
     assert.strictEqual(entry.bytesIn, body.length);
@@ -85,65 +101,48 @@ describe('HUSH_DEBUG manifest: one honest line per decision path', () => {
   });
 
   test('template-collapse — a run of same-shaped lines collapses but stays under the cap', () => {
-    const id = sid('template');
     const lines = [
       ...Array.from({ length: 20 }, (_, i) => `INFO worker-${i} processing job ${8000 + i}`),
       'one-off line a', 'one-off line b',
     ];
-    runHook('compress-tool-output.js', { tool_name: 'Bash', session_id: id, tool_response: lines.join('\n') }, { HUSH_DEBUG: '1' });
-    const [entry] = readManifest(id);
+    const { calls } = fire({ tool_name: 'Bash', session_id: 'template', tool_response: lines.join('\n') });
+    const entry = received(calls);
     assert.strictEqual(entry.action, 'template-collapse');
     assert.ok(entry.bytesOut < entry.bytesIn);
   });
 
   test('enumerate-passthrough — a completeness prompt keeps a big-but-under-2000-line log whole', () => {
-    const id = sid('enum');
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hush-debug-enum-'));
-    const transcriptFile = path.join(dir, 't.jsonl');
-    fs.writeFileSync(transcriptFile, JSON.stringify({
-      type: 'user', uuid: 'u1', origin: { kind: 'human' },
-      message: { role: 'user', content: 'Report every warning: list each one, with file and code.' },
-    }) + '\n');
-    try {
-      const body = Array.from({ length: 900 }, (_, i) => `[${i}] compile mod_${i} ... ok`).join('\n');
-      runHook('compress-tool-output.js', {
-        tool_name: 'Bash', session_id: id, transcript_path: transcriptFile,
-        tool_input: { command: 'node build.js' }, tool_response: body,
-      }, { HUSH_DEBUG: '1' });
-      const [entry] = readManifest(id);
-      assert.strictEqual(entry.action, 'enumerate-passthrough');
-    } finally {
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
+    const body = Array.from({ length: 900 }, (_, i) => `[${i}] compile mod_${i} ... ok`).join('\n');
+    const { calls } = fire(
+      { tool_name: 'Bash', session_id: 'enum', tool_input: { command: 'node build.js' }, tool_response: body },
+      {},
+      { promptText: 'Report every warning: list each one, with file and code.' }
+    );
+    assert.strictEqual(received(calls).action, 'enumerate-passthrough');
   });
 
   test('scrub-only — ANSI stripped, nothing structural cut', () => {
-    const id = sid('scrub');
-    runHook('compress-tool-output.js', {
-      tool_name: 'Bash', session_id: id, tool_response: '\x1b[32mok\x1b[0m all good',
-    }, { HUSH_DEBUG: '1' });
-    const [entry] = readManifest(id);
+    const { calls } = fire({ tool_name: 'Bash', session_id: 'scrub', tool_response: '\x1b[32mok\x1b[0m all good' });
+    const entry = received(calls);
     assert.strictEqual(entry.action, 'scrub-only');
     assert.ok(entry.bytesOut < entry.bytesIn);
   });
 
   test('passthrough — short clean Bash output, byte-identical', () => {
-    const id = sid('pass-bash');
-    runHook('compress-tool-output.js', { tool_name: 'Bash', session_id: id, tool_response: 'ok\ndone' }, { HUSH_DEBUG: '1' });
-    const [entry] = readManifest(id);
+    const { calls } = fire({ tool_name: 'Bash', session_id: 'pass-bash', tool_response: 'ok\ndone' });
+    const entry = received(calls);
     assert.strictEqual(entry.action, 'passthrough');
     assert.strictEqual(entry.bytesIn, entry.bytesOut);
   });
 
   test('passthrough — a Read of an ordinary source file (not log/generated-shaped)', () => {
-    const id = sid('pass-read');
     const content = Array.from({ length: 500 }, (_, i) => `const x${i} = ${i};`).join('\n');
-    runHook('compress-tool-output.js', {
-      tool_name: 'Read', session_id: id,
+    const { calls } = fire({
+      tool_name: 'Read', session_id: 'pass-read',
       tool_input: { file_path: 'C:\\repo\\src\\big.js' },
       tool_response: { type: 'text', file: { filePath: 'C:\\repo\\src\\big.js', content, numLines: 500, startLine: 1, totalLines: 500 } },
-    }, { HUSH_DEBUG: '1' });
-    const [entry] = readManifest(id);
+    });
+    const entry = received(calls);
     assert.strictEqual(entry.tool, 'Read');
     assert.strictEqual(entry.action, 'passthrough');
     assert.strictEqual(entry.bytesIn, content.length);
@@ -151,13 +150,13 @@ describe('HUSH_DEBUG manifest: one honest line per decision path', () => {
   });
 
   test('sidecar — a very large shell output moves to a file behind a digest', () => {
-    const id = sid('sidecar');
     const body = uniqueLines(500); // ~18KB: over the sidecar floor, under the shell bound
-    runHook('compress-tool-output.js', { tool_name: 'Bash', session_id: id, tool_response: body }, { HUSH_DEBUG: '1' });
-    const [entry] = readManifest(id);
+    const { calls } = fire({ tool_name: 'Bash', session_id: 'sidecar', tool_response: body });
+    const entry = received(calls);
     assert.strictEqual(entry.action, 'sidecar');
     assert.strictEqual(entry.bytesIn, body.length);
     assert.ok(entry.bytesOut < entry.bytesIn);
+    assert.strictEqual(calls.parked[0].content, body, 'the whole input went to scratch');
   });
 
   // Past the host-truncation size the host parks the result itself and shows a
@@ -165,30 +164,28 @@ describe('HUSH_DEBUG manifest: one honest line per decision path', () => {
   // back into context. The recovery copy goes out instead, and only the header
   // changes: "as hush received it" rather than "in full".
   test('sidecar — a shell output past the host-truncation size still gets a recovery copy', () => {
-    const id = sid('guard');
     const body = uniqueLines(900); // ~31KB: over the shell bound
     assert.ok(body.length >= 28000, 'fixture must clear the shell bound for this test to mean anything');
-    const r = runHook('compress-tool-output.js', { tool_name: 'Bash', session_id: id, tool_response: body }, { HUSH_DEBUG: '1' });
-    const [entry] = readManifest(id);
+    const { updated, calls } = fire({ tool_name: 'Bash', session_id: 'guard', tool_response: body });
+    const entry = received(calls);
     assert.strictEqual(entry.action, 'sidecar');
     assert.ok(entry.sidecarPath, 'the parked file is recorded');
     assert.ok(entry.bytesOut < entry.bytesIn / 2, 'and the digest is what reaches the model');
-    assert.match(hookOutput(r).hookSpecificOutput.updatedToolOutput, /as hush received it/);
+    assert.match(updated, /as hush received it/);
   });
 
   // A failing run is the one output whose detail is evidence, so it takes the
   // recovery copy even past the host-truncation size the guard above steps
   // aside at — otherwise the inline cap is the only surviving record of it.
   test('sidecar — a FAILING shell output past the host-truncation size still gets a recovery copy', () => {
-    const id = sid('fail-sidecar');
     const lines = Array.from({ length: 900 }, (_, i) => `line ${i} of the fixture, unique content`);
     lines[400] = "src/boot.ts(41,7): error TS2304: Cannot find name 'configure'.";
     lines.push('Build failed with exit code 1');
     const body = lines.join('\n');
     assert.ok(body.length >= 28000, 'fixture must clear the shell bound for this test to mean anything');
 
-    const r = runHook('compress-tool-output.js', { tool_name: 'Bash', session_id: id, tool_response: body }, { HUSH_DEBUG: '1' });
-    const [entry] = readManifest(id);
+    const { updated, calls } = fire({ tool_name: 'Bash', session_id: 'fail-sidecar', tool_response: body });
+    const entry = received(calls);
     assert.strictEqual(entry.action, 'sidecar');
     assert.strictEqual(entry.recovery, 'sidecar');
     assert.strictEqual(entry.retention, 'session');
@@ -196,89 +193,77 @@ describe('HUSH_DEBUG manifest: one honest line per decision path', () => {
     assert.ok(entry.recoveryPath, 'the record names where the full failure output went');
     assert.ok(entry.omitted > 0);
     assert.strictEqual(entry.preserved + entry.omitted, entry.linesIn);
-    assert.strictEqual(fs.readFileSync(entry.recoveryPath, 'utf-8'), body, 'the complete failure output is on disk');
+    assert.strictEqual(calls.parked[0].path, entry.recoveryPath, 'the record names the parked copy');
+    assert.strictEqual(calls.parked[0].content, body, 'the complete failure output went to scratch');
 
     // The header claims only what it can: at this size the host may have cut
     // the tail before hush ever saw it, so "in full" is not on offer.
-    const out = hookOutput(r).hookSpecificOutput.updatedToolOutput;
-    assert.match(out, /was saved to \S+ as hush received it/);
-    assert.doesNotMatch(out, /saved in full/);
+    assert.match(updated, /was saved to \S+ as hush received it/);
+    assert.doesNotMatch(updated, /saved in full/);
   });
 
   test('object response (stdout/stderr) still emits exactly one combined line', () => {
-    const id = sid('object');
     const body = uniqueLines(200);
-    runHook('compress-tool-output.js', {
-      tool_name: 'PowerShell', session_id: id, tool_response: { stdout: body, stderr: '', interrupted: false },
-    }, { HUSH_DEBUG: '1', HUSH_TEMPLATE: 'off' });
-    const manifest = readManifest(id);
-    assert.strictEqual(manifest.length, 1, 'one line for the whole tool output, not one per field');
-    assert.strictEqual(manifest[0].action, 'cap');
+    const { calls } = fire({
+      tool_name: 'PowerShell', session_id: 'object', tool_response: { stdout: body, stderr: '', interrupted: false },
+    }, { HUSH_TEMPLATE: 'off' });
+    assert.strictEqual(calls.manifest.length, 1, 'one line for the whole tool output, not one per field');
+    assert.strictEqual(calls.manifest[0].record.action, 'cap');
   });
 });
 
 describe('adversarial no-op fixtures', () => {
-  const created = [];
-  after(() => { for (const f of created) fs.rmSync(f, { force: true }); });
   function sidecarFileFrom(digest) {
     const m = String(digest).match(/saved in full to ([^;]+);/);
-    if (m) created.push(m[1].trim());
     return m ? m[1].trim() : null;
   }
 
   test('a ~20KB single-line minified JSON string: no corruption, no sidecar overclaim, honest manifest', () => {
-    const id = sid('adv-json');
     const obj = { records: Array.from({ length: 400 }, (_, i) => ({ id: i, name: `item-${i}`, value: i * 3.14, flag: i % 2 === 0 })) };
     const minified = JSON.stringify(obj); // one line, no whitespace
     assert.strictEqual(minified.includes('\n'), false, 'fixture must be genuinely single-line');
     assert.ok(minified.length >= 20000, `fixture should be ~20KB (was ${minified.length})`);
 
-    const r = runHook('compress-tool-output.js', { tool_name: 'Bash', session_id: id, tool_response: minified }, { HUSH_DEBUG: '1' });
-    const out = hookOutput(r);
-    assert.strictEqual(out, null, 'a single line has nothing to cut — hush stays silent rather than growing the output');
+    const { updated, calls } = fire({ tool_name: 'Bash', session_id: 'adv-json', tool_response: minified });
+    assert.strictEqual(updated, undefined, 'a single line has nothing to cut — hush stays silent rather than growing the output');
     assert.doesNotThrow(() => JSON.parse(minified), 'the ORIGINAL fixture is unaffected by hush — no mutation of source data');
 
-    const [entry] = readManifest(id);
+    const entry = received(calls);
     // A single-line payload leaves buildSidecarDigest's head/tail trim nothing
     // to cut, so maybeSidecar bails (digest would be larger than the source)
     // and compress() falls through to the ordinary inline cap — also a no-op
-    // for one line. No sidecar file is written, and the manifest reflects the
-    // true no-op instead of a digest that grew past the input.
+    // for one line. Nothing is parked, and the manifest reflects the true
+    // no-op instead of a digest that grew past the input.
     assert.strictEqual(entry.action, 'passthrough');
     assert.strictEqual(entry.bytesIn, minified.length);
     assert.strictEqual(entry.bytesOut, entry.bytesIn);
+    assert.deepStrictEqual(calls.parked, []);
   });
 
   test('a dense multi-line base64 blob sidecars cleanly and is never corrupted', () => {
-    const id = sid('adv-b64');
     const raw = Buffer.alloc(14000);
     for (let i = 0; i < raw.length; i++) raw[i] = (i * 2654435761) % 256; // deterministic pseudo-random bytes
     const b64 = raw.toString('base64'); // dense, no natural line breaks
     const wrapped = b64.match(/.{1,76}/g).join('\n'); // PEM-style wrapping
     assert.ok(wrapped.length >= 15000, `fixture should clear the sidecar floor (was ${wrapped.length})`);
 
-    const r = runHook('compress-tool-output.js', { tool_name: 'Bash', session_id: id, tool_response: wrapped }, { HUSH_DEBUG: '1' });
-    const out = hookOutput(r);
-    const updated = out ? out.hookSpecificOutput.updatedToolOutput : wrapped;
+    const { updated: out, calls } = fire({ tool_name: 'Bash', session_id: 'adv-b64', tool_response: wrapped });
+    const updated = out === undefined ? wrapped : out;
     assert.ok(updated.length <= wrapped.length, 'output never grows beyond input');
 
-    const [entry] = readManifest(id);
+    const entry = received(calls);
     assert.ok(['sidecar', 'shell-guard-skip', 'cap'].includes(entry.action), `expected a graceful action, got ${entry.action}`);
     if (entry.action === 'sidecar') {
-      const sideFile = sidecarFileFrom(updated);
-      assert.ok(sideFile && fs.existsSync(sideFile));
-      assert.strictEqual(fs.readFileSync(sideFile, 'utf8'), wrapped, 'no sidecar overclaim — full original bytes, unmangled');
+      assert.strictEqual(sidecarFileFrom(updated), calls.parked[0].path, 'the digest names the parked copy');
+      assert.strictEqual(calls.parked[0].content, wrapped, 'no sidecar overclaim — full original bytes, unmangled');
     }
   });
 
   test('a small single-line JSON blob (under the sidecar floor) passes through with nothing to cut', () => {
-    const id = sid('adv-json-small');
     const minified = JSON.stringify({ ok: true, items: Array.from({ length: 20 }, (_, i) => i) });
-    const r = runHook('compress-tool-output.js', {
-      tool_name: 'Bash', session_id: id, tool_response: minified,
-    }, { HUSH_DEBUG: '1', HUSH_SIDECAR: 'off' });
-    assert.strictEqual(hookOutput(r), null, 'a single line under any cap has nothing to trim — hush stays silent');
-    const [entry] = readManifest(id);
+    const { updated, calls } = fire({ tool_name: 'Bash', session_id: 'adv-json-small', tool_response: minified }, { HUSH_SIDECAR: 'off' });
+    assert.strictEqual(updated, undefined, 'a single line under any cap has nothing to trim — hush stays silent');
+    const entry = received(calls);
     assert.strictEqual(entry.action, 'passthrough');
     assert.strictEqual(entry.bytesIn, entry.bytesOut);
   });
@@ -292,21 +277,19 @@ describe('transform manifest: the record contract', () => {
     'preserved', 'recovery', 'recoveryPath', 'retention', 'retrieval', 'session',
     'sidecarPath', 'tool',
   ];
-  function only(id) {
-    const entries = readManifest(id);
-    assert.strictEqual(entries.length, 1, `expected exactly one record, got ${entries.length}`);
-    const e = entries[0];
+  function only(calls, id) {
+    const e = received(calls);
     assert.deepStrictEqual(Object.keys(e).sort(), RECORD_KEYS, 'every record carries the whole contract');
     assert.strictEqual(e.session, id, 'the record names the session that owns it');
+    assert.strictEqual(calls.manifest[0].sessionId, id, 'and scratch files it under that session');
     assert.strictEqual(e.preserved + e.omitted, e.linesIn, 'preserved and omitted account for every input line');
     return e;
   }
 
   test('cap — omitted lines, recoverable by re-running the command', () => {
-    const id = sid('rec-cap');
     const body = uniqueLines(200);
-    runHook('compress-tool-output.js', { tool_name: 'Bash', session_id: id, tool_response: body }, { HUSH_DEBUG: '1', HUSH_TEMPLATE: 'off' });
-    const e = only(id);
+    const { calls } = fire({ tool_name: 'Bash', session_id: 'rec-cap', tool_response: body }, { HUSH_TEMPLATE: 'off' });
+    const e = only(calls, 'rec-cap');
     assert.strictEqual(e.action, 'cap');
     assert.strictEqual(e.tool, 'Bash');
     assert.ok(e.omitted > 0, 'a capped view left lines out');
@@ -315,94 +298,90 @@ describe('transform manifest: the record contract', () => {
     assert.strictEqual(e.fallback, null);
   });
 
-  test('sidecar — the recovery location is the file on disk, with its retention state', () => {
-    const id = sid('rec-sidecar');
+  test('sidecar — the recovery location is the parked copy, with its retention state', () => {
     const body = uniqueLines(500);
-    runHook('compress-tool-output.js', { tool_name: 'Bash', session_id: id, tool_response: body }, { HUSH_DEBUG: '1' });
-    const e = only(id);
+    const { calls } = fire({ tool_name: 'Bash', session_id: 'rec-sidecar', tool_response: body });
+    const e = only(calls, 'rec-sidecar');
     assert.strictEqual(e.action, 'sidecar');
     assert.strictEqual(e.recovery, 'sidecar');
     assert.ok(e.recoveryPath, 'the record names where the full output went');
-    assert.strictEqual(fs.existsSync(e.recoveryPath), true, 'the named recovery file is really there');
-    assert.strictEqual(fs.readFileSync(e.recoveryPath, 'utf8'), body, 'and it holds the full input');
+    assert.strictEqual(e.recoveryPath, calls.parked[0].path, 'the named recovery copy is the one scratch parked');
+    assert.strictEqual(calls.parked[0].content, body, 'and it holds the full input');
     assert.strictEqual(e.retention, 'session');
     assert.ok(e.omitted > 0);
   });
 
   test('a record is metadata only — no line of the output is ever in it', () => {
-    const id = sid('rec-metadata');
     const secretish = ['unmistakable-payload-marker-alpha', ...Array.from({ length: 400 }, (_, i) => `row ${i} unmistakable-payload-marker-beta`)].join('\n');
-    runHook('compress-tool-output.js', { tool_name: 'Bash', session_id: id, tool_response: secretish }, { HUSH_DEBUG: '1' });
-    const e = only(id);
+    const { calls } = fire({ tool_name: 'Bash', session_id: 'rec-metadata', tool_response: secretish });
+    const e = only(calls, 'rec-metadata');
     const serialized = JSON.stringify(e);
     assert.doesNotMatch(serialized, /unmistakable-payload-marker/, 'counts and paths only, never content');
   });
 
   test('passthrough — nothing omitted, nothing to recover', () => {
-    const id = sid('rec-pass');
     const content = Array.from({ length: 500 }, (_, i) => `const x${i} = ${i};`).join('\n');
-    runHook('compress-tool-output.js', {
-      tool_name: 'Read', session_id: id,
+    const { calls } = fire({
+      tool_name: 'Read', session_id: 'rec-pass',
       tool_input: { file_path: 'C:\\repo\\src\\big.js' },
       tool_response: { type: 'text', file: { filePath: 'C:\\repo\\src\\big.js', content, numLines: 500, startLine: 1, totalLines: 500 } },
-    }, { HUSH_DEBUG: '1' });
-    const e = only(id);
+    });
+    const e = only(calls, 'rec-pass');
     assert.strictEqual(e.action, 'passthrough');
     assert.strictEqual(e.omitted, 0);
     assert.strictEqual(e.preserved, e.linesIn);
   });
 
   test('a Read hush does compress names the file itself as the recovery location', () => {
-    const id = sid('rec-read');
     // Short lines on purpose: over the line cap, under the sidecar floor, so
     // this exercises the inline path rather than the sidecar's own recovery.
     const content = Array.from({ length: 300 }, (_, i) => `INFO request ${i}`).join('\n');
     assert.ok(content.length < 15000, 'fixture must stay under the sidecar floor');
-    runHook('compress-tool-output.js', {
-      tool_name: 'Read', session_id: id,
+    const { calls } = fire({
+      tool_name: 'Read', session_id: 'rec-read',
       tool_input: { file_path: 'C:\\repo\\logs\\app.log' },
       tool_response: { type: 'text', file: { filePath: 'C:\\repo\\logs\\app.log', content, numLines: 300, startLine: 1, totalLines: 300 } },
-    }, { HUSH_DEBUG: '1' });
-    const e = only(id);
+    });
+    const e = only(calls, 'rec-read');
     assert.ok(e.omitted > 0);
     assert.strictEqual(e.recovery, 'source-file');
     assert.strictEqual(e.recoveryPath, 'C:\\repo\\logs\\app.log');
   });
 
   test('grep-collapse — omitted match lines, parked where the view says they are', () => {
-    const id = sid('rec-grep');
     const lines = [];
     for (const f of ['src/a.js', 'src/b.js']) {
       for (let i = 1; i <= 40; i++) lines.push(`${f}:${i}: const value_${i} = ${'x'.repeat(60)};`);
     }
     const content = lines.join('\n');
-    runHook('compress-tool-output.js', {
-      tool_name: 'Grep', session_id: id, tool_input: { pattern: 'value_', path: 'src' },
+    const { calls } = fire({
+      tool_name: 'Grep', session_id: 'rec-grep', tool_input: { pattern: 'value_', path: 'src' },
       tool_response: { mode: 'content', content, numLines: lines.length },
-    }, { HUSH_DEBUG: '1' });
-    const e = only(id);
+    });
+    const e = only(calls, 'rec-grep');
     assert.strictEqual(e.action, 'grep-collapse');
     assert.strictEqual(e.omitted, 74, 'both files keep 3 of 40 matches');
     assert.strictEqual(e.recovery, 'sidecar');
     assert.strictEqual(e.retention, 'session');
-    assert.strictEqual(fs.readFileSync(e.recoveryPath, 'utf8'), content, 'the complete match list is on disk');
+    assert.strictEqual(e.recoveryPath, calls.parked[0].path);
+    assert.strictEqual(calls.parked[0].content, content, 'the complete match list went to scratch');
   });
 
   test('grep-collapse — with nowhere to park the matches, the record falls back to the re-run', () => {
-    const id = sid('rec-grep-norun');
     const lines = [];
     for (const f of ['src/a.js', 'src/b.js']) {
       for (let i = 1; i <= 40; i++) lines.push(`${f}:${i}: const value_${i} = ${'x'.repeat(60)};`);
     }
-    runHook('compress-tool-output.js', {
-      tool_name: 'Grep', session_id: id, tool_input: { pattern: 'value_', path: 'src' },
+    const { calls } = fire({
+      tool_name: 'Grep', session_id: 'rec-grep-norun', tool_input: { pattern: 'value_', path: 'src' },
       tool_response: { mode: 'content', content: lines.join('\n'), numLines: lines.length },
-    }, { HUSH_DEBUG: '1', HUSH_SIDECAR: 'off' });
-    const e = only(id);
+    }, { HUSH_SIDECAR: 'off' });
+    const e = only(calls, 'rec-grep-norun');
     assert.strictEqual(e.action, 'grep-collapse');
     assert.strictEqual(e.recovery, 'rerun-command');
     assert.strictEqual(e.recoveryPath, 'src');
     assert.strictEqual(e.retention, 'none');
+    assert.deepStrictEqual(calls.parked, []);
   });
 
   // `sidecarPath` answers one question `recovery` cannot: did hush put bytes on
@@ -410,49 +389,47 @@ describe('transform manifest: the record contract', () => {
   // both directions — it misses parks whose advised route is something else,
   // and it counts recoveryPaths naming files hush never wrote.
   test('a parked shell output names the file hush wrote, beside its recovery route', () => {
-    const id = sid('rec-side-path');
     const body = uniqueLines(500);
-    runHook('compress-tool-output.js', { tool_name: 'Bash', session_id: id, tool_response: body }, { HUSH_DEBUG: '1' });
-    const e = only(id);
+    const { calls } = fire({ tool_name: 'Bash', session_id: 'rec-side-path', tool_response: body });
+    const e = only(calls, 'rec-side-path');
     assert.ok(e.sidecarPath, 'the record names the parked file');
-    assert.strictEqual(fs.existsSync(e.sidecarPath), true, 'and that file is really on disk');
-    assert.strictEqual(fs.readFileSync(e.sidecarPath, 'utf8'), body, 'holding the whole input');
+    assert.strictEqual(e.sidecarPath, calls.parked[0].path, 'and that file is the one scratch parked');
+    assert.strictEqual(calls.parked[0].content, body, 'holding the whole input');
   });
 
   test('a capped view parks nothing, so it names no sidecar', () => {
-    const id = sid('rec-side-none');
-    runHook('compress-tool-output.js', { tool_name: 'Bash', session_id: id, tool_response: uniqueLines(200) }, { HUSH_DEBUG: '1', HUSH_TEMPLATE: 'off' });
-    const e = only(id);
+    const { calls } = fire({ tool_name: 'Bash', session_id: 'rec-side-none', tool_response: uniqueLines(200) }, { HUSH_TEMPLATE: 'off' });
+    const e = only(calls, 'rec-side-none');
     assert.strictEqual(e.recovery, 'rerun-command');
     assert.strictEqual(e.sidecarPath, null);
+    assert.deepStrictEqual(calls.parked, []);
   });
 
   // The field that proves the two are not the same thing: a Grep with the
   // sidecar off recovers by re-running, and its recoveryPath is the search
   // path — a directory hush never wrote a byte into.
   test('a recoveryPath hush did not write is not reported as a sidecar', () => {
-    const id = sid('rec-side-alias');
     const lines = Array.from({ length: 400 }, (_, i) => `src/f${i % 20}.js:${i}:  value_${i}`);
-    runHook('compress-tool-output.js', {
-      tool_name: 'Grep', session_id: id, tool_input: { pattern: 'value_', path: 'src' },
+    const { calls } = fire({
+      tool_name: 'Grep', session_id: 'rec-side-alias', tool_input: { pattern: 'value_', path: 'src' },
       tool_response: { mode: 'content', content: lines.join('\n'), numLines: lines.length },
-    }, { HUSH_DEBUG: '1', HUSH_SIDECAR: 'off' });
-    const e = only(id);
+    }, { HUSH_SIDECAR: 'off' });
+    const e = only(calls, 'rec-side-alias');
     assert.strictEqual(e.recoveryPath, 'src', 'the recovery route names where to search again');
     assert.strictEqual(e.sidecarPath, null, 'and nothing was parked');
+    assert.deepStrictEqual(calls.parked, []);
   });
 
   test('a Grep that did park names both, and they agree', () => {
-    const id = sid('rec-side-grep');
     const lines = Array.from({ length: 400 }, (_, i) => `src/f${i % 20}.js:${i}:  value_${i}`);
-    runHook('compress-tool-output.js', {
-      tool_name: 'Grep', session_id: id, tool_input: { pattern: 'value_', path: 'src' },
+    const { calls } = fire({
+      tool_name: 'Grep', session_id: 'rec-side-grep', tool_input: { pattern: 'value_', path: 'src' },
       tool_response: { mode: 'content', content: lines.join('\n'), numLines: lines.length },
-    }, { HUSH_DEBUG: '1' });
-    const e = only(id);
+    });
+    const e = only(calls, 'rec-side-grep');
     assert.strictEqual(e.recovery, 'sidecar');
     assert.strictEqual(e.sidecarPath, e.recoveryPath);
-    assert.strictEqual(fs.existsSync(e.sidecarPath), true);
+    assert.strictEqual(e.sidecarPath, calls.parked[0].path);
   });
 });
 
@@ -491,69 +468,40 @@ describe('transform manifest: the recovery boundary', () => {
     assert.strictEqual(recoveryGap(buildRecord({ action: 'passthrough', linesIn: 100, omitted: 5 })), null);
   });
 
+  // deliver() straight, with a hand-built decision: the boundary, and the
+  // record scratch receives for a dropped view.
+  const payload = { tool_name: 'Bash', session_id: 'boundary' };
+  const unbacked = { action: 'cap', bytesIn: 400, bytesOut: 90, linesIn: 100, omitted: 40 };
+
   test('deliver drops the view when the record cannot back it', () => {
-    const id = sid('boundary-drop');
-    process.env.HUSH_DEBUG = '1';
-    let result;
-    try {
-      result = deliver(
-        { action: 'cap', bytesIn: 400, bytesOut: 90, linesIn: 100, omitted: 40 },
-        'a view with detail removed',
-        { tool_name: 'Bash', session_id: id },
-        DEPS
-      );
-    } finally {
-      delete process.env.HUSH_DEBUG;
-    }
+    const deps = memoryDeps();
+    const result = withDebug('1', () => deliver(unbacked, 'a view with detail removed', payload, deps));
     assert.strictEqual(result.updated, undefined, 'deliver dropped the view — the original stands');
     assert.strictEqual(result.record.action, 'rejected-no-recovery');
-    const [e] = readManifest(id);
+    const e = received(deps.scratch.calls);
     assert.strictEqual(e.action, 'rejected-no-recovery');
     assert.match(e.fallback, /no recovery location/);
     assert.strictEqual(e.bytesOut, e.bytesIn, 'nothing was delivered, so nothing was saved');
   });
 
   test('deliver returns the same view once the record names where the detail went', () => {
-    const id = sid('boundary-pass');
-    process.env.HUSH_DEBUG = '1';
-    let result;
-    try {
-      result = deliver(
-        { action: 'cap', bytesIn: 400, bytesOut: 90, linesIn: 100, omitted: 40, recovery: 'rerun-command' },
-        'a view with detail removed',
-        { tool_name: 'Bash', session_id: id },
-        DEPS
-      );
-    } finally {
-      delete process.env.HUSH_DEBUG;
-    }
+    const deps = memoryDeps();
+    const result = withDebug('1', () => deliver({ ...unbacked, recovery: 'rerun-command' }, 'a view with detail removed', payload, deps));
     assert.strictEqual(result.updated, 'a view with detail removed');
-    const [e] = readManifest(id);
-    assert.strictEqual(e.action, 'cap');
+    assert.strictEqual(received(deps.scratch.calls).action, 'cap');
   });
 
-  test('records are built and checked with the debug gate off — only the file write is gated', () => {
-    const id = sid('boundary-ungated');
-    // Pinned off: an ambient HUSH_DEBUG=1 in the developer's shell would
-    // otherwise turn this gate assertion into a false failure.
-    const prevDebug = process.env.HUSH_DEBUG;
-    delete process.env.HUSH_DEBUG;
-    let result;
-    try {
-      result = deliver(
-        { action: 'cap', bytesIn: 400, bytesOut: 90, linesIn: 100, omitted: 40 },
-        'a view with detail removed',
-        { tool_name: 'Bash', session_id: id },
-        DEPS
-      );
-    } finally {
-      if (prevDebug !== undefined) process.env.HUSH_DEBUG = prevDebug;
-    }
+  test('records are built and checked with the debug gate off — only the hand-over is gated', () => {
+    const deps = memoryDeps();
+    const result = withDebug(undefined, () => deliver(unbacked, 'a view with detail removed', payload, deps));
     assert.strictEqual(result.updated, undefined, 'the boundary still holds without HUSH_DEBUG');
-    assert.strictEqual(fs.existsSync(manifestPath(id)), false, 'and nothing was persisted');
+    assert.strictEqual(result.record.action, 'rejected-no-recovery');
+    assert.deepStrictEqual(deps.scratch.calls.manifest, [], 'and scratch received nothing');
   });
 });
 
+// The adapter on the wire: what a spawned hook emits for output it leaves
+// alone, whatever the transform would have said.
 describe('passthrough invariant (byte-identical, end to end)', () => {
   test('short clean Bash output: hook stays silent, nothing enters the tool result', () => {
     const r = runHook('compress-tool-output.js', { tool_name: 'Bash', tool_response: 'all good\n3 tests passed' });
