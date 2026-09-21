@@ -78,7 +78,7 @@ function readTurn(transcriptPath) {
   try {
     bytes = fs.statSync(transcriptPath).size;
   } catch {
-    bytes = undefined;
+    /* no transcript (bare harness): no size */
   }
   return { promptText: lastUserPromptText(transcriptPath), bytes };
 }

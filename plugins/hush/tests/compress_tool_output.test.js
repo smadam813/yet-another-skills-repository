@@ -1829,9 +1829,8 @@ describe('unit: exit code and signal', () => {
   });
 });
 
-// Session scratch and the turn reader arrive as parameters. A test passes an
-// in-memory scratch and a stub turn, so nothing here touches the disk or
-// the environment.
+// Session scratch arrives as a parameter. These tests pass an in-memory
+// scratch, so nothing here writes to the disk.
 describe('deps: scratch and turn arrive as parameters', () => {
   const { readTurn, deliver, pressureScale, NOTE_TEXT } = require('../hooks/compress-tool-output');
   const NL = String.fromCharCode(10);
@@ -1897,7 +1896,7 @@ describe('deps: scratch and turn arrive as parameters', () => {
     const scratch = memoryScratch();
     const lines = Array.from({ length: 700 }, (_, i) => 'plain info line ' + i + ' padded out a bit for width here');
     const decision = {};
-    const out = compress(lines.join(NL), 0, true, false, [], 1, 'mem', undefined, undefined, decision, { scratch, settings: settingsFromEnv({}) });
+    const out = compress(lines.join(NL), 0, true, false, [], 1, 'mem', undefined, undefined, decision, { ...DEFAULTS, scratch });
     assert.strictEqual(scratch.calls.parked.length, 1);
     assert.strictEqual(scratch.calls.parked[0].sessionId, 'mem');
     assert.strictEqual(scratch.calls.parked[0].content, lines.join(NL));
@@ -1910,7 +1909,7 @@ describe('deps: scratch and turn arrive as parameters', () => {
     const scratch = memoryScratch();
     const content = Array.from({ length: 80 }, (_, i) => `src/a.js:${i + 1}: const value_${i} = ${'x'.repeat(60)};`).join(NL);
     const decision = {};
-    const out = compressGrep(content, [], 'src', decision, 'mem', { scratch, settings: settingsFromEnv({}) });
+    const out = compressGrep(content, [], 'src', decision, 'mem', { ...DEFAULTS, scratch });
     assert.strictEqual(scratch.calls.parked.length, 1);
     assert.match(out, /saved to \/memory\/mem\/parked\.txt /);
     assert.strictEqual(decision.recoveryPath, '/memory/mem/parked.txt');
@@ -1918,7 +1917,7 @@ describe('deps: scratch and turn arrive as parameters', () => {
 
   test('deliver appends the manifest, adds the total, and claims the note through deps.scratch', () => {
     const scratch = memoryScratch();
-    const deps = { scratch, settings: settingsFromEnv({}) };
+    const deps = { ...DEFAULTS, scratch };
     const decision = { action: 'cap', bytesIn: 400, bytesOut: 90, linesIn: 100, omitted: 40, recovery: 'rerun-command' };
     const prevDebug = process.env.HUSH_DEBUG;
     process.env.HUSH_DEBUG = '1';
