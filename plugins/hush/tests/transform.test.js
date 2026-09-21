@@ -7,12 +7,8 @@
 
 const { test, describe } = require('node:test');
 const assert = require('node:assert');
-const { transform, settingsFromEnv, NOTE_TEXT } = require('../hooks/lib/transform');
-const { memoryScratch, stubTurn } = require('./helpers');
-
-function makeDeps(env = {}, scratchOpts) {
-  return { scratch: memoryScratch(scratchOpts), turn: stubTurn(), settings: settingsFromEnv(env) };
-}
+const { transform, NOTE_TEXT } = require('../hooks/lib/transform');
+const { memoryDeps, stubTurn } = require('./helpers');
 
 const wideLines = (n) => Array.from({ length: n }, (_, i) => 'plain info line ' + i + ' padded out a bit for width here');
 
@@ -26,7 +22,7 @@ describe('transform: a shell payload through the sidecar path', () => {
   };
 
   test('returns the digest as the view, a sidecar record, and the note', () => {
-    const deps = makeDeps();
+    const deps = memoryDeps();
     const { updated, record, context } = transform(payload, deps);
 
     // The host may already have cut a shell output this size, so the digest
@@ -50,7 +46,7 @@ describe('transform: a shell payload through the sidecar path', () => {
   });
 
   test('parks the sidecar, adds the total, and claims the note through scratch', () => {
-    const deps = makeDeps();
+    const deps = memoryDeps();
     const { record } = transform(payload, deps);
     const { calls } = deps.scratch;
     assert.deepStrictEqual(calls.parked.map((p) => p.sessionId), ['mem']);
@@ -60,14 +56,14 @@ describe('transform: a shell payload through the sidecar path', () => {
   });
 
   test('the note is undefined when scratch says another fire already claimed it', () => {
-    const deps = makeDeps({}, { claim: false });
+    const deps = memoryDeps({}, { claim: false });
     const { updated, context } = transform(payload, deps);
     assert.ok(updated !== undefined);
     assert.strictEqual(context, undefined);
   });
 
   test('the note is undefined when the note switch is off', () => {
-    const deps = makeDeps({ HUSH_NOTE: 'off' });
+    const deps = memoryDeps({ HUSH_NOTE: 'off' });
     const { updated, context } = transform(payload, deps);
     assert.ok(updated !== undefined);
     assert.strictEqual(context, undefined);
@@ -75,7 +71,7 @@ describe('transform: a shell payload through the sidecar path', () => {
   });
 
   test('with the sidecar off the same payload takes the inline cap', () => {
-    const deps = makeDeps({ HUSH_SIDECAR: 'off', HUSH_TEMPLATE: 'off' });
+    const deps = memoryDeps({ HUSH_SIDECAR: 'off', HUSH_TEMPLATE: 'off' });
     const { updated, record } = transform(payload, deps);
     assert.strictEqual(record.action, 'cap');
     assert.strictEqual(record.recovery, 'rerun-command');
@@ -86,7 +82,7 @@ describe('transform: a shell payload through the sidecar path', () => {
 
 describe('transform: silence and rejection carry a record', () => {
   test('short clean output: no view, a passthrough record, no note', () => {
-    const deps = makeDeps();
+    const deps = memoryDeps();
     const { updated, record, context } = transform(
       { tool_name: 'Bash', session_id: 'mem', tool_response: 'all good\n3 tests passed' },
       deps
@@ -102,7 +98,7 @@ describe('transform: silence and rejection carry a record', () => {
   test('deliver drops a view the record cannot back, and the record says why', () => {
     // 300 empty lines: the capped-failure footer costs more than the lines it
     // stands for, so the view is not smaller and the boundary drops it.
-    const deps = makeDeps({ HUSH_SIDECAR: 'off' });
+    const deps = memoryDeps({ HUSH_SIDECAR: 'off' });
     const { updated, record } = transform(
       { tool_name: 'Bash', session_id: 'mem', tool_response: { stdout: '\n'.repeat(300), stderr: '', exitCode: 1 } },
       deps
@@ -115,7 +111,7 @@ describe('transform: silence and rejection carry a record', () => {
   });
 
   test('the turn reader drives the enumeration carve-out', () => {
-    const deps = { ...makeDeps({ HUSH_SIDECAR: 'off' }), turn: stubTurn('list every line of the output') };
+    const deps = { ...memoryDeps({ HUSH_SIDECAR: 'off' }), turn: stubTurn('list every line of the output') };
     const lines = Array.from({ length: 200 }, (_, i) => `item ${i}`);
     const { record } = transform({ tool_name: 'Bash', session_id: 'mem', tool_response: lines.join('\n') }, deps);
     assert.strictEqual(record.action, 'enumerate-passthrough');

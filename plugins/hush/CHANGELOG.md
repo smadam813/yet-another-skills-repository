@@ -3,6 +3,17 @@
 All notable changes to hush are documented here. The version number lives in
 `.claude-plugin/plugin.json`.
 
+## 1.12.8 — 2026-09-20
+
+Three test suites now call the transform in process: the compress suite's
+end-to-end cases, the property suite's end-to-end section, and the debug
+manifest suite. Each calls `transform` with an in-memory scratch and a stub
+turn. They assert on the returned view, record, and context, or on what the
+scratch received. No test writes a transcript fixture or a manifest file to
+check the transform. The contract runner, both conformance suites, the
+lifecycle suite, and the turn boundary suite still spawn the hook. Nothing
+the model sees changed.
+
 ## 1.12.7 — 2026-09-20
 
 The Core transform is now a module. `hooks/lib/transform.js` exports
