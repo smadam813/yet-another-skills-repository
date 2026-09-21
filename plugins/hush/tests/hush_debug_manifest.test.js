@@ -11,15 +11,14 @@ const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { runHook, hookOutput } = require('./helpers');
-const { deliver, settingsFromEnv } = require('../hooks/compress-tool-output');
+const { runHook, hookOutput, makeDeps } = require('./helpers');
+const { deliver } = require('../hooks/compress-tool-output');
 const { buildRecord, recoveryGap } = require('../hooks/lib/transform-manifest');
-const sessionScratch = require('../hooks/lib/session-scratch');
-const { manifestPath, removeSession } = sessionScratch;
+const { manifestPath, removeSession } = require('../hooks/lib/session-scratch');
 
-// The in-process deliver() calls below run against the real session scratch,
-// so the manifest they assert on is the file on disk.
-const DEPS = { scratch: sessionScratch, settings: settingsFromEnv({}) };
+// The in-process deliver() calls below run against the session scratch
+// module, so the manifest they assert on is the file on disk.
+const DEPS = makeDeps();
 
 const sids = [];
 function sid(label) {

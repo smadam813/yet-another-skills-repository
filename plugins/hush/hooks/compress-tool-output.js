@@ -10,8 +10,8 @@
 const fs = require("fs");
 const { readInput, emitToolOutput, decodeResponse, SHELL_FIELDS, lastUserPromptText } = require("./lib/harness");
 const { combineActions, buildRecord, recoveryGap, sizeGap, fieldGap, appendRecord } = require("./lib/transform-manifest");
-// Required here for main() alone: it builds `deps` from the real module and
-// hands the module down. Nothing below main() reaches for it.
+// Only main() uses this module. It builds `deps` from it and passes `deps`
+// down. No function below main() uses it.
 const sessionScratch = require("./lib/session-scratch");
 const { coreOff } = require("./lib/gate");
 const { decode: decodeTrailer, hasTrailer } = require("./lib/exit-trailer");
@@ -62,19 +62,17 @@ function settingsFromEnv(env) {
 // environment. Only main() reads the environment.
 const DEFAULT_SETTINGS = settingsFromEnv({});
 
-// Every function below main() that parks a sidecar, claims the note, adds to
-// the running total, or appends the manifest takes `deps`, the object main()
-// builds once per fire: `{ scratch, turn, settings }`. `scratch` is the
-// session scratch interface (hooks/lib/session-scratch.js in production, an
-// in-memory object in a test). `turn` reads the transcript once (readTurn
-// below). `settings` is the frozen object settingsFromEnv returns. No
-// function below main() requires session scratch or the transcript reader
-// itself, so a test never touches the disk to exercise one.
+// main() builds `deps` once per fire: `{ scratch, turn, settings }`. Every
+// function below main() that parks a sidecar, claims the note, adds to the
+// running total, or appends the manifest takes it. `scratch` is the session
+// scratch module in the hook and an in-memory object in a test. `turn` is
+// readTurn below. `settings` is what settingsFromEnv returns. No function
+// below main() requires session scratch or the transcript reader itself.
 //
-// The production turn reader: the turn's last human prompt drives the
-// enumeration carve-out and relevance preservation, and the transcript's
-// size drives pressure scaling. A missing transcript (bare harness) reads as
-// an empty prompt and no size, which pressureScale treats as no pressure.
+// The turn reader. The last human prompt drives the enumeration carve-out
+// and relevance preservation. The transcript's size drives pressure scaling.
+// A missing transcript (bare harness) gives an empty prompt and no size,
+// and pressureScale reads no size as no pressure.
 function readTurn(transcriptPath) {
   let bytes;
   try {
@@ -922,8 +920,7 @@ function maybeSidecar(cleaned, relevanceTokens, sessionId, hostMayTruncate, fail
 // behavior, by construction) but never re-sidecar them, or the middle of the
 // file would become unreachable. Range reads (offset/limit) come back small
 // and pass untouched — that's the intended path the digest teaches. main()
-// asks deps.scratch; the export here serves the tests.
-const isSidecar = sessionScratch.isSidecar;
+// calls deps.scratch.isSidecar.
 
 // `decision`, when passed, is mutated with the single action token that
 // classifies what this call actually did (see HUSH_DEBUG below) — purely an
@@ -1106,7 +1103,7 @@ function main() {
   if (!WATCHED_TOOLS.has(data.tool_name)) return;
 
   // main() reads the environment here and nowhere else, and builds the one
-  // dependency object every path below takes.
+  // `deps` every path below takes.
   const deps = { scratch: sessionScratch, turn: readTurn, settings: settingsFromEnv(process.env) };
   const { settings } = deps;
 
@@ -1299,7 +1296,6 @@ module.exports = {
   isFileDump,
   isLogPath,
   isGeneratedPath,
-  isSidecar,
   requestsEnumeration,
   extractRelevanceTokens,
   pressureScale,

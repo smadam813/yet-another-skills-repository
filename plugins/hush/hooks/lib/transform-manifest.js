@@ -162,8 +162,8 @@ function fieldGap(original, updated) {
 // manifest. A harness measuring hush cannot otherwise see "ran but kept the
 // original" (cap no-op, rejected MCP table, untouched Read). The manifest
 // shows every decision, the do-nothing ones included, and changes nothing
-// any path produces. `scratch` is the session scratch the caller was handed:
-// the real module in the hook, an in-memory one in a test.
+// any path produces. `scratch` is the session scratch the caller passes: the
+// session scratch module in the hook, an in-memory object in a test.
 function appendRecord(record, scratch) {
   if (process.env.HUSH_DEBUG !== '1') return;
   scratch.appendManifest(record.session, record);

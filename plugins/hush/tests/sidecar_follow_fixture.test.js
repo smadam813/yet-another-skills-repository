@@ -9,10 +9,9 @@ const { test, describe, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
-const { compress, settingsFromEnv } = require('../hooks/compress-tool-output');
-const sessionScratch = require('../hooks/lib/session-scratch');
-const { sessionDir } = sessionScratch;
-const DEPS = { scratch: sessionScratch, settings: settingsFromEnv({}) };
+const { compress } = require('../hooks/compress-tool-output');
+const { sessionDir } = require('../hooks/lib/session-scratch');
+const DEPS = require('./helpers').makeDeps();
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'sidecar-follow-test-output.log');
 

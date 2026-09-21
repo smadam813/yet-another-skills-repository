@@ -171,8 +171,8 @@ describe('precompact-summary hook', () => {
   });
 
   test('end to end mixed session: the parked output is named, the capped and untouched ones leave nothing to name', () => {
-    const { compress, settingsFromEnv } = require('../hooks/compress-tool-output');
-    const deps = { scratch: require('../hooks/lib/session-scratch'), settings: settingsFromEnv({}) };
+    const { compress } = require('../hooks/compress-tool-output');
+    const deps = require('./helpers').makeDeps();
     const session = freshSessionId();
     const prevSidecar = process.env.HUSH_SIDECAR;
     delete process.env.HUSH_SIDECAR;

@@ -16,15 +16,13 @@ const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
-const { HOOKS_DIR } = require('./helpers');
-const { compress, settingsFromEnv } = require('../hooks/compress-tool-output');
+const { HOOKS_DIR, makeDeps } = require('./helpers');
+const { compress } = require('../hooks/compress-tool-output');
 const { buildSidecarBlock } = require('../hooks/precompact-summary');
-const sessionScratch = require('../hooks/lib/session-scratch');
-const { sessionDir, isSidecar, SIDECAR_ROOT, savedPath, addSaved } = sessionScratch;
+const { sessionDir, isSidecar, SIDECAR_ROOT, savedPath, addSaved } = require('../hooks/lib/session-scratch');
 
-// The in-process compress() calls run against the real session scratch.
-const deps = (env = {}) => ({ scratch: sessionScratch, settings: settingsFromEnv(env) });
-const DEPS = deps();
+// The in-process compress() calls run against the session scratch module.
+const DEPS = makeDeps();
 
 const SCRATCH_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'hush-lifecycle-'));
 const realSessions = [];
@@ -150,7 +148,7 @@ describe('sidecar storage: a failed write never costs the output', () => {
     // Template collapse is pinned off so the fallback is demonstrably the
     // ordinary line cap: every line in BIG shares one shape, and collapsing
     // them would keep the view under the cap and hide which path ran.
-    const noTemplate = deps({ HUSH_TEMPLATE: 'off' });
+    const noTemplate = makeDeps({ HUSH_TEMPLATE: 'off' });
     const out = compress(BIG, 0, true, false, [], 1, id, undefined, undefined, undefined, noTemplate);
     assert.doesNotMatch(out, /saved in full to/, 'no pointer to a file that was never written');
     assert.match(out, /lines omitted from this view/, 'falls through to the ordinary inline cap');

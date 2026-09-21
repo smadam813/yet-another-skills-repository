@@ -33,7 +33,6 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const {
-  settingsFromEnv,
   compress,
   deliver,
   isKeepLine,
@@ -45,13 +44,13 @@ const {
 } = require('../hooks/compress-tool-output');
 const { buildRecord, recoveryGap, sizeGap, fieldGap } = require('../hooks/lib/transform-manifest');
 const sessionScratch = require('../hooks/lib/session-scratch');
-const { HOOKS_DIR } = require('./helpers');
+const { HOOKS_DIR, makeDeps } = require('./helpers');
 
 const ESC = '\u001b';
 
-// Every in-process call runs against the real session scratch under the
-// default settings. A spawned hook builds the same object in main().
-const DEPS = { scratch: sessionScratch, settings: settingsFromEnv({}) };
+// Every in-process call runs against the session scratch module under the
+// default settings.
+const DEPS = makeDeps();
 
 // This file never wants the on-disk manifest: deliver() appends a record when
 // HUSH_DEBUG=1, and a few hundred generated cases would write a few hundred

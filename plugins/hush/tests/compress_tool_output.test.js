@@ -6,7 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const helpers = require('./helpers');
-const { hookOutput } = helpers;
+const { hookOutput, makeDeps } = helpers;
 const {
   settingsFromEnv,
   stripAnsi,
@@ -26,25 +26,20 @@ const {
   FAILURE_RERUN_NOTE,
 } = require('../hooks/compress-tool-output');
 const { decode } = require('../hooks/lib/exit-trailer');
-const sessionScratch = require('../hooks/lib/session-scratch');
 
-// The transforms take `deps`: the real session scratch and a settings
-// object. An in-process call builds it here; a spawned hook builds it in
-// main() from the child's environment.
-const deps = (env = {}) => ({ scratch: sessionScratch, settings: settingsFromEnv(env) });
-const DEFAULTS = deps();
+const DEFAULTS = makeDeps();
 // The sidecar is on by default. The inline-cap cases here turn it off: in
-// process with a settings object, and in a spawned hook with the child's
-// environment. The sidecar suites below turn it back on the same two ways.
-const INLINE = deps({ HUSH_SIDECAR: 'off' });
-const INLINE_NO_TEMPLATE = deps({ HUSH_SIDECAR: 'off', HUSH_TEMPLATE: 'off' });
-const NO_TEMPLATE = deps({ HUSH_TEMPLATE: 'off' });
+// process with settings, and in a spawned hook with the child's environment.
+// The sidecar suites below turn it back on the same two ways.
+const INLINE = makeDeps({ HUSH_SIDECAR: 'off' });
+const INLINE_NO_TEMPLATE = makeDeps({ HUSH_SIDECAR: 'off', HUSH_TEMPLATE: 'off' });
+const NO_TEMPLATE = makeDeps({ HUSH_TEMPLATE: 'off' });
 const runHook = (name, input, env) => helpers.runHook(name, input, { HUSH_SIDECAR: 'off', ...env });
 
 // Calls compress() with the inline-cap deps and leaves the tail arguments
 // (session, sidecar bypass, host truncation, decision) at their defaults.
-function compressInline(text, exitCode, isDump = false, enumerate = false, relevance = [], scale = 1, d = INLINE) {
-  return compress(text, exitCode, isDump, enumerate, relevance, scale, null, undefined, undefined, undefined, d);
+function compressInline(text, exitCode, isDump = false, enumerate = false, relevance = [], scale = 1, deps = INLINE) {
+  return compress(text, exitCode, isDump, enumerate, relevance, scale, null, undefined, undefined, undefined, deps);
 }
 
 describe('unit: transforms', () => {
@@ -1135,7 +1130,7 @@ describe('secrets guard: credential-shaped content is never persisted to a sidec
 });
 
 describe('unit + e2e: reads OF sidecar files are capped, never re-sidecared', () => {
-  const { isSidecar } = require('../hooks/compress-tool-output');
+  const { isSidecar } = require('../hooks/lib/session-scratch');
   const NL = String.fromCharCode(10);
   const os2 = require('os');
   const sideDir = path.join(os2.tmpdir(), 'hush-sidecar');
@@ -1446,7 +1441,7 @@ describe('shell-scoped sidecar upper bound (host-truncation guard)', () => {
   });
 
   test('HUSH_SIDECAR_SHELL_MAX tunes the bound', () => {
-    const lowered = deps({ HUSH_SIDECAR_SHELL_MAX: '18000' });
+    const lowered = makeDeps({ HUSH_SIDECAR_SHELL_MAX: '18000' });
     const out = compress(bigText(20000), 0, false, false, [], 1, 's', undefined, true, undefined, lowered);
     assert.doesNotMatch(out, /saved in full to/, '20KB now exceeds the lowered bound');
     assert.match(out, /as hush received it/, 'so the copy drops its "in full" claim');
@@ -1838,7 +1833,7 @@ describe('unit: exit code and signal', () => {
 // in-memory scratch and a stub turn, so nothing here touches the disk or
 // the environment.
 describe('deps: scratch and turn arrive as parameters', () => {
-  const { readTurn, deliver, NOTE_TEXT } = require('../hooks/compress-tool-output');
+  const { readTurn, deliver, pressureScale, NOTE_TEXT } = require('../hooks/compress-tool-output');
   const NL = String.fromCharCode(10);
 
   // An in-memory session scratch with the functions the hook calls.
@@ -1892,6 +1887,10 @@ describe('deps: scratch and turn arrive as parameters', () => {
   test('readTurn on a missing transcript gives an empty prompt and no size', () => {
     assert.deepStrictEqual(readTurn(path.join(os.tmpdir(), 'hush-no-such-transcript.jsonl')), { promptText: '', bytes: undefined });
     assert.deepStrictEqual(readTurn(undefined), { promptText: '', bytes: undefined });
+  });
+
+  test('no transcript size means no pressure, as main() derives the scale', () => {
+    assert.strictEqual(pressureScale(readTurn(undefined).bytes), 1);
   });
 
   test('compress parks the sidecar through deps.scratch', () => {

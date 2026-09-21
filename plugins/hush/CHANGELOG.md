@@ -3,6 +3,17 @@
 All notable changes to hush are documented here. The version number lives in
 `.claude-plugin/plugin.json`.
 
+## 1.12.6 — 2026-09-20
+
+The PostToolUse hook now takes session scratch and the turn reader as
+parameters. `main()` builds one `deps` object, `{ scratch, turn, settings }`,
+once per fire and passes it to every path that parks a sidecar, claims the
+note, adds to the running total, appends the manifest, or reads the turn.
+`deps.turn(path)` returns the turn's prompt text and the transcript size.
+No function below `main()` requires session scratch or the transcript reader
+itself, so a test passes an in-memory scratch and never touches the disk.
+Nothing the model sees changed.
+
 ## 1.12.5 — 2026-09-20
 
 The PostToolUse hook now reads its settings once per fire. A new
