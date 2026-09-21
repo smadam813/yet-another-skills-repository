@@ -38,9 +38,7 @@ function intEnv(env, name, fallback) {
 }
 
 // Every Core flag and cap the transform reads, from one environment object,
-// once per fire. The hook builds it from process.env and passes it in
-// `deps.settings`. A test builds it from a literal and never touches the
-// environment. The names, the defaults, and the `off` token are unchanged
+// once per fire. The names, the defaults, and the `off` token are unchanged
 // from the flags the hook has always read.
 //
 // Caps are in lines. Passing output is mostly noise (install trees, progress

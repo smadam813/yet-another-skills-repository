@@ -10,8 +10,6 @@ const assert = require('node:assert');
 const { transform, settingsFromEnv, NOTE_TEXT } = require('../hooks/lib/transform');
 const { memoryScratch, stubTurn } = require('./helpers');
 
-const NL = String.fromCharCode(10);
-
 function makeDeps(env = {}, scratchOpts) {
   return { scratch: memoryScratch(scratchOpts), turn: stubTurn(), settings: settingsFromEnv(env) };
 }
@@ -24,14 +22,14 @@ describe('transform: a shell payload through the sidecar path', () => {
     session_id: 'mem',
     transcript_path: '/no/such/transcript.jsonl',
     tool_input: { command: 'npm test' },
-    tool_response: wideLines(700).join(NL),
+    tool_response: wideLines(700).join('
+'),
   };
 
   test('returns the digest as the view, a sidecar record, and the note', () => {
     const deps = makeDeps();
     const { updated, record, context } = transform(payload, deps);
 
-    assert.strictEqual(typeof updated, 'string');
     // The host may already have cut a shell output this size, so the digest
     // says "as hush received it" rather than "in full".
     assert.match(updated, /saved to \/memory\/mem\/parked\.txt as hush received it;/);
@@ -91,7 +89,8 @@ describe('transform: silence and rejection carry a record', () => {
   test('short clean output: no view, a passthrough record, no note', () => {
     const deps = makeDeps();
     const { updated, record, context } = transform(
-      { tool_name: 'Bash', session_id: 'mem', tool_response: 'all good' + NL + '3 tests passed' },
+      { tool_name: 'Bash', session_id: 'mem', tool_response: 'all good
+3 tests passed' },
       deps
     );
     assert.strictEqual(updated, undefined);
@@ -107,7 +106,8 @@ describe('transform: silence and rejection carry a record', () => {
     // stands for, so the view is not smaller and the boundary drops it.
     const deps = makeDeps({ HUSH_SIDECAR: 'off' });
     const { updated, record } = transform(
-      { tool_name: 'Bash', session_id: 'mem', tool_response: { stdout: NL.repeat(300), stderr: '', exitCode: 1 } },
+      { tool_name: 'Bash', session_id: 'mem', tool_response: { stdout: '
+'.repeat(300), stderr: '', exitCode: 1 } },
       deps
     );
     assert.strictEqual(updated, undefined);
@@ -120,7 +120,8 @@ describe('transform: silence and rejection carry a record', () => {
   test('the turn reader drives the enumeration carve-out', () => {
     const deps = { ...makeDeps({ HUSH_SIDECAR: 'off' }), turn: stubTurn('list every line of the output') };
     const lines = Array.from({ length: 200 }, (_, i) => `item ${i}`);
-    const { record } = transform({ tool_name: 'Bash', session_id: 'mem', tool_response: lines.join(NL) }, deps);
+    const { record } = transform({ tool_name: 'Bash', session_id: 'mem', tool_response: lines.join('
+') }, deps);
     assert.strictEqual(record.action, 'enumerate-passthrough');
     assert.strictEqual(record.omitted, 0);
   });
