@@ -171,7 +171,7 @@ describe('precompact-summary hook', () => {
   });
 
   test('end to end mixed session: the parked output is named, the capped and untouched ones leave nothing to name', () => {
-    const { compress } = require('../hooks/compress-tool-output');
+    const { compress } = require('../hooks/lib/transform');
     const deps = require('./helpers').makeDeps();
     const session = freshSessionId();
     const prevSidecar = process.env.HUSH_SIDECAR;

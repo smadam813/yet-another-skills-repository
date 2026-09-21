@@ -146,6 +146,22 @@ function decodeResponse(response) {
   return { kind: 'other' };
 }
 
+// The turn reader the PostToolUse hook passes to the transform as
+// `deps.turn`. The last human prompt drives the enumeration carve-out and
+// relevance preservation. The transcript's size drives pressure scaling. A
+// missing transcript (bare harness) gives an empty prompt and no size, and
+// the transform reads no size as no pressure. A test passes a stub with the
+// same shape instead.
+function readTurn(transcriptPath) {
+  let bytes;
+  try {
+    bytes = fs.statSync(transcriptPath).size;
+  } catch {
+    /* no transcript (bare harness): no size */
+  }
+  return { promptText: lastUserPromptText(transcriptPath), bytes };
+}
+
 module.exports = {
   readInput,
   readInputOrNull,
@@ -162,4 +178,5 @@ module.exports = {
   readTailLines,
   isRealUserPrompt,
   lastUserPromptText,
+  readTurn,
 };

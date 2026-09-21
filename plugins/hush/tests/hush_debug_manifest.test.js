@@ -4,7 +4,7 @@
 // tool output — including every do-nothing path — appended to manifest.jsonl
 // in session scratch. Never emitted without the env gate;
 // never changes what any compression path actually produces (see the
-// `decision` side-channel comments in compress-tool-output.js).
+// `decision` side-channel comments in hooks/lib/transform.js).
 
 const { test, describe, after } = require('node:test');
 const assert = require('node:assert');
@@ -12,7 +12,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { runHook, hookOutput, makeDeps } = require('./helpers');
-const { deliver } = require('../hooks/compress-tool-output');
+const { deliver } = require('../hooks/lib/transform');
 const { buildRecord, recoveryGap } = require('../hooks/lib/transform-manifest');
 const { manifestPath, removeSession } = require('../hooks/lib/session-scratch');
 
@@ -491,74 +491,65 @@ describe('transform manifest: the recovery boundary', () => {
     assert.strictEqual(recoveryGap(buildRecord({ action: 'passthrough', linesIn: 100, omitted: 5 })), null);
   });
 
-  test('transformed output is not emitted when the record cannot back it', () => {
+  test('transformed output is not returned when the record cannot back it', () => {
     const id = sid('boundary-drop');
-    const writes = [];
-    const original = process.stdout.write;
-    process.stdout.write = (chunk) => { writes.push(String(chunk)); return true; };
     process.env.HUSH_DEBUG = '1';
+    let result;
     try {
-      deliver(
+      result = deliver(
         { action: 'cap', bytesIn: 400, bytesOut: 90, linesIn: 100, omitted: 40 },
-        'a rewritten view with detail removed',
+        'a view with detail removed',
         { tool_name: 'Bash', session_id: id },
         DEPS
       );
     } finally {
-      process.stdout.write = original;
       delete process.env.HUSH_DEBUG;
     }
-    assert.deepStrictEqual(writes, [], 'the rewrite is dropped — the original output stands');
+    assert.strictEqual(result.updated, undefined, 'the view is dropped — the original output stands');
+    assert.strictEqual(result.record.action, 'rejected-no-recovery');
     const [e] = readManifest(id);
     assert.strictEqual(e.action, 'rejected-no-recovery');
     assert.match(e.fallback, /no recovery location/);
     assert.strictEqual(e.bytesOut, e.bytesIn, 'nothing was delivered, so nothing was saved');
   });
 
-  test('the same view IS emitted once the record names where the detail went', () => {
+  test('the same view IS returned once the record names where the detail went', () => {
     const id = sid('boundary-pass');
-    const writes = [];
-    const original = process.stdout.write;
-    process.stdout.write = (chunk) => { writes.push(String(chunk)); return true; };
     process.env.HUSH_DEBUG = '1';
+    let result;
     try {
-      deliver(
+      result = deliver(
         { action: 'cap', bytesIn: 400, bytesOut: 90, linesIn: 100, omitted: 40, recovery: 'rerun-command' },
-        'a rewritten view with detail removed',
+        'a view with detail removed',
         { tool_name: 'Bash', session_id: id },
         DEPS
       );
     } finally {
-      process.stdout.write = original;
       delete process.env.HUSH_DEBUG;
     }
-    assert.strictEqual(writes.length, 1);
-    assert.strictEqual(JSON.parse(writes[0]).hookSpecificOutput.updatedToolOutput, 'a rewritten view with detail removed');
+    assert.strictEqual(result.updated, 'a view with detail removed');
     const [e] = readManifest(id);
     assert.strictEqual(e.action, 'cap');
   });
 
   test('records are built and checked with the debug gate off — only the file write is gated', () => {
     const id = sid('boundary-ungated');
-    const writes = [];
-    const original = process.stdout.write;
-    process.stdout.write = (chunk) => { writes.push(String(chunk)); return true; };
     // Pinned off: an ambient HUSH_DEBUG=1 in the developer's shell would
     // otherwise turn this gate assertion into a false failure.
     const prevDebug = process.env.HUSH_DEBUG;
     delete process.env.HUSH_DEBUG;
+    let result;
     try {
-      deliver(
+      result = deliver(
         { action: 'cap', bytesIn: 400, bytesOut: 90, linesIn: 100, omitted: 40 },
-        'a rewritten view with detail removed',
+        'a view with detail removed',
         { tool_name: 'Bash', session_id: id },
         DEPS
       );
     } finally {
-      process.stdout.write = original;
       if (prevDebug !== undefined) process.env.HUSH_DEBUG = prevDebug;
     }
-    assert.deepStrictEqual(writes, [], 'the boundary still holds without HUSH_DEBUG');
+    assert.strictEqual(result.updated, undefined, 'the boundary still holds without HUSH_DEBUG');
     assert.strictEqual(fs.existsSync(manifestPath(id)), false, 'and nothing was persisted');
   });
 });

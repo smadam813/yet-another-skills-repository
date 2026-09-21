@@ -24,7 +24,7 @@ const {
   signalCensus,
   exitNote,
   FAILURE_RERUN_NOTE,
-} = require('../hooks/compress-tool-output');
+} = require('../hooks/lib/transform');
 const { decode } = require('../hooks/lib/exit-trailer');
 
 const DEFAULTS = makeDeps();
@@ -388,7 +388,7 @@ describe('unit: collapseTemplates', () => {
 // The collapse markers state what happened; the view still owed
 // the model a way to get the collapsed lines back.
 describe('template collapse: the view states its own recovery', () => {
-  const { TEMPLATE_COLLAPSE_NOTE } = require('../hooks/compress-tool-output');
+  const { TEMPLATE_COLLAPSE_NOTE } = require('../hooks/lib/transform');
 
   const run = (text) => compress(text, 0, false, false, [], 1, null, true, false, {}, DEFAULTS);
 
@@ -787,7 +787,7 @@ describe('hook: enumeration carve-out (transcript-driven)', () => {
 });
 
 describe('hook: once-per-session telemetry note', () => {
-  const { hasHushNote, NOTE_TEXT } = require('../hooks/compress-tool-output');
+  const { hasHushNote, NOTE_TEXT } = require('../hooks/lib/transform');
   const { sessionDir } = require('../hooks/lib/session-scratch');
 
   // Unique per test-process so reruns never see a stale sentinel; every id
@@ -873,7 +873,7 @@ describe('hook: once-per-session telemetry note', () => {
 });
 
 describe('unit: isGeneratedPath', () => {
-  const { isGeneratedPath } = require('../hooks/compress-tool-output');
+  const { isGeneratedPath } = require('../hooks/lib/transform');
 
   test('matches lockfiles, minified bundles, sourcemaps, and generated dirs', () => {
     for (const p of [
@@ -949,7 +949,7 @@ describe('hook: subagent-brief', () => {
 });
 
 describe('unit: relevance preservation + pressure scaling', () => {
-  const { extractRelevanceTokens, pressureScale, compress } = require('../hooks/compress-tool-output');
+  const { extractRelevanceTokens, pressureScale, compress } = require('../hooks/lib/transform');
   const NL = String.fromCharCode(10);
   const BT = String.fromCharCode(96);
   const SQ = String.fromCharCode(39);
@@ -995,7 +995,7 @@ describe('unit: relevance preservation + pressure scaling', () => {
 });
 
 describe('unit + e2e: sidecar digests for very large outputs', () => {
-  const { compress: comp } = require('../hooks/compress-tool-output');
+  const { compress: comp } = require('../hooks/lib/transform');
   const NL = String.fromCharCode(10);
   const created = [];
   function pathFrom(digest) {
@@ -1066,7 +1066,7 @@ describe('unit + e2e: sidecar digests for very large outputs', () => {
 });
 
 describe('secrets guard: credential-shaped content is never persisted to a sidecar', () => {
-  const { compress: comp, containsSecret } = require('../hooks/compress-tool-output');
+  const { compress: comp, containsSecret } = require('../hooks/lib/transform');
   const NL = String.fromCharCode(10);
   // Every case in this block runs as session 'secrettest', so counting inside
   // that session's own directory is exact: a leftover from a crashed run in
@@ -1211,7 +1211,7 @@ describe('unit + e2e: reads OF sidecar files are capped, never re-sidecared', ()
 });
 
 describe('signal-first digest + compound-error signal matching', () => {
-  const { capLines, compress } = require('../hooks/compress-tool-output');
+  const { capLines, compress } = require('../hooks/lib/transform');
   const NL = String.fromCharCode(10);
   const created = [];
   after(() => { for (const f of created) fs.rmSync(f, { force: true }); });
@@ -1260,7 +1260,7 @@ describe('signal-first digest + compound-error signal matching', () => {
 });
 
 describe('census-grade sidecar digests', () => {
-  const { compress: comp2 } = require('../hooks/compress-tool-output');
+  const { compress: comp2 } = require('../hooks/lib/transform');
   const NL = String.fromCharCode(10);
   const created = [];
   after(() => { for (const f of created) fs.rmSync(f, { force: true }); });
@@ -1337,7 +1337,7 @@ describe('census-grade sidecar digests', () => {
 // single alternative from SIGNAL_RE, FAILURE_RE, TRACEBACK_FRAME_RE or a
 // CENSUS_CATEGORIES pattern has to fail at least one test in this block.
 describe('the keep vocabulary, pinned category by category', () => {
-  const { compress: comp3 } = require('../hooks/compress-tool-output');
+  const { compress: comp3 } = require('../hooks/lib/transform');
   const NL = String.fromCharCode(10);
   const created = [];
   after(() => { for (const f of created) fs.rmSync(f, { force: true }); });
@@ -1410,7 +1410,7 @@ describe('the keep vocabulary, pinned category by category', () => {
 });
 
 describe('shell-scoped sidecar upper bound (host-truncation guard)', () => {
-  const { compress } = require('../hooks/compress-tool-output');
+  const { compress } = require('../hooks/lib/transform');
   const NL = String.fromCharCode(10);
   const created = [];
   after(() => { for (const f of created) fs.rmSync(f, { force: true }); });
@@ -1449,7 +1449,7 @@ describe('shell-scoped sidecar upper bound (host-truncation guard)', () => {
 });
 
 describe('grep match-list compression', () => {
-  const H = require('../hooks/compress-tool-output.js');
+  const H = require('../hooks/lib/transform');
 
   function grepContent(files, per) {
     const lines = [];
@@ -1554,7 +1554,7 @@ describe('grep match-list compression', () => {
 // from, so the view could only advise a re-run. They are parked now, and the
 // marker names the copy only when the copy is really there.
 describe('grep elision: the omitted matches are persisted', () => {
-  const H = require('../hooks/compress-tool-output.js');
+  const H = require('../hooks/lib/transform');
   const { sessionDir } = require('../hooks/lib/session-scratch');
 
   const sessions = [];
@@ -1832,7 +1832,8 @@ describe('unit: exit code and signal', () => {
 // Session scratch arrives as a parameter. These tests pass an in-memory
 // scratch, so nothing here writes to the disk.
 describe('deps: scratch and turn arrive as parameters', () => {
-  const { readTurn, deliver, pressureScale, NOTE_TEXT } = require('../hooks/compress-tool-output');
+  const { deliver, pressureScale, NOTE_TEXT } = require('../hooks/lib/transform');
+  const { readTurn } = require('../hooks/lib/harness');
   const NL = String.fromCharCode(10);
 
   // An in-memory session scratch with the functions the hook calls.
@@ -1859,18 +1860,6 @@ describe('deps: scratch and turn arrive as parameters', () => {
     };
   }
 
-  function captureStdout(fn) {
-    const chunks = [];
-    const real = process.stdout.write;
-    process.stdout.write = (s) => { chunks.push(String(s)); return true; };
-    try {
-      fn();
-    } finally {
-      process.stdout.write = real;
-    }
-    return chunks.join('');
-  }
-
   test('readTurn returns the last human prompt and the transcript size', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hush-turn-'));
     const file = path.join(dir, 't.jsonl');
@@ -1888,7 +1877,7 @@ describe('deps: scratch and turn arrive as parameters', () => {
     assert.deepStrictEqual(readTurn(undefined), { promptText: '', bytes: undefined });
   });
 
-  test('no transcript size means no pressure, as main() derives the scale', () => {
+  test('no transcript size means no pressure, as transform() derives the scale', () => {
     assert.strictEqual(pressureScale(readTurn(undefined).bytes), 1);
   });
 
@@ -1921,9 +1910,9 @@ describe('deps: scratch and turn arrive as parameters', () => {
     const decision = { action: 'cap', bytesIn: 400, bytesOut: 90, linesIn: 100, omitted: 40, recovery: 'rerun-command' };
     const prevDebug = process.env.HUSH_DEBUG;
     process.env.HUSH_DEBUG = '1';
-    let raw;
+    let result;
     try {
-      raw = captureStdout(() => deliver(decision, '[hush hook: a view]', { tool_name: 'Bash', session_id: 'mem' }, deps));
+      result = deliver(decision, '[hush hook: a view]', { tool_name: 'Bash', session_id: 'mem' }, deps);
     } finally {
       if (prevDebug === undefined) delete process.env.HUSH_DEBUG;
       else process.env.HUSH_DEBUG = prevDebug;
@@ -1933,8 +1922,7 @@ describe('deps: scratch and turn arrive as parameters', () => {
     assert.strictEqual(scratch.calls.manifest[0].record.action, 'cap');
     assert.deepStrictEqual(scratch.calls.saved, [{ sessionId: 'mem', bytesIn: 400, bytesOut: 90 }]);
     assert.deepStrictEqual(scratch.calls.claimed, ['mem']);
-    const emitted = JSON.parse(raw);
-    assert.strictEqual(emitted.hookSpecificOutput.updatedToolOutput, '[hush hook: a view]');
-    assert.strictEqual(emitted.hookSpecificOutput.additionalContext, NOTE_TEXT);
+    assert.strictEqual(result.updated, '[hush hook: a view]');
+    assert.strictEqual(result.context, NOTE_TEXT);
   });
 });

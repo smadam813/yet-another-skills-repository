@@ -10,8 +10,8 @@
 //   2. A structured transform preserves every field or does not run.
 //   3. A transform that is not smaller is rejected.
 //
-// All three are enforced in ONE place — deliver() in compress-tool-output.js —
-// and the fallback for all three is the same: drop the rewrite and ship the
+// All three are enforced in ONE place — deliver() in hooks/lib/transform.js —
+// and the fallback for all three is the same: drop the view and ship the
 // original untouched. So the assertions below run on what deliver() actually
 // SHIPS, not on what compress() happened to return.
 //
@@ -41,7 +41,7 @@ const {
   resolveCarriageReturns,
   compressGrep,
   FAILURE_RERUN_NOTE,
-} = require('../hooks/compress-tool-output');
+} = require('../hooks/lib/transform');
 const { buildRecord, recoveryGap, sizeGap, fieldGap } = require('../hooks/lib/transform-manifest');
 const sessionScratch = require('../hooks/lib/session-scratch');
 const { HOOKS_DIR, makeDeps } = require('./helpers');
@@ -155,29 +155,17 @@ const CASES = 400;
 // ---------------------------------------------------------------------------
 
 /**
- * Runs deliver() and returns what actually reached the model — the rewrite it
- * shipped, or undefined when it dropped one and let the original stand. stdout
- * is captured in-process rather than spawned so a few hundred cases stay cheap;
- * the e2e cases below spawn the real hook on the same shapes, which is what
- * pins that main() really routes everything through this one function.
+ * Runs deliver() and returns what actually reached the model — the view it
+ * shipped, or undefined when it dropped one and let the original stand. It
+ * runs in-process so a few hundred cases stay cheap; the e2e cases below
+ * spawn the real hook on the same shapes, which is what pins that the hook
+ * really routes everything through this one function.
  */
 function shipped(decision, updated, data) {
-  const chunks = [];
-  const real = process.stdout.write;
-  process.stdout.write = (s) => {
-    chunks.push(s);
-    return true;
-  };
-  try {
-    deliver(decision, updated, data, DEPS);
-  } finally {
-    process.stdout.write = real;
-  }
-  if (!chunks.length) return undefined;
-  return JSON.parse(chunks.join('')).hookSpecificOutput.updatedToolOutput;
+  return deliver(decision, updated, data, DEPS).updated;
 }
 
-/** main()'s Bash-string branch, in the order main() runs it. */
+/** transform()'s Bash-string branch, in the order transform() runs it. */
 function deliverShellString(c) {
   const decision = { bytesIn: c.text.length };
   const out = compress(c.text, c.exitCode, c.isDump, c.enumerate, c.relevance, 1, null, true, false, decision, DEPS);
@@ -472,7 +460,7 @@ describe('deliver(): one boundary, one fallback', () => {
 // End to end: the real hook, on the shapes the properties found
 // ---------------------------------------------------------------------------
 
-describe('e2e: main() routes every path through the same boundary', () => {
+describe('e2e: the hook routes every path through the same boundary', () => {
   function runHookIn(name, tempDir, stdinData, env) {
     return spawnSync('node', [path.join(HOOKS_DIR, name)], {
       input: JSON.stringify(stdinData),
