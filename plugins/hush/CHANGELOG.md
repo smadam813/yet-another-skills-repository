@@ -3,6 +3,18 @@
 All notable changes to hush are documented here. The version number lives in
 `.claude-plugin/plugin.json`.
 
+## 1.12.7 — 2026-09-20
+
+The Core transform is now a module. `hooks/lib/transform.js` exports
+`transform(payload, { scratch, turn, settings })`, which returns
+`{ updated, record, context }`: the view or `undefined` for silence, the
+manifest record checked against the three invariants, and the note text
+when this call claims it. The record and the running total go through
+`scratch` before the call returns. Nothing in the module writes to stdout.
+`hooks/compress-tool-output.js` is now an adapter: it gates, reads stdin,
+builds the dependencies, calls the transform, and emits. `readTurn` lives
+in `hooks/lib/harness.js`. Nothing the model sees changed.
+
 ## 1.12.6 — 2026-09-20
 
 The PostToolUse hook now takes session scratch and the turn reader as
