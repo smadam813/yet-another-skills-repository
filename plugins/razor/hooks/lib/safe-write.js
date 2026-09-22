@@ -24,7 +24,7 @@ const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
 
-function safeWriteFileSync(target, content) {
+function safeWriteFileSync(target, content, env = process.env) {
   const dir = path.dirname(target);
   fs.mkdirSync(dir, { recursive: true });
 
@@ -47,8 +47,9 @@ function safeWriteFileSync(target, content) {
       // short 8.3 segment or a junction, and the write dies with it — state
       // that never lands is the plugin silently doing nothing.
       // PLUGIN_DATA (Codex) and CLAUDE_PLUGIN_DATA (Claude Code) are
-      // trusted roots supplied by their respective hook harnesses.
-      const roots = [os.tmpdir(), os.homedir(), process.env.PLUGIN_DATA, process.env.CLAUDE_PLUGIN_DATA]
+      // trusted roots supplied by their respective hook harnesses. They come
+      // from the same env that placed the state dir.
+      const roots = [os.tmpdir(), os.homedir(), env.PLUGIN_DATA, env.CLAUDE_PLUGIN_DATA]
         .filter(Boolean)
         .map((r) => {
           let p = path.win32.resolve(r);

@@ -194,6 +194,21 @@ describe('safeWriteFileSync: the harness state dir is a trusted root', () => {
       restore();
     }
   });
+
+  test('takes the roots from the env the caller passes', () => {
+    const dir = tmpDir();
+    const linked = tmpDir();
+    const restore = linkTo(dir, linked);
+    try {
+      withWin32Roots(null, () => {
+        const env = { CLAUDE_PLUGIN_DATA: path.dirname(linked) };
+        safeWriteFileSync(path.join(dir, 'env.json'), '{"off":true}', env);
+      });
+      assert.strictEqual(fs.readFileSync(path.join(linked, 'env.json'), 'utf-8'), '{"off":true}');
+    } finally {
+      restore();
+    }
+  });
 });
 
 describe('gcStateFiles: abandoned scratch files', () => {

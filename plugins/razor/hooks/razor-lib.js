@@ -88,7 +88,7 @@ function readState(sessionId, env = process.env) {
 
 function writeState(sessionId, state, env = process.env) {
   try {
-    safeWriteFileSync(statePath(sessionId, env), JSON.stringify(state));
+    safeWriteFileSync(statePath(sessionId, env), JSON.stringify(state), env);
   } catch {
     /* best effort — losing state means one extra nudge, not breakage */
   }
