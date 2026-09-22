@@ -6,8 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { runHook, hookOutput, freshSession } = require('./helpers');
-const { parseInstallCommand, parseInstallCommands, check, depKey, packageName, pyprojectDepNames } = require('../hooks/dep-guard');
-const { readState } = require('../hooks/razor-lib');
+const { parseInstallCommand, parseInstallCommands, check, packageName, pyprojectDepNames } = require('../hooks/dep-guard');
 
 // A chained command used to be checkpointed for its first install alone, and
 // the retry that cleared that one carried the rest in unexamined.
@@ -100,12 +99,6 @@ describe('unit: parseInstallCommand', () => {
     });
   }
 
-  test('depKey is order- and case-insensitive', () => {
-    const a = depKey(parseInstallCommand('pip install Flask requests'));
-    const b = depKey(parseInstallCommand('pip install requests flask'));
-    assert.strictEqual(a, b);
-  });
-
   test('packageName strips version specs and extras, keeps npm scopes', () => {
     assert.strictEqual(packageName('axios@^1.8'), 'axios');
     assert.strictEqual(packageName('@scope/pkg@2.0.0'), '@scope/pkg');
@@ -116,28 +109,9 @@ describe('unit: parseInstallCommand', () => {
     assert.strictEqual(packageName('serde'), 'serde');
   });
 
-  test('a versioned spec and the bare name share one decision', () => {
-    assert.strictEqual(
-      depKey(parseInstallCommand('npm i axios@^1.8')),
-      depKey(parseInstallCommand('npm install axios'))
-    );
-    assert.strictEqual(
-      depKey(parseInstallCommand('pip install flask==2.0')),
-      depKey(parseInstallCommand('pip install Flask'))
-    );
-  });
-
-  test('shell quotes come off the token, and separators fold into one identity', () => {
+  test('shell quotes come off the token', () => {
     assert.deepStrictEqual(parseInstallCommand("pip install 'flask>=2.1'").packages, ['flask>=2.1']);
     assert.deepStrictEqual(parseInstallCommand('npm install "axios@^1.9"').packages, ['axios@^1.9']);
-    assert.strictEqual(
-      depKey(parseInstallCommand("pip install 'flask>=2.1'")),
-      depKey(parseInstallCommand('pip install flask'))
-    );
-    assert.strictEqual(
-      depKey(parseInstallCommand('pip install python_dotenv')),
-      depKey(parseInstallCommand('pip install python-dotenv'))
-    );
   });
 });
 
@@ -200,11 +174,10 @@ describe('integration: soft gate', () => {
     assert.strictEqual(hookOutput(runHook('pre-tool-use.js', input(session, 'pip install python-dotenv'))), null);
   });
 
-  test('a versioned install denied once passes on the bare-name retry, ledger key normalized', () => {
+  test('a versioned install denied once passes on the bare-name retry', () => {
     const session = freshSession();
     const first = hookOutput(runHook('pre-tool-use.js', input(session, 'npm i axios@^1.8')));
     assert.strictEqual(first.hookSpecificOutput.permissionDecision, 'deny');
-    assert.strictEqual(readState(session).deniedImports['node:axios'], true);
     assert.strictEqual(hookOutput(runHook('pre-tool-use.js', input(session, 'npm install axios'))), null);
   });
 

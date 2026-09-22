@@ -29,7 +29,8 @@
 const fs = require('fs');
 const path = require('path');
 const { settingOff } = require('./razor-lib');
-const { installedDeps, evidenceReason, ledgerName } = require('./dep-guard');
+const { installedDeps, evidenceReason } = require('./dep-guard');
+const { claim, isDeclared } = require('./reconsideration-ledger');
 
 // Node core modules — importing one is never a new dependency.
 const NODE_BUILTINS = new Set([
@@ -186,44 +187,6 @@ function pyImportRoots(text) {
   return roots;
 }
 
-// A declared dependency name can differ from its import name (python-dotenv
-// -> dotenv, pyyaml -> yaml). Normalize in the SUPPRESSING direction only —
-// over-matching here means one missed nudge, never a false deny.
-// razor: a static alias list for the common odd pairs; full metadata-derived
-// mapping if these ever prove insufficient.
-const KNOWN_IMPORT_NAMES = {
-  pillow: 'pil',
-  beautifulsoup4: 'bs4',
-  'opencv-python': 'cv2',
-  'scikit-learn': 'sklearn',
-  pymupdf: 'fitz',
-  grpcio: 'grpc',
-  protobuf: 'google',
-  dnspython: 'dns',
-  attrs: 'attr',
-};
-
-function declaredNameForms(name) {
-  const n = String(name).toLowerCase();
-  // A wheel-flavour suffix is packaging, not a name: psycopg2-binary and
-  // psycopg2 import identically, and only the flavour reaches the manifest.
-  const forms = new Set([
-    n, n.replace(/-/g, '_'), n.replace(/^python-/, ''), n.replace(/^py/, ''), n.replace(/-binary$/, ''),
-  ]);
-  if (KNOWN_IMPORT_NAMES[n]) forms.add(KNOWN_IMPORT_NAMES[n]);
-  return forms;
-}
-
-function isDeclared(root, deps) {
-  const r = root.toLowerCase();
-  const rUnderscore = r.replace(/-/g, '_');
-  for (const d of deps || []) {
-    const forms = declaredNameForms(d);
-    if (forms.has(r) || forms.has(rUnderscore)) return true;
-  }
-  return false;
-}
-
 // Nearest manifest up-tree for this ecosystem; null when none (greenfield —
 // the gate stays silent without a declared-deps baseline to check against).
 const MANIFESTS = { node: ['package.json'], python: ['pyproject.toml', 'requirements.txt'] };
@@ -308,12 +271,9 @@ function check(data, state) {
   }
   if (!fresh.length) return null;
 
-  state.deniedImports = state.deniedImports || {};
-  const unseen = fresh.filter((r) => !state.deniedImports[`${eco}:${ledgerName(r)}`]);
+  const unseen = claim(state, eco, fresh);
   if (!unseen.length) return null; // all already reconsidered — pass silently
-
-  for (const r of unseen) state.deniedImports[`${eco}:${ledgerName(r)}`] = true;
   return denyReason(data.tool_name, unseen, eco, manifest.name, deps);
 }
 
-module.exports = { check, jsImportRoots, jsTypeImportRoots, pyImportRoots, newImports, isDeclared, isLocalPyModule, isTestFile, ecosystemOf, findManifest };
+module.exports = { check, jsImportRoots, jsTypeImportRoots, pyImportRoots, newImports, isLocalPyModule, isTestFile, ecosystemOf, findManifest };

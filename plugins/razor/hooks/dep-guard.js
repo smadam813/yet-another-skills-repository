@@ -16,6 +16,7 @@
 const fs = require('fs');
 const path = require('path');
 const { settingOff } = require('./razor-lib');
+const { claim } = require('./reconsideration-ledger');
 
 // manager → subcommands that add a named package
 const ADD_SUBCOMMANDS = {
@@ -171,17 +172,6 @@ function packageName(token) {
   const spec = t.search(/[=<>!~[]/);
   const end = Math.min(at === -1 ? t.length : at, spec === -1 ? t.length : spec);
   return t.slice(0, end) || t;
-}
-
-// One ledger identity per dependency: case- and separator-insensitive
-// (pip treats `python-dotenv` and `python_dotenv` as one package; folding
-// on every ecosystem can only suppress a nudge, never falsely deny).
-function ledgerName(name) {
-  return String(name).toLowerCase().replace(/-/g, '_');
-}
-
-function depKey(hit) {
-  return `${hit.manager}:${hit.packages.map((p) => ledgerName(packageName(p))).sort().join(',')}`;
 }
 
 // Manifest-name match in the suppressing direction only (`python_dotenv` ≙
@@ -496,7 +486,8 @@ function denyReason(hit, deps) {
 }
 
 // Ecosystem of a manager, for the reconsideration ledger shared with the
-// manifest and import guards — one nudge per dependency however it enters.
+// manifest and import guards. A manager with no import or manifest gate is
+// its own ecosystem.
 const MANAGER_ECO = {
   npm: 'node', pnpm: 'node', yarn: 'node', bun: 'node',
   pip: 'python', pip3: 'python', pipenv: 'python', poetry: 'python', uv: 'python',
@@ -526,25 +517,14 @@ function checkHit(hit, data, state) {
   // addition — never checkpointed.
   if (deps && names.every((n) => isDeclaredIn(n, deps))) return null;
 
-  const key = depKey(hit);
-  if (state.deniedDeps && state.deniedDeps[key]) return null; // already reconsidered — normal permission flow applies
-  const eco = MANAGER_ECO[hit.manager];
-  if (eco && state.deniedImports
-      && names.every((n) => state.deniedImports[`${eco}:${ledgerName(n)}`])) {
-    return null; // every package already reconsidered via a manifest edit or import
-  }
-
-  state.deniedDeps = state.deniedDeps || {};
-  state.deniedDeps[key] = true;
-  if (eco) {
-    state.deniedImports = state.deniedImports || {};
-    for (const n of names) state.deniedImports[`${eco}:${ledgerName(n)}`] = true;
-  }
+  const eco = MANAGER_ECO[hit.manager] || hit.manager;
+  // Every package already reconsidered, by any gate: the normal permission flow applies.
+  if (!claim(state, eco, names).length) return null;
   return denyReason(hit, deps);
 }
 
 module.exports = {
-  check, parseInstallCommand, parseInstallCommands, depKey, packageName, ledgerName, installedDeps, denyReason, evidenceReason, PROVENANCE, retryContract,
+  check, parseInstallCommand, parseInstallCommands, packageName, installedDeps, denyReason, evidenceReason, PROVENANCE, retryContract,
   // The two readers scripts/unused-deps.js consumes — it reuses them so the
   // audit and the gates can never silently disagree. The other ecosystems'
   // readers stay internal; nothing outside this file has ever called them.

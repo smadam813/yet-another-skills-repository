@@ -30,9 +30,9 @@ const {
   jsImportRoots,
   jsTypeImportRoots,
   pyImportRoots,
-  isDeclared,
   ecosystemOf,
 } = require('../hooks/import-guard');
+const { isDeclared } = require('../hooks/reconsideration-ledger');
 
 const MANIFEST_NAME = { node: 'package.json', python: 'requirements.txt / pyproject.toml' };
 
