@@ -44,7 +44,7 @@ Single-context: one `CONTEXT.md` and one `docs/adr/` at the repo root. See `docs
 
 A plugin marketplace of agent skills. Claude Code and Cursor both install the skills from the same directories.
 
-Most of the content is Markdown. The repo has no `package.json`. The marketplace checker and the hook code in the vendored plugins are the only programs in it.
+Most of the content is Markdown. The repo has no `package.json`. The marketplace checker and the hook code in hush and razor are the only programs in it.
 
 ## Validate
 
@@ -56,7 +56,7 @@ The checker runs on plain Node and needs no dependencies. `.github/workflows/val
 
 Lint Markdown with `npx markdownlint-cli2` (rules in `.markdownlint.jsonc`). CI runs it as the `lint` job, which advises and does not gate the merge.
 
-Run a vendored plugin's tests from its directory after you change its hooks:
+Run a plugin's tests from its directory after you change its hooks:
 
 ```
 node --test tests/*.test.js
@@ -91,18 +91,9 @@ Bump a plugin's version in the same PR that changes its skills, as a separate co
 - Link the skill from `plugins/<plugin>/README.md` in alphabetical order. Nothing generates that index, and the checker errors on a skill directory the README does not link.
 - Put supporting material beside the SKILL.md: `references/` for Markdown that a pointer reaches, `scripts/` for templates the skill copies.
 
-## Vendored plugins
+## Forked plugins
 
-`plugins/razor` is a copy of an upstream plugin. Its README names the upstream repo, the commit it was copied from, and every change this repo made. The skills, hooks, manifests, and version stay as upstream wrote them, apart from the listed changes. Repo conventions apply only to the files this repo adds: the README, the Cursor manifest, and the marketplace entries. A skill body still loses its opening H1, because the checker rejects it.
-
-`plugins/hush` began as a vendored copy and is now this repo's own plugin. See `docs/adr/0001-fork-hush.md`. Repo conventions apply to all of its files.
-
-To pull a newer release:
-
-1. Clone the upstream repo at the release tag.
-2. Copy the tracked files over the plugin directory.
-3. Reapply the changes the README lists, and update the commit it names.
-4. Run the tests and the checker.
+`plugins/hush` and `plugins/razor` began as vendored copies and are now this repo's own plugins. See `docs/adr/0001-fork-hush.md` and `docs/adr/0002-fork-razor.md`. Repo conventions apply to all of their files. Each README names the upstream repo and the fork point. Port an upstream fix by hand when it matters.
 
 ## Invocation choice
 

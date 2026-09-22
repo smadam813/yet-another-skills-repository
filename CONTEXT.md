@@ -33,3 +33,25 @@ _Avoid_: feature set, mode, half
 **Exit trailer**:
 The `[[hush:exit=N]]` text the shell wrapper appends to a command's output so the real exit code survives a forced zero exit. hush strips it before the model sees the output.
 _Avoid_: exit marker, marker, wrapper marker
+
+### razor
+
+**Gate**:
+One of the four checks razor runs before a Bash, PowerShell, Edit, or Write call: the dep guard, the manifest guard, the import guard, and the file meter.
+_Avoid_: guard (for the role), check, hook
+
+**Nudge**:
+The one deny a gate gives before it lets the retry through.
+_Avoid_: block, denial, checkpoint
+
+**Reconsideration ledger**:
+The record of the dependencies that already got a nudge. The dep guard, the manifest guard, and the import guard share it.
+_Avoid_: ledger (alone), deny ledger, denied set
+
+**Build ledger**:
+The Stop check that asks one question per session when the session adds a lot of code with almost no deletions, or adds many new files.
+_Avoid_: ledger (alone)
+
+**Baseline**:
+The git line counts the build ledger takes at session start. It measures later work against them.
+_Avoid_: snapshot, ledger
