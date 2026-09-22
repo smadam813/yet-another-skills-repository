@@ -7,9 +7,12 @@ both plugin manifests, `.claude-plugin/plugin.json` and
 ## 1.6.1 — 2026-09-22
 
 A dependency now gets one nudge, whether it arrives as an install, a manifest
-edit, or an import, even when its install name and its import name differ. `pip install pyyaml` followed by `import yaml`, or a
-manifest edit that adds `pillow` followed by `import PIL`, no longer nudges
-twice.
+edit, or an import, even when its install name and its import name differ.
+`pip install pyyaml` followed by `import yaml`, or a manifest edit that adds
+`pillow` followed by `import PIL`, no longer nudges twice.
+
+The dep guard now nudges once per package, not once per command. After
+`cargo add serde tokio`, a later `cargo add serde` passes.
 
 ## 1.6.0 — 2026-09-15
 
