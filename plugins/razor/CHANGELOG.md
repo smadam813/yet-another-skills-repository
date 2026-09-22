@@ -4,6 +4,13 @@ All notable changes to razor are documented here. The version number lives in
 both plugin manifests, `.claude-plugin/plugin.json` and
 `.codex-plugin/plugin.json`.
 
+## 1.6.2 — 2026-09-22
+
+cargo, go, composer, gem, and dotnet now share the reconsideration ledger
+with the other package managers. Each one files its records under an
+ecosystem, as npm and pip already do. A session that started before this
+update loses its records, so it can get one extra nudge.
+
 ## 1.6.1 — 2026-09-22
 
 A dependency now gets one nudge, whether it arrives as an install, a manifest

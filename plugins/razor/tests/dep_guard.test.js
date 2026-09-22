@@ -6,7 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { runHook, hookOutput, freshSession } = require('./helpers');
-const { parseInstallCommand, parseInstallCommands, check, packageName, pyprojectDepNames } = require('../hooks/dep-guard');
+const { parseInstallCommand, parseInstallCommands, check, packageName, pyprojectDepNames, ADD_SUBCOMMANDS, MANAGER_ECO } = require('../hooks/dep-guard');
 
 // A chained command used to be checkpointed for its first install alone, and
 // the retry that cleared that one carried the rest in unexamined.
@@ -28,6 +28,39 @@ describe('unit: every install on the line', () => {
     assert.match(check(data, state), /axios/);
     assert.match(check(data, state), /lodash/);
     assert.strictEqual(check(data, state), null);
+  });
+});
+
+// The ledger files each record under an ecosystem and a name, so every
+// manager needs an ecosystem.
+describe('unit: one ledger record for every manager', () => {
+  const run = (command, state) => check({ tool_name: 'Bash', cwd: os.tmpdir(), tool_input: { command } }, state);
+  const ONE_PER_MANAGER = [
+    ...Object.keys(ADD_SUBCOMMANDS).map((m) => `${m} ${ADD_SUBCOMMANDS[m][0]} a`),
+    'dotnet add package a',
+  ];
+
+  test('every manager the dep guard recognizes maps to an ecosystem', () => {
+    for (const command of ONE_PER_MANAGER) {
+      const { manager } = parseInstallCommand(command);
+      assert.ok(MANAGER_ECO[manager], `${manager} has no ecosystem`);
+    }
+  });
+
+  test('cargo add a b, then cargo add a, gives one nudge', () => {
+    const state = {};
+    assert.match(run('cargo add a b', state), /razor:/);
+    assert.strictEqual(run('cargo add a', state), null);
+  });
+
+  test('session state holds one ledger record for each ecosystem', () => {
+    const state = {};
+    for (const command of ONE_PER_MANAGER) run(command, state);
+    assert.deepStrictEqual(Object.keys(state), ['reconsidered']);
+    assert.deepStrictEqual(
+      Object.keys(state.reconsidered).sort(),
+      [...new Set(Object.values(MANAGER_ECO))].sort()
+    );
   });
 });
 

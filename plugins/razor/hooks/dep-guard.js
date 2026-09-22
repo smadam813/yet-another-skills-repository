@@ -486,11 +486,12 @@ function denyReason(hit, deps) {
 }
 
 // Ecosystem of a manager, for the reconsideration ledger shared with the
-// manifest and import guards. A manager with no import or manifest gate is
-// its own ecosystem.
+// manifest and import guards. Every manager needs one, because the ledger
+// files each record under an ecosystem and a name.
 const MANAGER_ECO = {
   npm: 'node', pnpm: 'node', yarn: 'node', bun: 'node',
   pip: 'python', pip3: 'python', pipenv: 'python', poetry: 'python', uv: 'python',
+  cargo: 'rust', go: 'go', composer: 'php', gem: 'ruby', dotnet: 'dotnet',
 };
 
 // Dispatcher entry: mutates gate state, returns the deny reason or null.
@@ -518,13 +519,13 @@ function checkHit(hit, data, state) {
   if (deps && names.every((n) => isDeclaredIn(n, deps))) return null;
 
   // When another gate already nudged every package, the normal permission flow applies.
-  const owed = claim(state, MANAGER_ECO[hit.manager] || hit.manager, names);
+  const owed = claim(state, MANAGER_ECO[hit.manager], names);
   if (!owed.length) return null;
   return denyReason({ ...hit, packages: owed }, deps);
 }
 
 module.exports = {
-  check, parseInstallCommand, parseInstallCommands, packageName, installedDeps, denyReason, evidenceReason, PROVENANCE, retryContract,
+  check, parseInstallCommand, parseInstallCommands, packageName, installedDeps, denyReason, evidenceReason, PROVENANCE, retryContract, ADD_SUBCOMMANDS, MANAGER_ECO,
   // The two readers scripts/unused-deps.js consumes — it reuses them so the
   // audit and the gates can never silently disagree. The other ecosystems'
   // readers stay internal; nothing outside this file has ever called them.
