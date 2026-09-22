@@ -2,7 +2,7 @@
 
 All notable changes to razor are documented here. The version number lives in
 both plugin manifests, `.claude-plugin/plugin.json` and
-`.codex-plugin/plugin.json`.
+`.cursor-plugin/plugin.json`.
 
 ## 1.6.3 — 2026-09-22
 
