@@ -241,8 +241,8 @@ function denyReason(tool, roots, eco, manifestName, deps) {
 }
 
 // Dispatcher entry: mutates gate state, returns the deny reason or null.
-function check(data, state) {
-  if (settingOff('IMPORT_GUARD')) return null;
+function check(data, state, { env }) {
+  if (settingOff('IMPORT_GUARD', env)) return null;
   if (data.tool_name !== 'Write' && data.tool_name !== 'Edit') return null;
 
   const input = data.tool_input || {};

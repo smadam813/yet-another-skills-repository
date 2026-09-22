@@ -49,6 +49,19 @@ function freshSession() {
   return `razor-test-${process.pid}-${unique}-${++counter}`;
 }
 
+/**
+ * In-memory gate state for the dispatcher's run(). Each read returns a copy,
+ * as the file store does, so a test sees only what run() wrote back.
+ */
+function mapStore() {
+  const map = new Map();
+  return {
+    map,
+    read: (id) => structuredClone(map.get(id) || {}),
+    write: (id, state) => map.set(id, structuredClone(state)),
+  };
+}
+
 /** Minimal transcript containing one real user prompt with the given uuid. */
 function writeTranscript(uuid) {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'razor-t-')), 't.jsonl');
@@ -61,4 +74,4 @@ function writeTranscript(uuid) {
   return file;
 }
 
-module.exports = { runHook, hookOutput, freshSession, writeTranscript, HOOKS_DIR };
+module.exports = { runHook, hookOutput, freshSession, mapStore, writeTranscript, HOOKS_DIR };

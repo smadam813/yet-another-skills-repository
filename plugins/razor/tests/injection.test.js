@@ -153,6 +153,18 @@ describe('integration: injection lifecycle', () => {
   });
 });
 
+describe('RAZOR_DISABLE silences every hook, not just the gates', () => {
+  test('mode-toggle emits nothing for "/razor on" under the kill switch', () => {
+    const r = runHook('mode-toggle.js', { session_id: freshSession(), prompt: '/razor on' }, { RAZOR_DISABLE: '1' });
+    assert.strictEqual(r.stdout.trim(), '');
+  });
+
+  test('mode-toggle still answers "/razor on" without the kill switch', () => {
+    const r = runHook('mode-toggle.js', { session_id: freshSession(), prompt: '/razor on' }, { RAZOR_DISABLE: '' });
+    assert.match(r.stdout, /RAZOR ACTIVE/);
+  });
+});
+
 // The ladder is frozen by owner decision and the published benchmark numbers
 // are tied to its exact text, but nothing detected a change to it: the only
 // assertion compared the emitted string to the same constant it came from.
