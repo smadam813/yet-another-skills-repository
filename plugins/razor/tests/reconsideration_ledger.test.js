@@ -15,7 +15,7 @@ describe('unit: claim', () => {
     assert.deepStrictEqual(claim(state, 'node', ['axios']), []);
   });
 
-  test('an empty result means every name was already claimed', () => {
+  test('an empty result means the ledger holds every name', () => {
     const state = {};
     claim(state, 'python', ['flask', 'requests']);
     assert.deepStrictEqual(claim(state, 'python', ['requests', 'flask']), []);
@@ -117,6 +117,14 @@ describe('integration: one nudge per dependency across gates, through an alias',
     assert.ok(denied(runHook('pre-tool-use.js', edit)));
     const code = input(session, 'Write', { file_path: path.join(ws, 'img.py'), content: 'from PIL import Image\n' });
     assert.strictEqual(hookOutput(runHook('pre-tool-use.js', code)), null);
+  });
+
+  test('the deny names only the packages that still owe a nudge', () => {
+    const session = freshSession();
+    runHook('pre-tool-use.js', input(session, 'Bash', { command: 'npm install axios' }));
+    const reason = hookOutput(runHook('pre-tool-use.js', input(session, 'Bash', { command: 'npm install axios dayjs' })))
+      .hookSpecificOutput.permissionDecisionReason;
+    assert.match(reason, /'dayjs' adds/);
   });
 
   test('a cargo install nudges once per crate, not once per command line', () => {

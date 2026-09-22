@@ -6,8 +6,8 @@ both plugin manifests, `.claude-plugin/plugin.json` and
 
 ## 1.6.1 — 2026-09-22
 
-A dependency now gets one nudge however it enters, also when its install name
-and its import name differ. `pip install pyyaml` followed by `import yaml`, or a
+A dependency now gets one nudge, whether it arrives as an install, a manifest
+edit, or an import, even when its install name and its import name differ. `pip install pyyaml` followed by `import yaml`, or a
 manifest edit that adds `pillow` followed by `import PIL`, no longer nudges
 twice.
 

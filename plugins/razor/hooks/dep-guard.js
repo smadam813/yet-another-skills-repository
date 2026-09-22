@@ -517,10 +517,10 @@ function checkHit(hit, data, state) {
   // addition — never checkpointed.
   if (deps && names.every((n) => isDeclaredIn(n, deps))) return null;
 
-  const eco = MANAGER_ECO[hit.manager] || hit.manager;
-  // Every package already reconsidered, by any gate: the normal permission flow applies.
-  if (!claim(state, eco, names).length) return null;
-  return denyReason(hit, deps);
+  // When another gate already nudged every package, the normal permission flow applies.
+  const owed = claim(state, MANAGER_ECO[hit.manager] || hit.manager, names);
+  if (!owed.length) return null;
+  return denyReason({ ...hit, packages: owed }, deps);
 }
 
 module.exports = {

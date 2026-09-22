@@ -1,20 +1,20 @@
 'use strict';
 
 // The reconsideration ledger: the record of the dependencies that already got
-// a nudge, shared by the dep, manifest, and import guards. One nudge per
-// dependency however it enters — `pip install pyyaml` and `import yaml` are
-// one dependency, so the second one passes.
+// a nudge. The dep, manifest, and import guards share it. A dependency gets one
+// nudge, whether it arrives as an install, a manifest edit, or an import:
+// `pip install pyyaml` and `import yaml` are one dependency.
 //
 // This module also owns the identity rule. Two names are one dependency when
-// the rule that decides "declared" links them, so the import guard's declared
-// check and the ledger can never disagree. The rule matches in the
+// the rule that decides "declared" links them. So the import guard's declared
+// check and the reconsideration ledger always agree. The rule matches in the
 // SUPPRESSING direction only: over-matching costs one missed nudge, never a
 // false deny.
 
 // A declared dependency name can differ from its import name (python-dotenv
 // -> dotenv, pyyaml -> yaml).
 // razor: a static alias list for the common odd pairs; full metadata-derived
-// mapping if these ever prove insufficient.
+// mapping if these ever prove too few.
 const KNOWN_IMPORT_NAMES = {
   pillow: 'pil',
   beautifulsoup4: 'bs4',
@@ -52,8 +52,8 @@ function sameDependency(a, b) {
   return isDeclared(a, [b]) || isDeclared(b, [a]);
 }
 
-// The names that still owe a nudge in this ecosystem, marked as claimed in the
-// same call. An empty result means pass.
+// Returns the names that still owe a nudge in this ecosystem, and claims them
+// in the same call. An empty result means pass.
 function claim(state, eco, names) {
   state.reconsidered = state.reconsidered || {};
   const seen = (state.reconsidered[eco] = state.reconsidered[eco] || []);
