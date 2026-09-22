@@ -4,6 +4,13 @@ All notable changes to razor are documented here. The version number lives in
 both plugin manifests, `.claude-plugin/plugin.json` and
 `.codex-plugin/plugin.json`.
 
+## 1.6.2 — 2026-09-22
+
+The dep guard now keeps one record per dependency for every package manager,
+including cargo, go, composer, gem, and dotnet. After `cargo add a b`, a later
+`cargo add a` passes. A session that started before this update loses its
+marks, so it can get one extra nudge.
+
 ## 1.6.1 — 2026-09-22
 
 A dependency now gets one nudge, whether it arrives as an install, a manifest

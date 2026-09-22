@@ -6,7 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { runHook, hookOutput, freshSession } = require('./helpers');
-const { parseInstallCommand, parseInstallCommands, check, packageName, pyprojectDepNames } = require('../hooks/dep-guard');
+const { parseInstallCommand, parseInstallCommands, check, packageName, pyprojectDepNames, MANAGER_ECO } = require('../hooks/dep-guard');
 
 // A chained command used to be checkpointed for its first install alone, and
 // the retry that cleared that one carried the rest in unexamined.
@@ -28,6 +28,43 @@ describe('unit: every install on the line', () => {
     assert.match(check(data, state), /axios/);
     assert.match(check(data, state), /lodash/);
     assert.strictEqual(check(data, state), null);
+  });
+});
+
+// A manager with no ecosystem used to get a second record, keyed by the
+// manager and the whole package set, so `cargo add a` after `cargo add a b`
+// nudged again.
+describe('unit: one ledger record for every manager', () => {
+  const ONE_PER_MANAGER = [
+    'npm i a', 'pnpm add a', 'yarn add a', 'bun add a',
+    'pip install a', 'pip3 install a', 'pipenv install a', 'poetry add a', 'uv add a',
+    'cargo add a', 'go get a', 'composer require a', 'gem install a', 'dotnet add package a',
+  ];
+
+  test('every manager the dep guard recognizes maps to an ecosystem', () => {
+    for (const command of ONE_PER_MANAGER) {
+      const { manager } = parseInstallCommand(command);
+      assert.ok(MANAGER_ECO[manager], `${manager} has no ecosystem`);
+    }
+  });
+
+  test('cargo add a b, then cargo add a, gives one nudge in total', () => {
+    const state = {};
+    const data = (command) => ({ tool_name: 'Bash', cwd: os.tmpdir(), tool_input: { command } });
+    assert.match(check(data('cargo add a b'), state), /razor:/);
+    assert.strictEqual(check(data('cargo add a'), state), null);
+  });
+
+  test('session state holds one deny-once record, keyed by ecosystem', () => {
+    const state = {};
+    for (const command of ONE_PER_MANAGER) {
+      check({ tool_name: 'Bash', cwd: os.tmpdir(), tool_input: { command } }, state);
+    }
+    assert.deepStrictEqual(Object.keys(state), ['reconsidered']);
+    assert.deepStrictEqual(
+      Object.keys(state.reconsidered).sort(),
+      [...new Set(Object.values(MANAGER_ECO))].sort()
+    );
   });
 });
 
