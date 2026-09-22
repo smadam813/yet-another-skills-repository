@@ -26,7 +26,8 @@
 const fs = require('fs');
 const path = require('path');
 const { settingOff } = require('./razor-lib');
-const { installedDeps, evidenceReason, ledgerName, pyprojectDepNames } = require('./dep-guard');
+const { installedDeps, evidenceReason, pyprojectDepNames } = require('./dep-guard');
+const { claim } = require('./reconsideration-ledger');
 
 // null = unparseable (caller stays silent), Set otherwise.
 // The same four sections readNodeDeps counts, and for the same reason: if the
@@ -115,10 +116,8 @@ function check(data, state) {
   const fresh = [...after].filter((n) => !before.has(n)).sort();
   if (!fresh.length) return null;
 
-  state.deniedImports = state.deniedImports || {};
-  const unseen = fresh.filter((n) => !state.deniedImports[`${spec.eco}:${ledgerName(n)}`]);
+  const unseen = claim(state, spec.eco, fresh);
   if (!unseen.length) return null; // all already reconsidered — pass silently
-  for (const n of unseen) state.deniedImports[`${spec.eco}:${ledgerName(n)}`] = true;
 
   const deps = installedDeps(spec.manager, path.dirname(path.resolve(filePath)));
   return denyReason(data.tool_name, unseen, spec.eco, path.basename(filePath), deps);

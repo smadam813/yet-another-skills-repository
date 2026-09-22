@@ -7,7 +7,7 @@ const os = require('os');
 const path = require('path');
 const { runHook, hookOutput, freshSession } = require('./helpers');
 const {
-  jsImportRoots, pyImportRoots, newImports, isDeclared, isTestFile, ecosystemOf, findManifest,
+  jsImportRoots, pyImportRoots, newImports, isTestFile, ecosystemOf, findManifest,
 } = require('../hooks/import-guard');
 
 describe('unit: jsImportRoots', () => {
@@ -112,28 +112,6 @@ describe('unit: pyImportRoots', () => {
 });
 
 describe('unit: classification helpers', () => {
-  test('isDeclared normalizes name/import mismatches in the suppressing direction', () => {
-    assert.strictEqual(isDeclared('dotenv', ['python-dotenv']), true);
-    assert.strictEqual(isDeclared('yaml', ['pyyaml']), true);
-    assert.strictEqual(isDeclared('PIL', ['pillow']), true);
-    assert.strictEqual(isDeclared('bs4', ['beautifulsoup4']), true);
-    assert.strictEqual(isDeclared('cv2', ['opencv-python']), true);
-    assert.strictEqual(isDeclared('sklearn', ['scikit-learn']), true);
-    assert.strictEqual(isDeclared('fitz', ['pymupdf']), true);
-    assert.strictEqual(isDeclared('grpc', ['grpcio']), true);
-    assert.strictEqual(isDeclared('google', ['protobuf']), true);
-    assert.strictEqual(isDeclared('dns', ['dnspython']), true);
-    assert.strictEqual(isDeclared('attr', ['attrs']), true);
-    assert.strictEqual(isDeclared('axios', ['express', 'lodash']), false);
-    assert.strictEqual(isDeclared('lodash', ['express', 'lodash']), true);
-  });
-
-  // A wheel flavour is packaging, not a name: only the flavour ever reaches
-  // the manifest, and the import is always the plain one.
-  test('isDeclared sees through a -binary wheel flavour', () => {
-    assert.strictEqual(isDeclared('psycopg2', ['psycopg2-binary']), true);
-  });
-
   test('newImports counts only roots absent from both manifest and existing content', () => {
     const existing = "const axios = require('axios');";
     const incoming = "const axios = require('axios');\nconst dayjs = require('dayjs');\nconst _ = require('lodash');";

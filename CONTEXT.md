@@ -45,7 +45,7 @@ The one deny a gate gives before it lets the retry through.
 _Avoid_: block, denial, checkpoint
 
 **Reconsideration ledger**:
-The record of the dependencies that already got a nudge. The dep guard, the manifest guard, and the import guard share it.
+The record of the dependencies that already got a nudge. The dep guard, the manifest guard, and the import guard share it. It also decides when two names, such as `pyyaml` and `yaml`, are one dependency.
 _Avoid_: ledger (alone), deny ledger, denied set
 
 **Build ledger**:
