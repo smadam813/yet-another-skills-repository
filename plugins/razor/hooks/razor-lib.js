@@ -94,7 +94,7 @@ function writeState(sessionId, state, env = process.env) {
   }
 }
 
-// The PreToolUse dispatcher's run() reads and writes the state files through this store.
+// The state files, as the store the PreToolUse dispatcher's run() takes.
 function fileStore(env = process.env) {
   return {
     read: (id) => readState(id, env),

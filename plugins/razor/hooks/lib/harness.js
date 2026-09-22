@@ -65,8 +65,7 @@ function emitDeny(event, reason) {
 
 // Settings resolve in order: explicit RAZOR_* env var, then the plugin
 // option set at enable time (CLAUDE_PLUGIN_OPTION_*, uppercased by the
-// host), then the built-in default. Each read looks the name up in the env
-// the caller passes, or in process.env.
+// host), then the built-in default.
 function settingOff(name, env = process.env) {
   const explicit = env[`RAZOR_${name}`];
   if (explicit !== undefined && explicit !== '') return explicit === 'off';
