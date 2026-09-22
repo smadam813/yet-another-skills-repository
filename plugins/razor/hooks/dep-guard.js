@@ -486,8 +486,8 @@ function denyReason(hit, deps) {
 }
 
 // Ecosystem of a manager, for the reconsideration ledger shared with the
-// manifest and import guards. Every manager needs one: the ledger keys each
-// record by ecosystem and name.
+// manifest and import guards. Every manager needs one, because the ledger
+// files each record under an ecosystem and a name.
 const MANAGER_ECO = {
   npm: 'node', pnpm: 'node', yarn: 'node', bun: 'node',
   pip: 'python', pip3: 'python', pipenv: 'python', poetry: 'python', uv: 'python',
@@ -525,7 +525,7 @@ function checkHit(hit, data, state) {
 }
 
 module.exports = {
-  check, parseInstallCommand, parseInstallCommands, packageName, installedDeps, denyReason, evidenceReason, PROVENANCE, retryContract, MANAGER_ECO,
+  check, parseInstallCommand, parseInstallCommands, packageName, installedDeps, denyReason, evidenceReason, PROVENANCE, retryContract, ADD_SUBCOMMANDS, MANAGER_ECO,
   // The two readers scripts/unused-deps.js consumes — it reuses them so the
   // audit and the gates can never silently disagree. The other ecosystems'
   // readers stay internal; nothing outside this file has ever called them.

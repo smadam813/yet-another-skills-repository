@@ -6,10 +6,10 @@ both plugin manifests, `.claude-plugin/plugin.json` and
 
 ## 1.6.2 — 2026-09-22
 
-The dep guard now keeps one record per dependency for every package manager,
-including cargo, go, composer, gem, and dotnet. After `cargo add a b`, a later
-`cargo add a` passes. A session that started before this update loses its
-marks, so it can get one extra nudge.
+cargo, go, composer, gem, and dotnet now share the reconsideration ledger
+with the other package managers. Each one files its records under an
+ecosystem, as npm and pip already do. A session that started before this
+update loses its records, so it can get one extra nudge.
 
 ## 1.6.1 — 2026-09-22
 
