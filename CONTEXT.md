@@ -41,15 +41,15 @@ One of the four checks razor runs before a Bash, PowerShell, Edit, or Write call
 _Avoid_: guard (for the role), check, hook
 
 **Nudge**:
-The one deny a gate or the build ledger gives before it lets the retry through.
+The one deny a gate gives before it lets the retry through.
 _Avoid_: block, denial, checkpoint
 
 **Reconsideration ledger**:
-The record of the dependencies that already got a nudge. A dependency gets one nudge however it enters: an install, a manifest edit, or an import.
+The record of the dependencies that already got a nudge. The dep guard, the manifest guard, and the import guard share it.
 _Avoid_: ledger (alone), deny ledger, denied set
 
 **Build ledger**:
-The Stop check that asks once per session when the session adds a lot of code with almost no deletions.
+The Stop check that asks one question per session when the session adds a lot of code with almost no deletions, or adds many new files.
 _Avoid_: ledger (alone)
 
 **Baseline**:
