@@ -3,9 +3,9 @@
 
 // PreToolUse — single entry point for every razor gate.
 //
-// One state read and write per tool call, with the gates applied in order
-// against the same state object: dep guard, manifest guard, import guard,
-// file meter.
+// Each tool call reads the state once and writes it once. The gates run in
+// order against the same state object: dep guard, manifest guard, import
+// guard, file meter.
 //
 // Gate state is per subagent (see gateStateId): a subagent's searches and
 // writes never spend the main thread's budgets, and vice versa. The /razor
@@ -22,12 +22,13 @@ const GATES = [
 ];
 
 // Runs every gate against one PreToolUse call and returns the deny reason,
-// or null to pass. A call gets at most one deny: the first reason found wins
-// (most specific first). Every gate still records its own nudge in the state
-// even when an earlier gate already denied, so the retry passes all of them.
+// or null to pass. A call gets at most one deny: run returns the first
+// reason, and the most specific gate runs first. Every gate still records its
+// own nudge in the state even when an earlier gate already denied, so the
+// retry passes all of them.
 //
-// Every setting comes from `env`. `store` has read(id) and write(id, state),
-// and `tmpDir` is the temp directory the file meter exempts.
+// Every setting comes from `env`. `store` has read(id) and write(id, state).
+// The file meter exempts writes under `tmpDir`.
 function run(data, { env, store, tmpDir }) {
   const sessionState = store.read(data.session_id);
   if (!isActive(sessionState, env)) return null;

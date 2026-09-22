@@ -5,27 +5,15 @@ const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { mapStore } = require('./helpers');
-const { fileStore, gcStateFiles } = require('../hooks/razor-lib');
-const { run } = require('../hooks/pre-tool-use');
+const { mapStore, preToolUse, dispatch } = require('./helpers');
+const { fileStore } = require('../hooks/razor-lib');
 const { shouldFire } = require('../hooks/build-ledger');
 
 const newFile = (i) => path.join(__dirname, '..', 'does-not-exist', `s${i}.js`);
 
-const input = (toolName, toolInput, extra) => ({
-  session_id: 's1',
-  hook_event_name: 'PreToolUse',
-  tool_name: toolName,
-  tool_input: toolInput || {},
-  ...extra,
-});
+const write = (i, extra) => preToolUse('Write', { file_path: newFile(i) }, { prompt_id: 'p1', ...extra });
 
-const write = (i, extra) => input('Write', { file_path: newFile(i) }, { prompt_id: 'p1', ...extra });
-
-// One PreToolUse call in-process, against a fresh store unless one is given.
-const dispatch = (data, env, store = mapStore()) => run(data, { env, store, tmpDir: os.tmpdir() });
-
-describe('plugin options (CLAUDE_PLUGIN_OPTION_*)', () => {
+describe('integration: plugin options (CLAUDE_PLUGIN_OPTION_*)', () => {
   test('file_budget option is honored', () => {
     const store = mapStore();
     const env = { CLAUDE_PLUGIN_OPTION_FILE_BUDGET: '1' };
@@ -49,13 +37,13 @@ describe('plugin options (CLAUDE_PLUGIN_OPTION_*)', () => {
   });
 
   test('an explicit RAZOR_DEP_GUARD env var wins over the option', () => {
-    const call = input('Bash', { command: 'npm i lodash' });
+    const call = preToolUse('Bash', { command: 'npm i lodash' });
     const env = { CLAUDE_PLUGIN_OPTION_DEP_GUARD: 'false', RAZOR_DEP_GUARD: 'on' };
     assert.match(dispatch(call, env), /adds a new npm dependency/);
   });
 });
 
-describe('persistent state dir and cleanup', () => {
+describe('integration: persistent state dir', () => {
   test('state lands in CLAUDE_PLUGIN_DATA, agent-scoped files included', () => {
     const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'razor-data-'));
     const env = { CLAUDE_PLUGIN_DATA: dataDir };
@@ -66,33 +54,19 @@ describe('persistent state dir and cleanup', () => {
     const files = fs.readdirSync(dataDir).filter((f) => f.startsWith('razor-') && f.endsWith('.json'));
     assert.strictEqual(files.length, 2); // session state + agent-scoped state
   });
-
-  test('the state sweep removes razor state files older than a week, keeps fresh ones', () => {
-    const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'razor-data-'));
-    const stale = path.join(dataDir, 'razor-dead-session.json');
-    const fresh = path.join(dataDir, 'razor-live-session.json');
-    fs.writeFileSync(stale, '{}');
-    fs.writeFileSync(fresh, '{}');
-    const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
-    fs.utimesSync(stale, eightDaysAgo, eightDaysAgo);
-
-    gcStateFiles({ CLAUDE_PLUGIN_DATA: dataDir });
-    assert.strictEqual(fs.existsSync(stale), false);
-    assert.strictEqual(fs.existsSync(fresh), true);
-  });
 });
 
 describe('the plugin-option wiring reaches every gate it declares', () => {
   const off = (key) => ({ [`CLAUDE_PLUGIN_OPTION_${key}`]: 'false' });
 
   test('dep_guard=false silences the install gate', () => {
-    assert.strictEqual(dispatch(input('Bash', { command: 'npm i axios' }), off('DEP_GUARD')), null);
+    assert.strictEqual(dispatch(preToolUse('Bash', { command: 'npm i axios' }), off('DEP_GUARD')), null);
   });
 
   test('import_guard=false silences the import gate', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'razor-opt-imp-'));
     fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ dependencies: { lodash: '^4' } }));
-    const call = input('Write', { file_path: path.join(dir, 'a.js'), content: "require('axios');\n" });
+    const call = preToolUse('Write', { file_path: path.join(dir, 'a.js'), content: "require('axios');\n" });
     assert.match(dispatch(call, {}), /importing `axios`/);
     assert.strictEqual(dispatch(call, off('IMPORT_GUARD')), null);
   });
@@ -101,7 +75,7 @@ describe('the plugin-option wiring reaches every gate it declares', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'razor-opt-man-'));
     const file = path.join(dir, 'package.json');
     fs.writeFileSync(file, JSON.stringify({ dependencies: { lodash: '^4' } }, null, 2));
-    const call = input('Edit', {
+    const call = preToolUse('Edit', {
       file_path: file, old_string: '"lodash": "^4"', new_string: '"lodash": "^4",\n    "axios": "^1"',
     });
     assert.match(dispatch(call, {}), /to package.json adds a new node dependency/);

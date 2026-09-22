@@ -6,9 +6,9 @@ both plugin manifests, `.claude-plugin/plugin.json` and
 
 ## 1.6.3 — 2026-09-22
 
-No change in behavior. The PreToolUse gates now read every setting on each
-call, not once when the hook loads, so the tests can run them without
-starting a new process.
+razor behaves as before. The PreToolUse gates now read every setting on each
+call, not once when the hook loads. The tests can now run the gates without
+a new process.
 
 ## 1.6.2 — 2026-09-22
 

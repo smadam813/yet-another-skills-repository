@@ -65,17 +65,17 @@ function emitDeny(event, reason) {
 
 // Settings resolve in order: explicit RAZOR_* env var, then the plugin
 // option set at enable time (CLAUDE_PLUGIN_OPTION_*, uppercased by the
-// host), then the built-in default. Each read takes the environment it
-// resolves against, so a caller can pass its own.
+// host), then the built-in default. Each read looks the name up in the env
+// the caller passes, or in process.env.
 function settingOff(name, env = process.env) {
-  const own = env[`RAZOR_${name}`];
-  if (own !== undefined && own !== '') return own === 'off';
+  const explicit = env[`RAZOR_${name}`];
+  if (explicit !== undefined && explicit !== '') return explicit === 'off';
   return env[`CLAUDE_PLUGIN_OPTION_${name}`] === 'false';
 }
 
 function settingNumber(name, fallback, env = process.env) {
-  const own = env[`RAZOR_${name}`];
-  const raw = own !== undefined && own !== '' ? own : env[`CLAUDE_PLUGIN_OPTION_${name}`];
+  const explicit = env[`RAZOR_${name}`];
+  const raw = explicit !== undefined && explicit !== '' ? explicit : env[`CLAUDE_PLUGIN_OPTION_${name}`];
   const n = parseInt(raw ?? '', 10);
   return Number.isFinite(n) ? n : fallback;
 }
@@ -84,8 +84,8 @@ function settingNumber(name, fallback, env = process.env) {
 // default — the difference between "the operator chose this ceiling" and
 // "razor picked one".
 function settingGiven(name, env = process.env) {
-  const own = env[`RAZOR_${name}`];
-  if (own !== undefined && own !== '') return true;
+  const explicit = env[`RAZOR_${name}`];
+  if (explicit !== undefined && explicit !== '') return true;
   const opt = env[`CLAUDE_PLUGIN_OPTION_${name}`];
   return opt !== undefined && opt !== '';
 }

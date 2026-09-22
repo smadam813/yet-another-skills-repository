@@ -4,6 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { run } = require('../hooks/pre-tool-use');
 
 const HOOKS_DIR = path.join(__dirname, '..', 'hooks');
 
@@ -50,8 +51,8 @@ function freshSession() {
 }
 
 /**
- * In-memory gate state for the dispatcher's run(). Each read returns a copy,
- * as the file store does, so a test sees only what run() wrote back.
+ * A Map holds the gate state for the dispatcher's run(). Each read returns a
+ * copy, as the file store does, so a test sees only what run() wrote back.
  */
 function mapStore() {
   const map = new Map();
@@ -60,6 +61,16 @@ function mapStore() {
     read: (id) => structuredClone(map.get(id) || {}),
     write: (id, state) => map.set(id, structuredClone(state)),
   };
+}
+
+/** A PreToolUse payload for session s1. */
+function preToolUse(toolName, toolInput, extra) {
+  return { session_id: 's1', hook_event_name: 'PreToolUse', tool_name: toolName, tool_input: toolInput || {}, ...extra };
+}
+
+/** Runs one call through the dispatcher's run(), with a new Map store unless the caller passes one. */
+function dispatch(data, env, store = mapStore(), tmpDir = os.tmpdir()) {
+  return run(data, { env, store, tmpDir });
 }
 
 /** Minimal transcript containing one real user prompt with the given uuid. */
@@ -74,4 +85,4 @@ function writeTranscript(uuid) {
   return file;
 }
 
-module.exports = { runHook, hookOutput, freshSession, mapStore, writeTranscript, HOOKS_DIR };
+module.exports = { runHook, hookOutput, freshSession, mapStore, preToolUse, dispatch, writeTranscript, HOOKS_DIR };
