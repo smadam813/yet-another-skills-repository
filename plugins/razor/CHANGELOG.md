@@ -4,6 +4,12 @@ All notable changes to razor are documented here. The version number lives in
 both plugin manifests, `.claude-plugin/plugin.json` and
 `.codex-plugin/plugin.json`.
 
+## 1.6.3 — 2026-09-22
+
+No change in behavior. The PreToolUse gates now read every setting on each
+call, not once when the hook loads, so the tests can run them without
+starting a new process.
+
 ## 1.6.2 — 2026-09-22
 
 cargo, go, composer, gem, and dotnet now share the reconsideration ledger
