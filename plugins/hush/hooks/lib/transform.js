@@ -648,8 +648,8 @@ function isGeneratedPath(filePath) {
 // for how full the context already is. Deep in a long session every kept line
 // is re-sent more times and pushes auto-compaction (an expensive full-context
 // summarization, plus permanent detail loss) closer — so caps tighten as the
-// session grows. Inert below 400KB (every benchmark session and most short
-// real ones), floors keep failing output useful, and the enumeration
+// session grows. Inert below 400KB (most short sessions),
+// floors keep failing output useful, and the enumeration
 // carve-out is never scaled: its whole point is a completeness promise.
 const PRESSURE_MID_BYTES = 400 * 1024;
 const PRESSURE_HIGH_BYTES = 1024 * 1024;

@@ -40,7 +40,7 @@ Never cut: validation at trust boundaries, error handling that prevents data los
 // from a single SessionStart injection, and the clause was provably present
 // on the turns that still missed. The trailing say-once sentence is load
 // bearing — without it the note repeats on every turn after a drift (4 of 14
-// against 1 of 16). These exact bytes are what the numbers describe.
+// against 1 of 16).
 const DRIFT_NOTE = `Stay on the task the first user prompt named. If a later request has left that task, do the work anyway, then add one line saying the session has moved off its original task and a fresh session would keep this one focused. Never stop to ask, never refuse, and never say it when the request is still the same job. Say it at most once in a session — if you have already said it, stay quiet.`;
 
 function safeId(id) {

@@ -25,8 +25,6 @@ to approve each step, or when this variable is set.
 Leave it unset and failing output arrives in full. That is the safe default. Set it and a failing
 build gets the same treatment as a passing one, keeping every error and warning line.
 
-Every published number was measured with `HUSH_WRAP=1`.
-
 ## The output style setting
 
 Claude Code's **Output style** setting is what picks hush's voice. Installing the plugin sets it for
@@ -38,8 +36,7 @@ you. If it did not take, write it in by hand in `~/.claude/settings.json`:
 }
 ```
 
-Leave that line in place. Claude Code reads it at the start of every turn, and that is the setup
-every published number was measured on.
+Leave that line in place. Claude Code reads it at the start of every turn.
 
 `/hush:pick-style` swaps voices for you after that, and it will not remove this line.
 
@@ -78,5 +75,3 @@ names anything the new voice dropped, and a voice that lost a rule never reaches
 
 Both commands ask before they swap, and both take effect at your next session. Updating the plugin
 puts the shipped voice back, so pick again after an update.
-
-Only the shipped voice was measured. Every published number belongs to it.

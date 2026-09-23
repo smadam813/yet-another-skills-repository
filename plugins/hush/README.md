@@ -13,7 +13,7 @@ Hush ships an output style and a set of hooks. The style asks the agent to stay 
 - **Compaction hooks.** Shape the compaction summary before it runs, and re-arm the one-time marker note after it.
 - **Session end cleanup.** Removes the temporary files a session created.
 
-Settings and switches are in [docs/SETTINGS.md](docs/SETTINGS.md). The mechanics are in [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md), and the recorded results are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+Settings and switches are in [docs/SETTINGS.md](docs/SETTINGS.md). The mechanics are in [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md).
 
 Hush runs in Claude Code only. Cursor loads neither hooks nor output styles, so the plugin is not in the Cursor marketplace.
 

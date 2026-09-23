@@ -12,7 +12,7 @@ Razor puts a short checklist in front of the agent before it writes code. Hooks 
 - **Build ledger.** Asks once per session when a session adds a lot of code with almost no deletions.
 - **Scope-drift note.** Says once per session when a request has left the task the session started on.
 
-Send `razor off` or `razor on` to pause or resume the checks for the session. Settings and environment variables are in [docs/SETTINGS.md](docs/SETTINGS.md). The mechanics are in [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md), and the recorded results are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+Send `razor off` or `razor on` to pause or resume the checks for the session. Settings and environment variables are in [docs/SETTINGS.md](docs/SETTINGS.md). The mechanics are in [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md).
 
 Hooks run in Claude Code only. Cursor loads the skills and none of the hooks.
 

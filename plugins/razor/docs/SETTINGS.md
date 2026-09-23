@@ -94,4 +94,3 @@ outside the plugin cache. Nothing leaves your machine.
 ## More
 
 - [How razor works](HOW-IT-WORKS.md) — what runs, and when
-- [The numbers](BENCHMARKS.md) — what we measured in Claude Code, and where razor loses

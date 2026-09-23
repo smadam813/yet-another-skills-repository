@@ -25,8 +25,7 @@ and acts on it.
 7. Only then: the least code that works.
 
 Most of the time one of the first five lines says yes, so nothing new gets
-written. That is the whole trick. In the recorded Claude Code runs, it is where
-nearly all of razor's measured effect came from.
+written. That is the whole trick.
 
 The list also carries rules that never bend. **razor never cuts input
 validation at a trust boundary, error handling that would lose data, security,
