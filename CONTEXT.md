@@ -44,6 +44,10 @@ _Avoid_: guard (for the role), check, hook
 The one deny a gate gives before it lets the retry through.
 _Avoid_: block, denial, checkpoint
 
+**Manifest**:
+The file that declares a project's dependencies for one ecosystem, such as `package.json` or `pyproject.toml`. A gate reads the nearest manifest above the file or the working directory. `pyproject.toml` and `requirements.txt` in one directory count as one manifest.
+_Avoid_: dependency file, lockfile
+
 **Reconsideration ledger**:
 The record of the dependencies that already got a nudge. The dep guard, the manifest guard, and the import guard share it. It also decides when two names, such as `pyyaml` and `yaml`, are one dependency.
 _Avoid_: ledger (alone), deny ledger, denied set

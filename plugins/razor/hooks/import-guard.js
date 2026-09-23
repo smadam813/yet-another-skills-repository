@@ -29,7 +29,8 @@
 const fs = require('fs');
 const path = require('path');
 const { settingOff } = require('./razor-lib');
-const { readNodeDeps, readPythonDeps, evidenceReason } = require('./dep-guard');
+const { evidenceReason } = require('./dep-guard');
+const { nearestManifest } = require('./manifest');
 const { claim, isDeclared } = require('./reconsideration-ledger');
 
 // Node core modules — importing one is never a new dependency.
@@ -187,26 +188,6 @@ function pyImportRoots(text) {
   return roots;
 }
 
-// Nearest manifest up-tree for this ecosystem; null when none (greenfield —
-// the gate stays silent without a declared-deps baseline to check against).
-const MANIFESTS = { node: ['package.json'], python: ['pyproject.toml', 'requirements.txt'] };
-
-function findManifest(eco, startDir) {
-  if (!startDir) return null;
-  let dir = path.resolve(startDir);
-  for (let i = 0; i < 12; i++) {
-    for (const name of MANIFESTS[eco]) {
-      try {
-        if (fs.existsSync(path.join(dir, name))) return { dir, name };
-      } catch { /* unreadable dir — keep walking */ }
-    }
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return null;
-}
-
 // A python absolute import of the project's own package carries no ./
 // marker, so only the disk can tell it from an external dependency: a
 // module or package by that name beside the file, at the manifest root,
@@ -255,7 +236,9 @@ function check(data, state, { env }) {
   if (!incoming) return null;
 
   const fileDir = path.dirname(path.resolve(filePath));
-  const manifest = findManifest(eco, fileDir);
+  // The nearest manifest names the deny and supplies "declared" and the
+  // evidence, all from one file.
+  const manifest = nearestManifest(eco, fileDir);
   if (!manifest) return null; // greenfield: no declared-deps baseline, stay silent
 
   // Full current on-disk content (the gate runs before the write lands), so
@@ -263,10 +246,7 @@ function check(data, state, { env }) {
   let existing = '';
   try { existing = fs.readFileSync(path.resolve(filePath), 'utf-8'); } catch { /* new file */ }
 
-  // Read only the manifest that the deny names, so "declared" and the
-  // evidence both come from it.
-  const deps = (eco === 'node' ? readNodeDeps : readPythonDeps)(manifest.dir);
-  let fresh = newImports(eco, incoming, existing, deps);
+  let fresh = newImports(eco, incoming, existing, manifest.deps);
   if (eco === 'python') {
     const local = [fileDir, manifest.dir, path.join(manifest.dir, 'src')];
     fresh = fresh.filter((r) => !isLocalPyModule(r, local));
@@ -275,7 +255,7 @@ function check(data, state, { env }) {
 
   const unseen = claim(state, eco, fresh);
   if (!unseen.length) return null; // all already reconsidered — pass silently
-  return denyReason(data.tool_name, unseen, eco, manifest.name, deps);
+  return denyReason(data.tool_name, unseen, eco, manifest.name, manifest.deps);
 }
 
-module.exports = { check, jsImportRoots, jsTypeImportRoots, pyImportRoots, newImports, isLocalPyModule, isTestFile, ecosystemOf, findManifest };
+module.exports = { check, jsImportRoots, jsTypeImportRoots, pyImportRoots, newImports, isLocalPyModule, isTestFile, ecosystemOf };

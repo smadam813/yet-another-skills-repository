@@ -26,48 +26,22 @@
 const fs = require('fs');
 const path = require('path');
 const { settingOff } = require('./razor-lib');
-const { installedDeps, evidenceReason, pyprojectDepNames } = require('./dep-guard');
+const { evidenceReason } = require('./dep-guard');
+const { parserFor, nearestManifest } = require('./manifest');
 const { claim } = require('./reconsideration-ledger');
 
+// The manifests this gate watches, by file name. A modern python project may
+// declare everything in pyproject.toml and never own a requirements.txt,
+// which left the manifest-edit path ungated for it — the exact path this gate
+// exists to cover.
+const GUARDED = { 'package.json': 'node', 'requirements.txt': 'python', 'pyproject.toml': 'python' };
+
+// Lowercased declared names in manifest text that is not on disk yet.
 // null = unparseable (caller stays silent), Set otherwise.
-// The same four sections readNodeDeps counts, and for the same reason: if the
-// two disagreed, moving a package from optionalDependencies to dependencies
-// would read as a brand-new name and deny an edit that adds nothing.
-function jsonDepNames(text) {
-  try {
-    const pkg = JSON.parse(text);
-    return new Set(
-      Object.keys({
-        ...(pkg.dependencies || {}),
-        ...(pkg.devDependencies || {}),
-        ...(pkg.optionalDependencies || {}),
-        ...(pkg.peerDependencies || {}),
-      }).map((n) => n.toLowerCase())
-    );
-  } catch {
-    return null;
-  }
+function depNames(fileName, text) {
+  const names = parserFor(fileName)(text);
+  return names && new Set(names.map((n) => n.toLowerCase()));
 }
-
-function reqDepNames(text) {
-  const names = new Set();
-  for (const line of String(text || '').split(/\r?\n/)) {
-    const t = line.trim();
-    if (!t || t.startsWith('#') || t.startsWith('-')) continue;
-    const name = t.split(/[<>=!~;\[\s@(]/)[0].trim();
-    if (name) names.add(name.toLowerCase());
-  }
-  return names;
-}
-
-const GUARDED = {
-  'package.json': { eco: 'node', manager: 'npm', extract: jsonDepNames },
-  'requirements.txt': { eco: 'python', manager: 'pip', extract: reqDepNames },
-  // A modern python project may declare everything here and never own a
-  // requirements.txt, which left the manifest-edit path ungated for it —
-  // the exact path this gate exists to cover.
-  'pyproject.toml': { eco: 'python', manager: 'pip', extract: pyprojectDepNames },
-};
 
 function denyReason(tool, names, eco, manifestName, deps) {
   const what = names.map((n) => `\`${n}\``).join(', ');
@@ -96,8 +70,9 @@ function check(data, state, { env }) {
   const input = data.tool_input || {};
   const filePath = input.file_path;
   if (!filePath || /node_modules/.test(filePath)) return null;
-  const spec = GUARDED[path.basename(filePath).toLowerCase()];
-  if (!spec) return null;
+  const fileName = path.basename(filePath).toLowerCase();
+  const eco = GUARDED[fileName];
+  if (!eco) return null;
 
   let existing;
   try {
@@ -109,18 +84,18 @@ function check(data, state, { env }) {
   const resulting = simulate(data.tool_name, input, existing);
   if (!resulting) return null;
 
-  const before = spec.extract(existing);
-  const after = spec.extract(resulting);
+  const before = depNames(fileName, existing);
+  const after = depNames(fileName, resulting);
   if (!before || !after) return null; // unparseable side — stay silent
 
   const fresh = [...after].filter((n) => !before.has(n)).sort();
   if (!fresh.length) return null;
 
-  const unseen = claim(state, spec.eco, fresh);
+  const unseen = claim(state, eco, fresh);
   if (!unseen.length) return null; // all already reconsidered — pass silently
 
-  const deps = installedDeps(spec.manager, path.dirname(path.resolve(filePath)));
-  return denyReason(data.tool_name, unseen, spec.eco, path.basename(filePath), deps);
+  const manifest = nearestManifest(eco, path.dirname(path.resolve(filePath)));
+  return denyReason(data.tool_name, unseen, eco, path.basename(filePath), manifest && manifest.deps);
 }
 
-module.exports = { check, jsonDepNames, reqDepNames, simulate, GUARDED };
+module.exports = { check, depNames, simulate, GUARDED };

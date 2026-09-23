@@ -13,10 +13,9 @@
 // (`npm install` bare, `npm ci`, `pip install -r ...`, `poetry install`)
 // and system package managers (apt, brew, winget) are out of scope.
 
-const fs = require('fs');
-const path = require('path');
 const { settingOff } = require('./razor-lib');
-const { claim } = require('./reconsideration-ledger');
+const { claim, isDeclared } = require('./reconsideration-ledger');
+const { nearestManifest } = require('./manifest');
 
 // manager → subcommands that add a named package
 const ADD_SUBCOMMANDS = {
@@ -174,274 +173,6 @@ function packageName(token) {
   return t.slice(0, end) || t;
 }
 
-// Manifest-name match in the suppressing direction only (`python_dotenv` ≙
-// `python-dotenv`) — missing a nudge is acceptable, a false deny is not.
-function isDeclaredIn(name, deps) {
-  const norm = (s) => String(s).toLowerCase().replace(/-/g, '_');
-  const n = norm(name);
-  return (deps || []).some((d) => norm(d) === n);
-}
-
-// ---- evidence: what's already installed, from the project manifest ----
-//
-// Line-scan extraction for TOML/Gemfile/csproj on purpose — pulling in a
-// parser to police dependency additions would be rung-5 irony.
-// razor: naive section scanning, real parsers if extraction ever misleads.
-
-function readText(file) {
-  try {
-    return fs.readFileSync(file, 'utf-8').replace(/^\uFEFF/, '');
-  } catch {
-    return null;
-  }
-}
-
-function specName(spec) {
-  return spec.split(/[<>=!~;\[\s@(]/)[0].trim();
-}
-
-// Every section that names a package declares it. Optional and peer entries
-// are in the manifest exactly as much as a plain dependency is, so leaving
-// them out denied ordinary imports as new dependencies and printed an
-// "Already declared" list that omitted the very package being imported. The
-// python reader has always counted [project.optional-dependencies]; this is
-// the same rule.
-function readNodeDeps(dir) {
-  const text = readText(path.join(dir, 'package.json'));
-  if (text === null) return null;
-  try {
-    const pkg = JSON.parse(text);
-    return Object.keys({
-      ...pkg.dependencies,
-      ...pkg.devDependencies,
-      ...pkg.optionalDependencies,
-      ...pkg.peerDependencies,
-    });
-  } catch {
-    return []; // a manifest that fails to parse still stops the manifest walk
-  }
-}
-
-// Declared names in a pyproject.toml's own text. Split out from the reader
-// below so the manifest guard can judge an edit by the file it would produce,
-// exactly as it already does for package.json and requirements.txt.
-//
-// TOML comments start at a # outside quotes. A quoted name inside the
-// comment is not a declaration, and reading it as one silences the guard
-// for a package nobody installed.
-function stripTomlComment(line) {
-  let quote = null;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (quote) {
-      if (c === quote) quote = null;
-    } else if (c === '"' || c === "'") {
-      quote = c;
-    } else if (c === '#') {
-      return line.slice(0, i);
-    }
-  }
-  return line;
-}
-
-// Line-scan state machine: PEP 621 dependency arrays (which may span lines and
-// contain "]" inside extras like flask[async]) plus poetry dependency tables.
-// Bracket counting survives quoted extras because their brackets are balanced.
-function pyprojectDepNames(text) {
-  const names = new Set();
-  let section = '';
-  let arrayDepth = 0;
-  for (const line of String(text || '').split(/\r?\n/)) {
-    if (arrayDepth === 0) {
-      const header = line.match(/^\s*\[(.+)\]\s*$/);
-      if (header) {
-        section = header[1];
-        continue;
-      }
-    }
-    if (/^tool\.poetry(\.group\.[^.\]]+)?\.(dev-)?dependencies$/.test(section)) {
-      const kv = line.match(/^\s*([A-Za-z0-9_.-]+)\s*=/);
-      if (kv && kv[1].toLowerCase() !== 'python') names.add(kv[1].toLowerCase());
-      continue;
-    }
-    const startsArray =
-      (section === 'project' && /^\s*dependencies\s*=\s*\[/.test(line)) ||
-      ((section === 'project.optional-dependencies' || section === 'dependency-groups') &&
-        /^\s*[A-Za-z0-9_.-]+\s*=\s*\[/.test(line));
-    if (arrayDepth > 0 || startsArray) {
-      // A PEP 735 group can pull in another group by name; that name is not
-      // a package, so quoting it must not declare a phantom dependency.
-      if (/include-group/.test(line)) {
-        arrayDepth += (line.match(/\[/g) || []).length - (line.match(/\]/g) || []).length;
-        if (arrayDepth < 0) arrayDepth = 0;
-        continue;
-      }
-      for (const q of stripTomlComment(line).matchAll(/["']([^"']+)["']/g)) {
-        const name = specName(q[1]);
-        if (name) names.add(name.toLowerCase());
-      }
-      arrayDepth += (line.match(/\[/g) || []).length - (line.match(/\]/g) || []).length;
-      if (arrayDepth < 0) arrayDepth = 0;
-    }
-  }
-  return names;
-}
-
-// Names declared by one requirements file, following `-r other.txt` and
-// `--requirement other.txt` includes: a dependency pinned in an included file
-// is just as declared as one written inline. Depth- and cycle-bounded.
-function requirementsNames(file, names, seen) {
-  const resolved = path.resolve(file);
-  if (seen.has(resolved) || seen.size > 16) return;
-  seen.add(resolved);
-  const text = readText(resolved);
-  if (text === null) return;
-  for (const line of text.split(/\r?\n/)) {
-    const t = line.trim();
-    if (!t || t.startsWith('#')) continue;
-    const include = t.match(/^(?:-r|--requirement)[=\s]+(\S+)/);
-    if (include) {
-      requirementsNames(path.join(path.dirname(resolved), include[1]), names, seen);
-      continue;
-    }
-    if (t.startsWith('-')) continue;
-    const name = specName(t);
-    if (name) names.add(name);
-  }
-}
-
-function readPythonDeps(dir) {
-  const names = new Set();
-  const toml = readText(path.join(dir, 'pyproject.toml'));
-  if (toml !== null) for (const n of pyprojectDepNames(toml)) names.add(n);
-  if (names.size) return [...names];
-  const reqPath = path.join(dir, 'requirements.txt');
-  if (readText(reqPath) !== null) {
-    requirementsNames(reqPath, names, new Set());
-    return [...names];
-  }
-  return toml !== null ? [] : null;
-}
-
-function readCargoDeps(dir) {
-  const toml = readText(path.join(dir, 'Cargo.toml'));
-  if (toml === null) return null;
-  const names = new Set();
-  let inDeps = false;
-  for (const line of toml.split(/\r?\n/)) {
-    const header = line.match(/^\s*\[(.+)\]\s*$/);
-    if (header) {
-      const h = header[1];
-      const table = h.match(/^(?:workspace\.)?(?:dev-|build-)?dependencies(?:\.(.+))?$/);
-      inDeps = Boolean(table && !table[1]);
-      if (table && table[1]) names.add(table[1]); // [dependencies.foo] form
-      continue;
-    }
-    if (!inDeps) continue;
-    const kv = line.match(/^\s*([A-Za-z0-9_-]+)\s*=/);
-    if (kv) names.add(kv[1]);
-  }
-  return [...names];
-}
-
-function readGoDeps(dir) {
-  const mod = readText(path.join(dir, 'go.mod'));
-  if (mod === null) return null;
-  const names = new Set();
-  let inBlock = false;
-  for (const line of mod.split(/\r?\n/)) {
-    const t = line.trim();
-    if (t.startsWith('require (')) {
-      inBlock = true;
-      continue;
-    }
-    if (inBlock && t.startsWith(')')) {
-      inBlock = false;
-      continue;
-    }
-    const single = t.match(/^require\s+(\S+)\s+v/);
-    if (single) names.add(single[1]);
-    else if (inBlock) {
-      const entry = t.match(/^(\S+)\s+v/);
-      if (entry) names.add(entry[1]);
-    }
-  }
-  return [...names];
-}
-
-function readComposerDeps(dir) {
-  const text = readText(path.join(dir, 'composer.json'));
-  if (text === null) return null;
-  try {
-    const j = JSON.parse(text);
-    return Object.keys({ ...j.require, ...j['require-dev'] }).filter(
-      (n) => n !== 'php' && !n.startsWith('ext-')
-    );
-  } catch {
-    return []; // a manifest that fails to parse still stops the manifest walk
-  }
-}
-
-function readGemDeps(dir) {
-  const text = readText(path.join(dir, 'Gemfile'));
-  if (text === null) return null;
-  const names = [];
-  for (const m of text.matchAll(/^\s*gem\s+['"]([^'"]+)['"]/gm)) names.push(m[1]);
-  return names;
-}
-
-function readDotnetDeps(dir) {
-  let files;
-  try {
-    files = fs.readdirSync(dir).filter((f) => /\.(cs|fs)proj$/.test(f));
-  } catch {
-    return null;
-  }
-  if (!files.length) return null;
-  const names = new Set();
-  for (const f of files) {
-    const text = readText(path.join(dir, f));
-    if (text === null) continue;
-    for (const m of text.matchAll(/PackageReference\s+Include="([^"]+)"/g)) names.add(m[1]);
-  }
-  return [...names];
-}
-
-const READERS = {
-  npm: readNodeDeps,
-  pnpm: readNodeDeps,
-  yarn: readNodeDeps,
-  bun: readNodeDeps,
-  pip: readPythonDeps,
-  pip3: readPythonDeps,
-  pipenv: readPythonDeps,
-  poetry: readPythonDeps,
-  uv: readPythonDeps,
-  cargo: readCargoDeps,
-  go: readGoDeps,
-  composer: readComposerDeps,
-  gem: readGemDeps,
-  dotnet: readDotnetDeps,
-};
-
-// Walk up from startDir to the nearest manifest for this ecosystem; the
-// declared dependency names become evidence in the deny reason. The walk stops
-// at that manifest even when it declares nothing. A root dependency that the
-// nested package does not declare is new for it. Null = no manifest.
-function installedDeps(manager, startDir) {
-  const reader = READERS[manager];
-  if (!reader || !startDir) return null;
-  let dir = path.resolve(startDir);
-  for (let i = 0; i < 12; i++) {
-    const found = reader(dir);
-    if (found) return found;
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return null;
-}
-
 const LIST_CAP = 30;
 
 // The retry contract is spelled out as the base prompt's own "adjustment":
@@ -486,9 +217,9 @@ function denyReason(hit, deps) {
   return evidenceReason(`razor: '${hit.packages.join(' ')}' adds a new ${hit.manager} dependency. `, deps, 'command');
 }
 
-// Ecosystem of a manager, for the reconsideration ledger shared with the
-// manifest and import guards. Every manager needs one, because the ledger
-// files each record under an ecosystem and a name.
+// Ecosystem of a manager, for the manifest walk and for the reconsideration
+// ledger shared with the manifest and import guards. Every manager needs one,
+// because the ledger files each record under an ecosystem and a name.
 const MANAGER_ECO = {
   npm: 'node', pnpm: 'node', yarn: 'node', bun: 'node',
   pip: 'python', pip3: 'python', pipenv: 'python', poetry: 'python', uv: 'python',
@@ -514,21 +245,19 @@ function check(data, state, { env }) {
 
 function checkHit(hit, data, state) {
   const names = hit.packages.map(packageName);
-  const deps = installedDeps(hit.manager, data.cwd);
+  const eco = MANAGER_ECO[hit.manager];
+  const manifest = nearestManifest(eco, data.cwd);
+  const deps = manifest && manifest.deps;
   // Installing what the manifest already declares is a restore, not an
   // addition — never checkpointed.
-  if (deps && names.every((n) => isDeclaredIn(n, deps))) return null;
+  if (deps && names.every((n) => isDeclared(n, deps))) return null;
 
   // When another gate already nudged every package, the normal permission flow applies.
-  const owed = claim(state, MANAGER_ECO[hit.manager], names);
+  const owed = claim(state, eco, names);
   if (!owed.length) return null;
   return denyReason({ ...hit, packages: owed }, deps);
 }
 
 module.exports = {
-  check, parseInstallCommand, parseInstallCommands, packageName, installedDeps, denyReason, evidenceReason, PROVENANCE, retryContract, ADD_SUBCOMMANDS, MANAGER_ECO,
-  // The two readers scripts/unused-deps.js consumes — it reuses them so the
-  // audit and the gates can never silently disagree. The other ecosystems'
-  // readers stay internal; nothing outside this file has ever called them.
-  readNodeDeps, readPythonDeps, pyprojectDepNames,
+  check, parseInstallCommand, parseInstallCommands, packageName, denyReason, evidenceReason, PROVENANCE, retryContract, ADD_SUBCOMMANDS, MANAGER_ECO,
 };

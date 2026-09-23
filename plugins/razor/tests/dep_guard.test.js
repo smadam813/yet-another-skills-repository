@@ -6,7 +6,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { mapStore, preToolUse, dispatch } = require('./helpers');
-const { parseInstallCommand, parseInstallCommands, check, packageName, pyprojectDepNames, ADD_SUBCOMMANDS, MANAGER_ECO } = require('../hooks/dep-guard');
+const { parseInstallCommand, parseInstallCommands, check, packageName, ADD_SUBCOMMANDS, MANAGER_ECO } = require('../hooks/dep-guard');
+const { pyprojectDepNames } = require('../hooks/manifest');
 
 // A chained command used to be checkpointed for its first install alone, and
 // the retry that cleared that one carried the rest in unexamined.
@@ -185,6 +186,12 @@ describe('integration: soft gate', () => {
     assert.strictEqual(dispatch({ ...input('pip install python_dotenv'), cwd: py }, {}), null);
     // the realistic shell spelling of a spec'd reinstall: quoted
     assert.strictEqual(dispatch({ ...input("pip install 'flask>=2.1'"), cwd: py }, {}), null);
+  });
+
+  test('installing the import name of a declared dependency never checkpoints', () => {
+    const py = fs.mkdtempSync(path.join(os.tmpdir(), 'razor-dg-'));
+    fs.writeFileSync(path.join(py, 'requirements.txt'), 'pyyaml==6.0\n');
+    assert.strictEqual(dispatch({ ...input('pip install yaml'), cwd: py }, {}), null);
   });
 
   // A nested manifest that fails to parse declares nothing. The manifest walk
