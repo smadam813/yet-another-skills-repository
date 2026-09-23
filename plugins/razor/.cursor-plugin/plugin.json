@@ -1,7 +1,7 @@
 {
   "name": "razor",
   "description": "Reuse-first checks: reconsider dependencies, file growth and unnecessary code before adding more.",
-  "version": "1.6.7",
+  "version": "1.6.8",
   "license": "MIT",
   "keywords": ["yagni", "token-optimization", "minimalism", "over-engineering", "hooks", "subagents", "dependency-guard", "lazy"],
   "author": { "name": "Adam Keech", "url": "https://github.com/smadam813" },

@@ -1,6 +1,6 @@
 {
   "name": "razor",
-  "version": "1.6.7",
+  "version": "1.6.8",
   "description": "Reuse-first checks: reconsider dependencies, file growth and unnecessary code before adding more.",
   "license": "MIT",
   "author": { "name": "Adam Keech", "url": "https://github.com/smadam813" },

@@ -4,6 +4,12 @@ All notable changes to razor are documented here. The version number lives in
 both plugin manifests, `.claude-plugin/plugin.json` and
 `.cursor-plugin/plugin.json`.
 
+## 1.6.8 — 2026-09-22
+
+`/razor:unused` no longer reports a `package.json` that fails to parse as a
+project whose dependencies are all imported. It skips that manifest, as it did
+before 1.6.6.
+
 ## 1.6.7 — 2026-09-22
 
 One manifest module now reads every manifest for the gates and the
