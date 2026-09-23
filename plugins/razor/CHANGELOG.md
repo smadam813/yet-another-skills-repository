@@ -4,6 +4,12 @@ All notable changes to razor are documented here. The version number lives in
 both plugin manifests, `.claude-plugin/plugin.json` and
 `.cursor-plugin/plugin.json`.
 
+## 1.6.4 — 2026-09-22
+
+razor behaves as before. The build ledger now reads its budgets on each
+call, not once when the hook loads. The tests can now run the SessionStart
+and Stop hooks without a new process.
+
 ## 1.6.3 — 2026-09-22
 
 razor behaves as before. The PreToolUse gates now read every setting on each

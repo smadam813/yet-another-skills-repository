@@ -10,18 +10,17 @@
 // Silent while the session behaves; the thresholds are generous on purpose
 // so a legitimately large requested task never trips it.
 
-const { readInput, emitContext, readState, writeState, isActive, settingOff, settingNumber, git } = require('./razor-lib');
+const { readInput, emitContext, isActive, settingOff, settingNumber, fileStore, git } = require('./razor-lib');
 const { classify } = require('./file-meter');
 
-const LOC_BUDGET = (() => {
-  const n = settingNumber('LEDGER_LOC', 500);
-  return n > 0 ? n : 500;
-})();
+const DEFAULT_LOC_BUDGET = 500;
+const DEFAULT_FILES_BUDGET = 8;
 
-const FILES_BUDGET = (() => {
-  const n = settingNumber('LEDGER_FILES', 8);
-  return n > 0 ? n : 8;
-})();
+// A budget of zero or less uses the default.
+function budget(name, fallback, env) {
+  const n = settingNumber(name, fallback, env);
+  return n > 0 ? n : fallback;
+}
 
 // Sprawl = big net growth with next-to-no deletion, or a pile of new files.
 // A large diff that also deletes a lot is refactoring, not sprawl.
@@ -94,30 +93,41 @@ function diffStats(ledger, cwd) {
   return { insertions, deletions, newFiles };
 }
 
-function main() {
-  if (settingOff('LEDGER')) return;
-  const data = readInput();
-  const state = readState(data.session_id);
-  if (!isActive(state)) return;
+// Measures the session against its baseline and returns the ledger question,
+// or null when there is nothing to ask. The question fires at most once per
+// session.
+//
+// Every setting comes from `env`. `store` has read(id) and write(id, state).
+function run(data, { env, store }) {
+  if (settingOff('LEDGER', env)) return null;
+  const state = store.read(data.session_id);
+  if (!isActive(state, env)) return null;
 
   const ledger = state.ledger;
-  if (!ledger || !ledger.baseSha || ledger.fired) return;
+  if (!ledger || !ledger.baseSha || ledger.fired) return null;
 
   const stats = diffStats(ledger, data.cwd);
-  if (!stats || !shouldFire(stats, LOC_BUDGET, FILES_BUDGET)) return;
+  if (!stats) return null;
+  const locBudget = budget('LEDGER_LOC', DEFAULT_LOC_BUDGET, env);
+  const filesBudget = budget('LEDGER_FILES', DEFAULT_FILES_BUDGET, env);
+  if (!shouldFire(stats, locBudget, filesBudget)) return null;
 
   ledger.fired = true;
-  writeState(data.session_id, state);
+  store.write(data.session_id, state);
 
-  emitContext(
-    'Stop',
+  return (
     `razor ledger: +${stats.insertions} / -${stats.deletions} LOC, ` +
-      `${stats.newFiles} new files since session start. ` +
-      'Deletion-positive diffs are the goal — is all of this needed? ' +
-      '(fires once per session; RAZOR_LEDGER=off to silence)'
+    `${stats.newFiles} new files since session start. ` +
+    'Deletion-positive diffs are the goal — is all of this needed? ' +
+    '(fires once per session; RAZOR_LEDGER=off to silence)'
   );
+}
+
+function main() {
+  const env = process.env;
+  emitContext('Stop', run(readInput(), { env, store: fileStore(env) }));
 }
 
 if (require.main === module) main();
 
-module.exports = { main, shouldFire, diffStats, tally, isUncounted };
+module.exports = { run, main, shouldFire, diffStats, tally, isUncounted };
