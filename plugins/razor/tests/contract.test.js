@@ -32,9 +32,9 @@ const SESSION = 'contract-session';
 
 // ---- fixture worlds -------------------------------------------------------
 
-// Worlds live in the system temp dir. The file meter exempts the hook's own
-// temp dir as scratch, so the child gets a temp dir beside the worlds, not
-// above them, and the new-file budget stays live.
+// Worlds live in the OS temp dir. The file meter exempts every write under the
+// hook's temp dir. So the hook gets a temp dir beside the worlds, not above
+// them, and the new-file budget still applies to the worlds.
 const ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'razor-contract-'));
 const CHILD_TMP = path.join(ROOT, 'tmp');
 fs.mkdirSync(CHILD_TMP);

@@ -79,28 +79,28 @@ describe('integration: one nudge per dependency across gates, through an alias',
   }
 
   // One store per test, so each test is one session.
-  const session = () => {
+  const newSession = () => {
     const store = mapStore();
     return (toolName, toolInput) => dispatch(preToolUse(toolName, toolInput), {}, store);
   };
 
   test('pip install pyyaml, then import yaml: one nudge', () => {
     const ws = pyWorkspace({ 'requirements.txt': 'flask>=2.0\n' });
-    const call = session();
+    const call = newSession();
     assert.ok(call('Bash', { command: 'pip install pyyaml' }));
     assert.strictEqual(call('Write', { file_path: path.join(ws, 'app.py'), content: 'import yaml\n' }), null);
   });
 
   test('import yaml, then pip install pyyaml: one nudge', () => {
     const ws = pyWorkspace({ 'requirements.txt': 'flask>=2.0\n' });
-    const call = session();
+    const call = newSession();
     assert.ok(call('Write', { file_path: path.join(ws, 'app.py'), content: 'import yaml\n' }));
     assert.strictEqual(call('Bash', { command: 'pip install pyyaml' }), null);
   });
 
   test('a manifest edit that adds pillow, then import PIL: one nudge', () => {
     const ws = pyWorkspace({ 'requirements.txt': 'flask>=2.0\n' });
-    const call = session();
+    const call = newSession();
     assert.ok(
       call('Edit', {
         file_path: path.join(ws, 'requirements.txt'),
@@ -112,13 +112,13 @@ describe('integration: one nudge per dependency across gates, through an alias',
   });
 
   test('the deny names only the packages that still owe a nudge', () => {
-    const call = session();
+    const call = newSession();
     call('Bash', { command: 'npm install axios' });
     assert.match(call('Bash', { command: 'npm install axios dayjs' }), /'dayjs' adds/);
   });
 
   test('a cargo install nudges once per crate, not once per command line', () => {
-    const call = session();
+    const call = newSession();
     assert.ok(call('Bash', { command: 'cargo add serde tokio' }));
     assert.strictEqual(call('Bash', { command: 'cargo add serde' }), null);
   });

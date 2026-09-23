@@ -261,10 +261,10 @@ describe('unused-deps: TypeScript toolchain classification', () => {
 });
 
 describe('unused-deps: report', () => {
-  const run = (dir) => formatReport(dir, auditProject(dir));
+  const report = (dir) => formatReport(dir, auditProject(dir));
 
   test('prints per-bucket lines, verdict, and known-limits footer', () => {
-    const out = run(makeNodeWorkspace());
+    const out = report(makeNodeWorkspace());
     assert.match(out, /Likely unused \(1\) — nothing references them, and nothing could prove it:/);
     assert.match(out, /lodash: no import found in \d+ source files scanned/);
     assert.match(out, /Unknown \(1\)/);
@@ -273,11 +273,11 @@ describe('unused-deps: report', () => {
   });
 
   test('never claims high confidence for a result no resolver proved', () => {
-    assert.doesNotMatch(run(makeNodeWorkspace()), /high confidence/i);
+    assert.doesNotMatch(report(makeNodeWorkspace()), /high confidence/i);
   });
 
   test('no supported manifest reports cleanly', () => {
-    assert.match(run(tmp('razor-unused-empty-')), /No supported manifest found/);
+    assert.match(report(tmp('razor-unused-empty-')), /No supported manifest found/);
   });
 });
 
