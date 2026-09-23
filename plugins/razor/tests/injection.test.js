@@ -5,23 +5,10 @@ const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { runHook, freshSession, mapStore, preToolUse, dispatch } = require('./helpers');
-const subagentStart = require('../hooks/subagent-start');
-const modeToggle = require('../hooks/mode-toggle');
+const { runHook, freshSession, mapStore, preToolUse, dispatch, subagent, prompt } = require('./helpers');
+const { shouldInject } = require('../hooks/subagent-start');
+const { run: modeToggle, parseToggle } = require('../hooks/mode-toggle');
 const { RULESET, DRIFT_NOTE, fileStore } = require('../hooks/razor-lib');
-
-const { shouldInject } = subagentStart;
-const { parseToggle } = modeToggle;
-
-/** Runs the SubagentStart hook's run() for one agent type in session s1. */
-function subagent(agentType, env = {}, store = mapStore()) {
-  return subagentStart.run({ session_id: 's1', hook_event_name: 'SubagentStart', agent_type: agentType }, { env, store });
-}
-
-/** Runs the UserPromptSubmit hook's run() for one prompt in session s1. */
-function prompt(text, env = {}, store = mapStore()) {
-  return modeToggle.run({ session_id: 's1', hook_event_name: 'UserPromptSubmit', prompt: text }, { env, store });
-}
 
 describe('unit: shouldInject', () => {
   test('default skip list covers read-only built-ins', () => {
@@ -127,14 +114,14 @@ describe('integration: injection lifecycle', () => {
   test('session-start reads the off state that "/razor off" writes to the state files', () => {
     const session = freshSession();
     const data = { session_id: session, hook_event_name: 'UserPromptSubmit', prompt: '/razor off' };
-    modeToggle.run(data, { env: process.env, store: fileStore(process.env) });
+    modeToggle(data, { env: process.env, store: fileStore(process.env) });
 
     const r = runHook('session-start.js', { session_id: session, hook_event_name: 'SessionStart' });
     assert.strictEqual(r.stdout.trim(), '');
   });
 
   test('state fails safe to on when the subagent session is unknown', () => {
-    // Nothing was written for this session, so isActive defaults to on.
+    // No hook wrote state for this session, so isActive defaults to on.
     assert.strictEqual(subagent('general-purpose'), RULESET);
   });
 
@@ -174,10 +161,10 @@ describe('RAZOR_DISABLE silences every hook, not just the gates', () => {
     assert.strictEqual(prompt('/razor on', { RAZOR_DISABLE: '' }), RULESET);
   });
 
-  test('mode-toggle writes no state under the kill switch', () => {
+  test('mode-toggle writes no state under RAZOR_DISABLE', () => {
     const store = mapStore();
     prompt('/razor off', { RAZOR_DISABLE: '1' }, store);
-    assert.strictEqual(store.map.size, 0);
+    assert.deepStrictEqual(store.read('s1'), {});
   });
 });
 

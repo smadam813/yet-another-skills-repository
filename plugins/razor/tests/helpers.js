@@ -5,6 +5,8 @@ const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const { run } = require('../hooks/pre-tool-use');
+const subagentStart = require('../hooks/subagent-start');
+const modeToggle = require('../hooks/mode-toggle');
 
 const HOOKS_DIR = path.join(__dirname, '..', 'hooks');
 
@@ -73,6 +75,16 @@ function dispatch(data, env, store = mapStore(), tmpDir = os.tmpdir()) {
   return run(data, { env, store, tmpDir });
 }
 
+/** Runs the SubagentStart hook's run() for one agent type in session s1. */
+function subagent(agentType, env = {}, store = mapStore()) {
+  return subagentStart.run({ session_id: 's1', hook_event_name: 'SubagentStart', agent_type: agentType }, { env, store });
+}
+
+/** Runs the UserPromptSubmit hook's run() for one prompt in session s1. */
+function prompt(text, env = {}, store = mapStore()) {
+  return modeToggle.run({ session_id: 's1', hook_event_name: 'UserPromptSubmit', prompt: text }, { env, store });
+}
+
 /** Minimal transcript containing one real user prompt with the given uuid. */
 function writeTranscript(uuid) {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'razor-t-')), 't.jsonl');
@@ -85,4 +97,6 @@ function writeTranscript(uuid) {
   return file;
 }
 
-module.exports = { runHook, hookOutput, freshSession, mapStore, preToolUse, dispatch, writeTranscript, HOOKS_DIR };
+module.exports = {
+  runHook, hookOutput, freshSession, mapStore, preToolUse, dispatch, subagent, prompt, writeTranscript, HOOKS_DIR,
+};
