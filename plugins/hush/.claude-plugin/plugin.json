@@ -1,6 +1,6 @@
 {
   "name": "hush",
-  "version": "1.12.8",
+  "version": "2.0.0",
   "description": "Quieter sessions for Claude Code: less narration, shorter tool output and concise answers focused on the result.",
   "license": "MIT",
   "author": { "name": "Adam Keech", "url": "https://github.com/smadam813" },
