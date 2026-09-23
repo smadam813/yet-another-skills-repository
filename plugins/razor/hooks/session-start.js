@@ -12,8 +12,7 @@ const { RULESET, readInput, emitContext, isActive, settingOff, fileStore, git } 
 const { tally, isUncounted } = require('./build-ledger');
 
 // Writes the ladder through `emit`, then records the ledger baseline in
-// `store`. `emit` is a callback, not a return value, so the ladder is written
-// before any git call starts.
+// `store`.
 //
 // Every setting comes from `env`. `store` has read(id), write(id, state), and
 // sweep().
