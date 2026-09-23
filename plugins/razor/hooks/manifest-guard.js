@@ -30,10 +30,9 @@ const { evidenceReason } = require('./dep-guard');
 const { parserFor, nearestManifest } = require('./manifest');
 const { claim } = require('./reconsideration-ledger');
 
-// The manifests this gate watches, by file name. A modern python project may
-// declare everything in pyproject.toml and never own a requirements.txt,
-// which left the manifest-edit path ungated for it — the exact path this gate
-// exists to cover.
+// The manifests this gate watches, by file name. A python project can
+// declare every dependency in pyproject.toml and have no requirements.txt.
+// This gate covers that manifest too.
 const GUARDED = { 'package.json': 'node', 'requirements.txt': 'python', 'pyproject.toml': 'python' };
 
 // Lowercased declared names in manifest text that is not on disk yet.

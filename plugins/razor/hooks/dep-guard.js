@@ -219,7 +219,8 @@ function denyReason(hit, deps) {
 
 // Ecosystem of a manager, for the manifest walk and for the reconsideration
 // ledger shared with the manifest and import guards. Every manager needs one,
-// because the ledger files each record under an ecosystem and a name.
+// because the reconsideration ledger files each record under an ecosystem and
+// a name.
 const MANAGER_ECO = {
   npm: 'node', pnpm: 'node', yarn: 'node', bun: 'node',
   pip: 'python', pip3: 'python', pipenv: 'python', poetry: 'python', uv: 'python',

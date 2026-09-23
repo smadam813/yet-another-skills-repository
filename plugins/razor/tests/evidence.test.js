@@ -34,7 +34,6 @@ describe('unit: nearestManifest readers', () => {
       }),
     });
     assert.deepStrictEqual(declared('node', dir).sort(), ['axios', 'jest', 'lodash']);
-    assert.deepStrictEqual(declared('node', dir).sort(), ['axios', 'jest', 'lodash']);
   });
 
   // Regression: optionalDependencies and peerDependencies were absent from
@@ -66,6 +65,13 @@ describe('unit: nearestManifest readers', () => {
     fs.writeFileSync(path.join(nested, 'package.json'), JSON.stringify({ name: 'app' }));
     assert.deepStrictEqual(declared('node', nested), []);
     assert.deepStrictEqual(declared('node', path.join(nested, 'src')), []);
+  });
+
+  test('stops at a nested manifest that cannot be read', () => {
+    const dir = fixtureDir({ 'package.json': JSON.stringify({ dependencies: { lodash: '^4' } }) });
+    const nested = path.join(dir, 'packages', 'app');
+    fs.mkdirSync(path.join(nested, 'package.json'), { recursive: true });
+    assert.deepStrictEqual(declared('node', nested), []);
   });
 
   test('pyproject.toml PEP 621 arrays, specifiers stripped', () => {
@@ -179,7 +185,7 @@ describe('unit: nearestManifest readers', () => {
     assert.strictEqual(declared('node', undefined), null);
   });
 
-  test('the manifest is named by the file the walk found', () => {
+  test('the file the walk found names the manifest', () => {
     const py = fixtureDir({ 'pyproject.toml': '[project]\nname = "x"\n', 'requirements.txt': 'flask\n' });
     assert.deepStrictEqual(nearestManifest('python', py), { dir: py, name: 'pyproject.toml', deps: ['flask'] });
     const cs = fixtureDir({ 'App.csproj': '<Project />' });

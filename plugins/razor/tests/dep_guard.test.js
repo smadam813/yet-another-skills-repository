@@ -188,7 +188,7 @@ describe('integration: soft gate', () => {
     assert.strictEqual(dispatch({ ...input("pip install 'flask>=2.1'"), cwd: py }, {}), null);
   });
 
-  test('installing the import name of a declared dependency never checkpoints', () => {
+  test('installing the import name of a declared dependency never gets a nudge', () => {
     const py = fs.mkdtempSync(path.join(os.tmpdir(), 'razor-dg-'));
     fs.writeFileSync(path.join(py, 'requirements.txt'), 'pyyaml==6.0\n');
     assert.strictEqual(dispatch({ ...input('pip install yaml'), cwd: py }, {}), null);

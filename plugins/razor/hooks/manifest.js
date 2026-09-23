@@ -2,8 +2,8 @@
 
 // The manifest: the file that declares a project's dependencies for one
 // ecosystem. The dep, manifest, and import guards and the unused-deps audit
-// all read manifests through this module, so they can never disagree about
-// what a manifest is or what it declares.
+// read manifests through this module. So they always agree on what a
+// manifest is and what it declares.
 //
 // It owns the manifest names per ecosystem, one text parser per manifest
 // kind, one reader per ecosystem, and the one walk up the tree. Whether a
@@ -16,8 +16,9 @@
 const fs = require('fs');
 const path = require('path');
 
-// Manifest names per ecosystem, in the order a directory's manifest is named.
-// dotnet has no fixed name, so a leading `*` matches by extension.
+// The manifest files per ecosystem. When a directory holds more than one,
+// the first in this order names the manifest. dotnet has no fixed file
+// name, so a leading `*` matches by extension.
 const MANIFESTS = {
   node: ['package.json'],
   python: ['pyproject.toml', 'requirements.txt'],
@@ -30,10 +31,18 @@ const MANIFESTS = {
 
 function readText(file) {
   try {
-    return fs.readFileSync(file, 'utf-8').replace(/^﻿/, '');
+    return fs.readFileSync(file, 'utf-8').replace(/^\uFEFF/, '');
   } catch {
     return null;
   }
+}
+
+// A manifest that exists but cannot be read still stops the walk. It
+// declares nothing. Null = no file.
+function readManifestText(file) {
+  const text = readText(file);
+  if (text !== null) return text;
+  return fs.existsSync(file) ? '' : null;
 }
 
 function specName(spec) {
@@ -122,8 +131,8 @@ function pyprojectDepNames(text) {
   return [...names];
 }
 
-// The names one requirements file writes inline. Options, includes among
-// them, are skipped; the reader follows the includes.
+// The names one requirements file writes inline. The parser skips options,
+// includes among them. The reader follows the includes.
 function requirementsDepNames(text) {
   const names = new Set();
   for (const line of String(text || '').split(/\r?\n/)) {
@@ -237,7 +246,7 @@ function manifestFiles(eco, dir) {
 // Names declared by one requirements file, following `-r other.txt` and
 // `--requirement other.txt` includes: a dependency pinned in an included file
 // is just as declared as one written inline. Depth- and cycle-bounded.
-function requirementsNames(file, names, seen) {
+function followRequirements(file, names, seen) {
   const resolved = path.resolve(file);
   if (seen.has(resolved) || seen.size > 16) return;
   seen.add(resolved);
@@ -246,30 +255,31 @@ function requirementsNames(file, names, seen) {
   for (const name of requirementsDepNames(text)) names.add(name);
   for (const line of text.split(/\r?\n/)) {
     const include = line.trim().match(/^(?:-r|--requirement)[=\s]+(\S+)/);
-    if (include) requirementsNames(path.join(path.dirname(resolved), include[1]), names, seen);
+    if (include) followRequirements(path.join(path.dirname(resolved), include[1]), names, seen);
   }
 }
 
-// pyproject.toml and requirements.txt in one directory count as one manifest.
-// pyproject.toml names it, and its names win when it declares any.
+// pyproject.toml and requirements.txt in one directory count as one manifest,
+// under the name pyproject.toml. When pyproject.toml declares any
+// dependency, the reader ignores requirements.txt.
 function readPython(dir) {
-  const toml = readText(path.join(dir, 'pyproject.toml'));
+  const toml = readManifestText(path.join(dir, 'pyproject.toml'));
   const names = new Set(toml === null ? [] : pyprojectDepNames(toml));
   if (names.size) return { name: 'pyproject.toml', deps: [...names] };
   const reqPath = path.join(dir, 'requirements.txt');
-  if (readText(reqPath) === null) return toml === null ? null : { name: 'pyproject.toml', deps: [] };
-  requirementsNames(reqPath, names, new Set());
+  if (readManifestText(reqPath) === null) return toml === null ? null : { name: 'pyproject.toml', deps: [] };
+  followRequirements(reqPath, names, new Set());
   return { name: toml === null ? 'requirements.txt' : 'pyproject.toml', deps: [...names] };
 }
 
-// Every other ecosystem: the union of the manifest files present, named by
-// the first one.
+// Every other ecosystem: the union of the manifest files in the directory.
+// The first file names the manifest.
 function readManifest(eco, dir) {
   if (eco === 'python') return readPython(dir);
   let name = null;
   const names = new Set();
   for (const file of manifestFiles(eco, dir)) {
-    const text = readText(path.join(dir, file));
+    const text = readManifestText(path.join(dir, file));
     if (text === null) continue;
     name = name || file;
     for (const n of parserFor(file)(text) || []) names.add(n);
@@ -277,7 +287,7 @@ function readManifest(eco, dir) {
   return name === null ? null : { name, deps: [...names] };
 }
 
-// Declared names of the manifest in exactly this directory. Null = none here.
+// Declared names of the manifest in this directory. Null = none here.
 function readDeps(eco, dir) {
   if (!MANIFESTS[eco] || !dir) return null;
   const found = readManifest(eco, dir);
