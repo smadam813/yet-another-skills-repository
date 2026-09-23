@@ -38,7 +38,3 @@ node --test tests/*.test.js
 ```
 
 The tests need Node 22 or later and run in CI on Ubuntu and Windows.
-
-## Origin
-
-Razor is a fork of [V-Songbird/razor](https://github.com/V-Songbird/razor) by Victor Villegas, MIT license, taken at upstream commit `b7d33aea4a9ec04769069c99e29f424301712b51` (version 1.6.0). It is now this repo's own plugin. Upstream fixes are ported by hand. See [ADR-0002](../../docs/adr/0002-fork-razor.md).

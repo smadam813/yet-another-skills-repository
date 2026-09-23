@@ -69,7 +69,7 @@ New Tinta y oficio banners adapt to light and dark GitHub themes. Plugin icons a
 ## 1.5.9 and 1.5.9-codex.1 — 2026-09-09
 
 Product guides and decisions now accompany each edition. Research and
-benchmark evidence live in Foundry, with updated links and coordinated edition
+benchmark evidence moved, with updated links and coordinated edition
 pages. Plugin behavior is unchanged by this maintenance release.
 
 ## 1.5.8-codex.1 — 2026-09-08
@@ -86,7 +86,7 @@ stays gets a YAGNI tag. Nothing razor does in a session changed.
 
 ## 1.5.7 — 2026-09-05
 
-Meet Ember. The README now opens with a short cartoon of the Foundry mascot
+Meet Ember. The README now opens with a short cartoon of the mascot
 at a keyboard, piling up boxes nobody asked for until razor sweeps the extras
 away. Nothing razor does in a session changed.
 
@@ -394,11 +394,11 @@ Doc-only: plugin.json's description now matches the marketplace listing text. No
 
 ## 0.2.4-alpha — 2026-07-07
 
-Doc-only: the pairing limitation noted in 0.2.3 is resolved by [hush](https://github.com/V-Songbird/hush) 0.3.6. Razor's behavior is unchanged.
+Doc-only: the pairing limitation noted in 0.2.3 is resolved by hush 0.3.6. Razor's behavior is unchanged.
 
 ## 0.2.3-alpha — 2026-07-07
 
-Documented a known limitation when pairing razor with [hush](https://github.com/V-Songbird/hush) on hard debugging tasks. No behavior change; resolved by hush 0.3.6.
+Documented a known limitation when pairing razor with hush on hard debugging tasks. No behavior change; resolved by hush 0.3.6.
 
 ## 0.2.2-alpha — 2026-07-07
 

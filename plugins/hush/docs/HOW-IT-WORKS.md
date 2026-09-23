@@ -17,7 +17,7 @@ write one short message at the end. Claude Code calls this an *output style*.
 read back.
 
 The voice is what makes the answer readable. The trims are what keep a long session cheap. You can
-have the voice on its own — see [flint](https://github.com/V-Songbird/flint) — but the trims need
+have the voice on its own, but the trims need
 the plugin.
 
 ## What happens to a command's output

@@ -93,7 +93,7 @@ Bump a plugin's version in the same PR that changes its skills, as a separate co
 
 ## Forked plugins
 
-`plugins/hush` and `plugins/razor` began as vendored copies and are now this repo's own plugins. See `docs/adr/0001-fork-hush.md` and `docs/adr/0002-fork-razor.md`. Repo conventions apply to all of their files. Each README names the upstream repo and the fork point. Port an upstream fix by hand when it matters.
+`plugins/hush` and `plugins/razor` began as vendored copies and are now this repo's own plugins. See `docs/adr/0001-fork-hush.md` and `docs/adr/0002-fork-razor.md`. Repo conventions apply to all of their files.
 
 ## Invocation choice
 

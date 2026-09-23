@@ -4,7 +4,7 @@ The README uses the September 1, 2026 comparison, `rivalA-762f888b`: nine fixtur
 
 The tables below preserve the earlier August 30 comparisons: `rm320-99a236ff` (`opus`, 36 sessions per setup) and `sn320-a9885078` (`sonnet`, 18 per setup). Those batches did not record an explicit effort override, so the effective host default is unknown. They are separate runs, not additional repetitions of the README comparison.
 
-[Records, definitions and source reconciliation](https://github.com/V-Songbird/foundry/blob/main/docs/hush/validation/claude-readme-benchmark-2026-09-10.md). Raw output-token counts include all output billed by the API; prose word counts exclude fenced code. Readability word counts are medians; reading-ease and grade scores are heuristic averages, not a reader study.
+Raw output-token counts include all output billed by the API; prose word counts exclude fenced code. Readability word counts are medians; reading-ease and grade scores are heuristic averages, not a reader study.
 
 ← [Back to the README](../README.md)
 
@@ -186,9 +186,3 @@ what had happened.
 
 **The zero-word silence count drops as sessions get longer.** It is a real number and it is on this
 page, but it is not a promise. The at-most-one-message count also describes these runs, not a guarantee.
-
-## Run it yourself
-
-The whole harness is public, in the marketplace repo under
-[`benchmarks/hush`](https://github.com/V-Songbird/foundry/tree/main/benchmarks/hush). Same jobs,
-same checks, your own API key.

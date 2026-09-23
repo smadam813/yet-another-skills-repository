@@ -103,7 +103,7 @@ New Tinta y oficio banners adapt to light and dark GitHub themes.
 ## 1.11.6 — 2026-09-09
 
 Product guides and decisions now accompany the Claude edition. Research and
-benchmark evidence live in Foundry, with updated links and coordinated edition
+benchmark evidence moved, with updated links and coordinated edition
 pages. Plugin behavior is unchanged by this maintenance release.
 
 ## 1.11.5 — 2026-09-05
@@ -114,7 +114,7 @@ changed.
 
 ## 1.11.4 — 2026-09-05
 
-Meet Ember. The README now opens with a short cartoon of the Foundry mascot
+Meet Ember. The README now opens with a short cartoon of the mascot
 at a keyboard: narrating every step with its flame going wild, then hush, then
 quiet focus and one clean line. Nothing hush does in a session changed.
 
@@ -707,11 +707,11 @@ Hush now also trims bulky log files Claude reads directly (`.log` files, and `.t
 
 ## 0.3.6-alpha — 2026-07-07
 
-Fixed an issue when pairing hush with [razor](https://github.com/V-Songbird/razor): on hard debugging tasks the combination could make the model reason for much longer than necessary — a cost and latency hit, never a correctness one. Mid-turn silence now allows stating a settled diagnosis in one line before acting on it, which keeps reasoning lean whether hush runs alone or paired.
+Fixed an issue when pairing hush with razor: on hard debugging tasks the combination could make the model reason for much longer than necessary — a cost and latency hit, never a correctness one. Mid-turn silence now allows stating a settled diagnosis in one line before acting on it, which keeps reasoning lean whether hush runs alone or paired.
 
 ## 0.3.5-alpha — 2026-07-07
 
-Documented a known limitation when pairing hush with [razor](https://github.com/V-Songbird/razor) on hard debugging tasks. No behavior change; resolved in 0.3.6.
+Documented a known limitation when pairing hush with razor on hard debugging tasks. No behavior change; resolved in 0.3.6.
 
 ## 0.3.4-alpha — 2026-07-07
 
