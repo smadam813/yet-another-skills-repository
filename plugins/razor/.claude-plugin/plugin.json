@@ -1,6 +1,6 @@
 {
   "name": "razor",
-  "version": "1.6.4",
+  "version": "1.6.5",
   "description": "Reuse-first checks: reconsider dependencies, file growth and unnecessary code before adding more.",
   "license": "MIT",
   "author": {

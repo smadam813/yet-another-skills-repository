@@ -5,10 +5,10 @@ const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { runHook, hookOutput, freshSession, startSession } = require('./helpers');
+const { runHook, freshSession, mapStore, preToolUse, dispatch, startSession, subagent, prompt } = require('./helpers');
 const { shouldInject } = require('../hooks/subagent-start');
-const { RULESET, DRIFT_NOTE, writeState } = require('../hooks/razor-lib');
-const { parseToggle } = require('../hooks/mode-toggle');
+const { run: modeToggle, parseToggle } = require('../hooks/mode-toggle');
+const { RULESET, DRIFT_NOTE, fileStore } = require('../hooks/razor-lib');
 
 describe('unit: shouldInject', () => {
   test('default skip list covers read-only built-ins', () => {
@@ -78,76 +78,52 @@ describe('integration: injection lifecycle', () => {
     assert.strictEqual(startSession({ session_id: 's1' }, { RAZOR_DISABLE: '1' }), '');
   });
 
-  test('subagent-start wraps the ladder in the SubagentStart JSON envelope', () => {
-    const out = hookOutput(
-      runHook('subagent-start.js', {
-        session_id: freshSession(),
-        hook_event_name: 'SubagentStart',
-        agent_type: 'general-purpose',
-      })
-    );
-    assert.strictEqual(out.hookSpecificOutput.hookEventName, 'SubagentStart');
-    assert.strictEqual(out.hookSpecificOutput.additionalContext, RULESET);
+  test('subagent-start returns the ladder for a code-writing agent', () => {
+    assert.strictEqual(subagent('general-purpose'), RULESET);
   });
 
   test('subagent-start is silent for skipped agent types', () => {
-    const r = runHook('subagent-start.js', {
-      session_id: freshSession(),
-      hook_event_name: 'SubagentStart',
-      agent_type: 'Explore',
-    });
-    assert.strictEqual(r.stdout.trim(), '');
+    assert.strictEqual(subagent('Explore'), null);
+  });
+
+  test('subagent-start reads RAZOR_AGENT_SKIP and RAZOR_AGENT_INJECT from the injected env', () => {
+    assert.strictEqual(subagent('code-reviewer', { RAZOR_AGENT_SKIP: 'code-reviewer' }), null);
+    assert.strictEqual(subagent('Explore', { RAZOR_AGENT_INJECT: 'explore' }), RULESET);
+  });
+
+  test('subagent-start is silent under RAZOR_DISABLE', () => {
+    assert.strictEqual(subagent('general-purpose', { RAZOR_DISABLE: '1' }), null);
   });
 
   test('"/razor off" parks every hook for the session; "/razor on" re-arms', () => {
+    const store = mapStore();
+    assert.match(prompt('/razor off', {}, store), /RAZOR OFF/);
+    assert.strictEqual(subagent('general-purpose', {}, store), null);
+    assert.strictEqual(dispatch(preToolUse('Bash', { command: 'npm i lodash' }), {}, store), null);
+
+    assert.strictEqual(prompt('/razor on', {}, store), RULESET);
+    assert.strictEqual(subagent('general-purpose', {}, store), RULESET);
+    assert.match(dispatch(preToolUse('Bash', { command: 'npm i axios' }), {}, store), /adds a new npm dependency/);
+  });
+
+  test('session-start reads the off state that "/razor off" writes to the state files', () => {
     const session = freshSession();
-    const off = runHook('mode-toggle.js', { session_id: session, prompt: '/razor off' });
-    assert.match(off.stdout, /RAZOR OFF/);
+    const data = { session_id: session, hook_event_name: 'UserPromptSubmit', prompt: '/razor off' };
+    modeToggle(data, { env: process.env, store: fileStore(process.env) });
 
-    const sessionStart = runHook('session-start.js', { session_id: session, hook_event_name: 'SessionStart' });
-    assert.strictEqual(sessionStart.stdout.trim(), '');
-
-    const dep = runHook('pre-tool-use.js', {
-      session_id: session,
-      tool_name: 'Bash',
-      tool_input: { command: 'npm i lodash' },
-    });
-    assert.strictEqual(dep.stdout.trim(), '');
-
-    const on = runHook('mode-toggle.js', { session_id: session, prompt: '/razor on' });
-    assert.match(on.stdout, /RAZOR ACTIVE/);
-
-    const dep2 = hookOutput(
-      runHook('pre-tool-use.js', {
-        session_id: session,
-        tool_name: 'Bash',
-        tool_input: { command: 'npm i axios' },
-      })
-    );
-    assert.strictEqual(dep2.hookSpecificOutput.permissionDecision, 'deny');
+    const r = runHook('session-start.js', { session_id: session, hook_event_name: 'SessionStart' });
+    assert.strictEqual(r.stdout.trim(), '');
   });
 
   test('state fails safe to on when the subagent session is unknown', () => {
-    // writeState never ran for this id — isActive defaults to on.
-    const out = hookOutput(
-      runHook('subagent-start.js', {
-        session_id: freshSession(),
-        hook_event_name: 'SubagentStart',
-        agent_type: 'general-purpose',
-      })
-    );
-    assert.ok(out.hookSpecificOutput.additionalContext.includes('RAZOR ACTIVE'));
+    // No hook wrote state for this session, so isActive defaults to on.
+    assert.strictEqual(subagent('general-purpose'), RULESET);
   });
 
   test('an off state written directly silences the subagent hook', () => {
-    const session = freshSession();
-    writeState(session, { off: true });
-    const r = runHook('subagent-start.js', {
-      session_id: session,
-      hook_event_name: 'SubagentStart',
-      agent_type: 'general-purpose',
-    });
-    assert.strictEqual(r.stdout.trim(), '');
+    const store = mapStore();
+    store.write('s1', { off: true });
+    assert.strictEqual(subagent('general-purpose', {}, store), null);
   });
 });
 
@@ -173,13 +149,17 @@ describe('integration: the session-start state sweep', () => {
 
 describe('RAZOR_DISABLE silences every hook, not just the gates', () => {
   test('mode-toggle emits nothing for "/razor on" under the kill switch', () => {
-    const r = runHook('mode-toggle.js', { session_id: freshSession(), prompt: '/razor on' }, { RAZOR_DISABLE: '1' });
-    assert.strictEqual(r.stdout.trim(), '');
+    assert.strictEqual(prompt('/razor on', { RAZOR_DISABLE: '1' }), null);
   });
 
   test('mode-toggle still answers "/razor on" without the kill switch', () => {
-    const r = runHook('mode-toggle.js', { session_id: freshSession(), prompt: '/razor on' }, { RAZOR_DISABLE: '' });
-    assert.match(r.stdout, /RAZOR ACTIVE/);
+    assert.strictEqual(prompt('/razor on', { RAZOR_DISABLE: '' }), RULESET);
+  });
+
+  test('mode-toggle writes no state under RAZOR_DISABLE', () => {
+    const store = mapStore();
+    prompt('/razor off', { RAZOR_DISABLE: '1' }, store);
+    assert.deepStrictEqual(store.read('s1'), {});
   });
 });
 
@@ -229,11 +209,7 @@ describe('the ladder does not depend on git finishing', () => {
 
 describe('the drift note', () => {
   test('an ordinary prompt carries the note, and nothing else', () => {
-    const r = runHook('mode-toggle.js', { session_id: freshSession(), prompt: 'fix the login bug' });
-    assert.match(r.stdout, /Stay on the task the first user prompt named/);
-    assert.doesNotMatch(r.stdout, /RAZOR ACTIVE/);
-    // UserPromptSubmit takes raw text; wrapping it injects nothing, silently.
-    assert.doesNotMatch(r.stdout, /hookSpecificOutput/);
+    assert.strictEqual(prompt('fix the login bug'), DRIFT_NOTE);
   });
 
   test('the say-once sentence is present — without it the note repeats after a drift', () => {
@@ -247,29 +223,22 @@ describe('the drift note', () => {
   });
 
   test('a toggle prompt answers the toggle instead', () => {
-    const off = runHook('mode-toggle.js', { session_id: freshSession(), prompt: '/razor off' });
-    assert.match(off.stdout, /RAZOR OFF/);
-    assert.doesNotMatch(off.stdout, /Stay on the task/);
+    const off = prompt('/razor off');
+    assert.match(off, /RAZOR OFF/);
+    assert.doesNotMatch(off, /Stay on the task/);
 
-    const on = runHook('mode-toggle.js', { session_id: freshSession(), prompt: '/razor on' });
-    assert.match(on.stdout, /RAZOR ACTIVE/);
-    assert.doesNotMatch(on.stdout, /Stay on the task/);
+    assert.strictEqual(prompt('/razor on'), RULESET);
   });
 
   test('"/razor off" silences it for the rest of the session', () => {
-    const session = freshSession();
-    writeState(session, { off: true });
-    const r = runHook('mode-toggle.js', { session_id: session, prompt: 'add a retry helper' });
-    assert.strictEqual(r.stdout.trim(), '');
+    const store = mapStore();
+    store.write('s1', { off: true });
+    assert.strictEqual(prompt('add a retry helper', {}, store), null);
   });
 
   test('the setting and the kill switch each silence it', () => {
-    const prompt = { session_id: freshSession(), prompt: 'add a retry helper' };
-    assert.strictEqual(runHook('mode-toggle.js', prompt, { RAZOR_DRIFT_NOTE: 'off' }).stdout.trim(), '');
-    assert.strictEqual(
-      runHook('mode-toggle.js', prompt, { CLAUDE_PLUGIN_OPTION_DRIFT_NOTE: 'false' }).stdout.trim(),
-      ''
-    );
-    assert.strictEqual(runHook('mode-toggle.js', prompt, { RAZOR_DISABLE: '1' }).stdout.trim(), '');
+    assert.strictEqual(prompt('add a retry helper', { RAZOR_DRIFT_NOTE: 'off' }), null);
+    assert.strictEqual(prompt('add a retry helper', { CLAUDE_PLUGIN_OPTION_DRIFT_NOTE: 'false' }), null);
+    assert.strictEqual(prompt('add a retry helper', { RAZOR_DISABLE: '1' }), null);
   });
 });

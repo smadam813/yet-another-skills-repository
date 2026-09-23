@@ -12,7 +12,7 @@
 // Unknown agent types get the ruleset: most custom agents write code, and
 // the fail-safe direction is guarded, not lean.
 
-const { RULESET, readInput, emitContext, readState, isActive } = require('./razor-lib');
+const { RULESET, readInput, emitContext, fileStore, isActive } = require('./razor-lib');
 
 // Read-only / non-coding built-ins. Extend with RAZOR_AGENT_SKIP.
 const DEFAULT_SKIP = [
@@ -44,13 +44,20 @@ function shouldInject(agentType, env) {
   return true;
 }
 
+// Returns the ladder for one subagent, or null to stay silent. Every
+// setting, RAZOR_AGENT_SKIP and RAZOR_AGENT_INJECT included, comes from
+// `env`.
+function run(data, { env, store }) {
+  if (!isActive(store.read(data.session_id), env)) return null;
+  if (!shouldInject(data.agent_type, env)) return null;
+  return RULESET;
+}
+
 function main() {
-  const data = readInput();
-  if (!isActive(readState(data.session_id))) return;
-  if (!shouldInject(data.agent_type, process.env)) return;
-  emitContext('SubagentStart', RULESET);
+  const env = process.env;
+  emitContext('SubagentStart', run(readInput(), { env, store: fileStore(env) }));
 }
 
 if (require.main === module) main();
 
-module.exports = { main, shouldInject, DEFAULT_SKIP };
+module.exports = { run, main, shouldInject, DEFAULT_SKIP };
