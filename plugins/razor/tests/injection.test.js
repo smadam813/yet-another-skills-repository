@@ -5,7 +5,7 @@ const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { runHook, freshSession, mapStore, preToolUse, dispatch, startSession, subagent, prompt } = require('./helpers');
+const { mapStore, preToolUse, dispatch, startSession, subagent, prompt } = require('./helpers');
 const { shouldInject } = require('../hooks/subagent-start');
 const { run: modeToggle, parseToggle } = require('../hooks/mode-toggle');
 const { RULESET, DRIFT_NOTE, fileStore } = require('../hooks/razor-lib');
@@ -66,12 +66,12 @@ describe('unit: parseToggle', () => {
 });
 
 describe('integration: injection lifecycle', () => {
-  test('session-start emits the ladder as raw stdout', () => {
-    const r = runHook('session-start.js', { session_id: freshSession(), hook_event_name: 'SessionStart' });
-    assert.match(r.stdout, /RAZOR ACTIVE/);
-    assert.match(r.stdout, /first rung that holds/);
+  test('session-start emits the ladder', () => {
+    const out = startSession({ session_id: 's1' }, {});
+    assert.match(out, /RAZOR ACTIVE/);
+    assert.match(out, /first rung that holds/);
     // rung 5 covers dependency-by-import, not just install commands
-    assert.match(r.stdout, /IS adding a dependency/);
+    assert.match(out, /IS adding a dependency/);
   });
 
   test('session-start is silent under RAZOR_DISABLE', () => {
@@ -107,12 +107,11 @@ describe('integration: injection lifecycle', () => {
   });
 
   test('session-start reads the off state that "/razor off" writes to the state files', () => {
-    const session = freshSession();
-    const data = { session_id: session, hook_event_name: 'UserPromptSubmit', prompt: '/razor off' };
-    modeToggle(data, { env: process.env, store: fileStore(process.env) });
+    const env = { CLAUDE_PLUGIN_DATA: fs.mkdtempSync(path.join(os.tmpdir(), 'razor-data-')) };
+    const data = { session_id: 's1', hook_event_name: 'UserPromptSubmit', prompt: '/razor off' };
+    modeToggle(data, { env, store: fileStore(env) });
 
-    const r = runHook('session-start.js', { session_id: session, hook_event_name: 'SessionStart' });
-    assert.strictEqual(r.stdout.trim(), '');
+    assert.strictEqual(startSession({ session_id: 's1' }, env, fileStore(env)), '');
   });
 
   test('state fails safe to on when the subagent session is unknown', () => {
@@ -137,11 +136,8 @@ describe('integration: the session-start state sweep', () => {
     const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
     fs.utimesSync(stale, eightDaysAgo, eightDaysAgo);
 
-    runHook(
-      'session-start.js',
-      { session_id: freshSession(), hook_event_name: 'SessionStart' },
-      { CLAUDE_PLUGIN_DATA: dataDir }
-    );
+    const env = { CLAUDE_PLUGIN_DATA: dataDir };
+    startSession({ session_id: 's1' }, env, fileStore(env));
     assert.strictEqual(fs.existsSync(stale), false);
     assert.strictEqual(fs.existsSync(fresh), true);
   });

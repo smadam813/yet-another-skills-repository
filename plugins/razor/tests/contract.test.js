@@ -20,6 +20,7 @@
 const { test, describe, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
@@ -31,20 +32,19 @@ const SESSION = 'contract-session';
 
 // ---- fixture worlds -------------------------------------------------------
 
-// Worlds live inside the plugin root, never under the system temp dir: the
-// file meter deliberately exempts temp paths as scratch, so a fixture project
-// built there could never exercise the new-file budget at all. Same convention
-// as the dispatcher suite's workspace, and gitignored for the same reason.
-const WORKSPACES = [];
+// Worlds live in the OS temp dir. The file meter exempts every write under the
+// hook's temp dir. So the hook gets a temp dir beside the worlds, not above
+// them, and the new-file budget still applies to the worlds.
+const ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'razor-contract-'));
+const CHILD_TMP = path.join(ROOT, 'tmp');
+fs.mkdirSync(CHILD_TMP);
 
 function tmpDir(tag) {
-  const dir = fs.mkdtempSync(path.join(__dirname, '..', `contract-ws-${tag}-`));
-  WORKSPACES.push(dir);
-  return dir;
+  return fs.mkdtempSync(path.join(ROOT, `${tag}-`));
 }
 
 function cleanWorkspaces() {
-  for (const dir of WORKSPACES.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
+  fs.rmSync(ROOT, { recursive: true, force: true });
 }
 
 function writeFile(dir, rel, content) {
@@ -223,6 +223,8 @@ function childEnv(dataDir, extra) {
     env[k] = v;
   }
   env.CLAUDE_PLUGIN_DATA = dataDir;
+  // os.tmpdir() reads TMPDIR on POSIX and TEMP, then TMP, on Windows.
+  env.TMPDIR = env.TEMP = env.TMP = CHILD_TMP;
   return { ...env, ...(extra || {}) };
 }
 
