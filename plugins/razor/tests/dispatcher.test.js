@@ -4,19 +4,13 @@ const { test, describe } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
-const { runHook, hookOutput, freshSession } = require('./helpers');
-const { readState, writeState, gateStateId, turnKey } = require('../hooks/razor-lib');
+const { mapStore, preToolUse, dispatch } = require('./helpers');
+const { gateStateId, turnKey } = require('../hooks/razor-lib');
 
 // Non-exempt (outside tmpdir/scratchpad), nonexistent, not under a tests/ dir.
 const newFile = (i) => path.join(__dirname, '..', 'does-not-exist', `d${i}.js`);
 
-const input = (sessionId, toolName, toolInput, extra) => ({
-  session_id: sessionId,
-  hook_event_name: 'PreToolUse',
-  tool_name: toolName,
-  tool_input: toolInput || {},
-  ...extra,
-});
+const write = (i, extra) => preToolUse('Write', { file_path: newFile(i) }, { prompt_id: 'p1', ...extra });
 
 describe('unit: state scoping helpers', () => {
   test('gateStateId namespaces by agent_id and falls back to the session', () => {
@@ -30,40 +24,40 @@ describe('unit: state scoping helpers', () => {
   });
 });
 
-describe('integration: one process, one state', () => {
+describe('integration: one call, one state', () => {
   test('a single Write books the file meter turn state', () => {
-    const session = freshSession();
-    assert.strictEqual(
-      hookOutput(runHook('pre-tool-use.js', input(session, 'Write', { file_path: newFile(1) }, { prompt_id: 'p1' }))),
-      null
-    );
-    const state = readState(session);
-    assert.strictEqual(state.turn.count, 1);
+    const store = mapStore();
+    assert.strictEqual(dispatch(write(1), {}, store), null);
+    assert.strictEqual(store.read('s1').turn.count, 1);
   });
 
-  test('import guard outranks the file meter when one Write trips both; the retry passes both', () => {
+  test('one deny per call, and every gate records its nudge, so the retry passes', () => {
     // Workspace at the plugin root: outside tmpdir (file meter live) and
     // outside tests/ (import guard live), with its own manifest.
     const ws = fs.mkdtempSync(path.join(__dirname, '..', 'disp-ws-'));
     try {
       fs.writeFileSync(path.join(ws, 'package.json'), JSON.stringify({ dependencies: { lodash: '^4' } }));
-      const session = freshSession();
+      const store = mapStore();
       const env = { RAZOR_FILE_BUDGET: '1' };
 
-      const first = input(session, 'Write', { file_path: path.join(ws, 'a.js'), content: 'const x = 1;\n' }, { prompt_id: 'p1' });
-      assert.strictEqual(hookOutput(runHook('pre-tool-use.js', first, env)), null);
+      const first = preToolUse('Write', { file_path: path.join(ws, 'a.js'), content: 'const x = 1;\n' }, { prompt_id: 'p1' });
+      assert.strictEqual(dispatch(first, env, store), null);
 
-      const both = input(
-        session,
+      const both = preToolUse(
         'Write',
         { file_path: path.join(ws, 'b.js'), content: "const axios = require('axios');\n" },
         { prompt_id: 'p1' }
       );
-      const deny = hookOutput(runHook('pre-tool-use.js', both, env));
-      assert.strictEqual(deny.hookSpecificOutput.permissionDecision, 'deny');
-      assert.match(deny.hookSpecificOutput.permissionDecisionReason, /adds a new node dependency/);
+      const reason = dispatch(both, env, store);
+      assert.match(reason, /adds a new node dependency/);
+      assert.doesNotMatch(reason, /new file #/);
 
-      assert.strictEqual(hookOutput(runHook('pre-tool-use.js', both, env)), null);
+      // The file meter records its nudge although the import guard denies.
+      const state = store.read('s1');
+      assert.deepStrictEqual(state.reconsidered, { node: ['axios'] });
+      assert.strictEqual(state.turn.fired, true);
+
+      assert.strictEqual(dispatch(both, env, store), null);
     } finally {
       fs.rmSync(ws, { recursive: true, force: true });
     }
@@ -72,50 +66,52 @@ describe('integration: one process, one state', () => {
 
 describe('integration: subagent budget isolation', () => {
   test('a subagent gets its own file budget', () => {
-    const session = freshSession();
+    const store = mapStore();
     const env = { RAZOR_FILE_BUDGET: '1' };
-    const agent = { agent_id: 'agent-2', prompt_id: 'p1' };
-    assert.strictEqual(
-      hookOutput(runHook('pre-tool-use.js', input(session, 'Write', { file_path: newFile(10) }, agent), env)),
-      null
-    );
-    const deny = hookOutput(runHook('pre-tool-use.js', input(session, 'Write', { file_path: newFile(11) }, agent), env));
-    assert.strictEqual(deny.hookSpecificOutput.permissionDecision, 'deny');
+    const agent = { agent_id: 'agent-2' };
+    assert.strictEqual(dispatch(write(10, agent), env, store), null);
+    assert.match(dispatch(write(11, agent), env, store), /new file #2/);
 
     // Main thread's budget untouched by the agent's writes.
-    assert.strictEqual(
-      hookOutput(runHook('pre-tool-use.js', input(session, 'Write', { file_path: newFile(12) }, { prompt_id: 'p1' }), env)),
-      null
-    );
+    assert.strictEqual(dispatch(write(12), env, store), null);
+    assert.strictEqual(store.read('s1').turn.count, 1);
+    assert.strictEqual(store.read('s1--agent-2').turn.count, 2);
   });
 
   test('the session-wide /razor off toggle silences subagent-scoped calls too', () => {
-    const session = freshSession();
-    writeState(session, { off: true });
-    const agent = { agent_id: 'agent-3' };
-    assert.strictEqual(
-      hookOutput(runHook('pre-tool-use.js', input(session, 'Bash', { command: 'npm i left-pad' }, agent))),
-      null
-    );
+    const store = mapStore();
+    store.write('s1', { off: true });
+    const call = preToolUse('Bash', { command: 'npm i left-pad' }, { agent_id: 'agent-3' });
+    assert.strictEqual(dispatch(call, {}, store), null);
+    assert.strictEqual(store.map.has('s1--agent-3'), false);
+  });
+
+  test('RAZOR_DISABLE silences every gate', () => {
+    const call = preToolUse('Bash', { command: 'npm i left-pad' });
+    assert.strictEqual(dispatch(call, { RAZOR_DISABLE: '1' }), null);
   });
 });
 
 describe('integration: prompt_id turn boundaries', () => {
   test('a new prompt_id resets the file budget without any transcript', () => {
-    const session = freshSession();
+    const store = mapStore();
     const env = { RAZOR_FILE_BUDGET: '1' };
-    assert.strictEqual(
-      hookOutput(runHook('pre-tool-use.js', input(session, 'Write', { file_path: newFile(20) }, { prompt_id: 'turn-a' }), env)),
-      null
-    );
-    const deny = hookOutput(
-      runHook('pre-tool-use.js', input(session, 'Write', { file_path: newFile(21) }, { prompt_id: 'turn-a' }), env)
-    );
-    assert.strictEqual(deny.hookSpecificOutput.permissionDecision, 'deny');
+    assert.strictEqual(dispatch(write(20, { prompt_id: 'turn-a' }), env, store), null);
+    assert.match(dispatch(write(21, { prompt_id: 'turn-a' }), env, store), /new file #2/);
+    assert.strictEqual(dispatch(write(22, { prompt_id: 'turn-b' }), env, store), null);
+  });
+});
 
-    assert.strictEqual(
-      hookOutput(runHook('pre-tool-use.js', input(session, 'Write', { file_path: newFile(22) }, { prompt_id: 'turn-b' }), env)),
-      null
-    );
+describe('integration: the tmpDir the caller passes', () => {
+  test('the file meter exempts writes under the given tmpDir only', () => {
+    const tmpDir = path.join(__dirname, '..', 'does-not-exist');
+    const env = { RAZOR_FILE_BUDGET: '1' };
+    const exempt = mapStore();
+    assert.strictEqual(dispatch(write(30), env, exempt, tmpDir), null);
+    assert.strictEqual(dispatch(write(31), env, exempt, tmpDir), null);
+
+    const counted = mapStore();
+    assert.strictEqual(dispatch(write(30), env, counted), null);
+    assert.match(dispatch(write(31), env, counted), /new file #2/);
   });
 });

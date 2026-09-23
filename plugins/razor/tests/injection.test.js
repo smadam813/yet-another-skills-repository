@@ -2,6 +2,9 @@
 
 const { test, describe } = require('node:test');
 const assert = require('node:assert');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const { runHook, hookOutput, freshSession } = require('./helpers');
 const { shouldInject } = require('../hooks/subagent-start');
 const { RULESET, DRIFT_NOTE, writeState } = require('../hooks/razor-lib');
@@ -150,6 +153,38 @@ describe('integration: injection lifecycle', () => {
       agent_type: 'general-purpose',
     });
     assert.strictEqual(r.stdout.trim(), '');
+  });
+});
+
+describe('integration: the session-start state sweep', () => {
+  test('session-start sweeps razor state files older than a week, keeps fresh ones', () => {
+    const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'razor-data-'));
+    const stale = path.join(dataDir, 'razor-dead-session.json');
+    const fresh = path.join(dataDir, 'razor-live-session.json');
+    fs.writeFileSync(stale, '{}');
+    fs.writeFileSync(fresh, '{}');
+    const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
+    fs.utimesSync(stale, eightDaysAgo, eightDaysAgo);
+
+    runHook(
+      'session-start.js',
+      { session_id: freshSession(), hook_event_name: 'SessionStart' },
+      { CLAUDE_PLUGIN_DATA: dataDir }
+    );
+    assert.strictEqual(fs.existsSync(stale), false);
+    assert.strictEqual(fs.existsSync(fresh), true);
+  });
+});
+
+describe('RAZOR_DISABLE silences every hook, not just the gates', () => {
+  test('mode-toggle emits nothing for "/razor on" under the kill switch', () => {
+    const r = runHook('mode-toggle.js', { session_id: freshSession(), prompt: '/razor on' }, { RAZOR_DISABLE: '1' });
+    assert.strictEqual(r.stdout.trim(), '');
+  });
+
+  test('mode-toggle still answers "/razor on" without the kill switch', () => {
+    const r = runHook('mode-toggle.js', { session_id: freshSession(), prompt: '/razor on' }, { RAZOR_DISABLE: '' });
+    assert.match(r.stdout, /RAZOR ACTIVE/);
   });
 });
 

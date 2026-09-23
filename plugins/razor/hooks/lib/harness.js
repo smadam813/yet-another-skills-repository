@@ -66,15 +66,15 @@ function emitDeny(event, reason) {
 // Settings resolve in order: explicit RAZOR_* env var, then the plugin
 // option set at enable time (CLAUDE_PLUGIN_OPTION_*, uppercased by the
 // host), then the built-in default.
-function settingOff(name) {
-  const env = process.env[`RAZOR_${name}`];
-  if (env !== undefined && env !== '') return env === 'off';
-  return process.env[`CLAUDE_PLUGIN_OPTION_${name}`] === 'false';
+function settingOff(name, env = process.env) {
+  const explicit = env[`RAZOR_${name}`];
+  if (explicit !== undefined && explicit !== '') return explicit === 'off';
+  return env[`CLAUDE_PLUGIN_OPTION_${name}`] === 'false';
 }
 
-function settingNumber(name, fallback) {
-  const env = process.env[`RAZOR_${name}`];
-  const raw = env !== undefined && env !== '' ? env : process.env[`CLAUDE_PLUGIN_OPTION_${name}`];
+function settingNumber(name, fallback, env = process.env) {
+  const explicit = env[`RAZOR_${name}`];
+  const raw = explicit !== undefined && explicit !== '' ? explicit : env[`CLAUDE_PLUGIN_OPTION_${name}`];
   const n = parseInt(raw ?? '', 10);
   return Number.isFinite(n) ? n : fallback;
 }
@@ -82,10 +82,10 @@ function settingNumber(name, fallback) {
 // True when the setting was named explicitly rather than left at its
 // default — the difference between "the operator chose this ceiling" and
 // "razor picked one".
-function settingGiven(name) {
-  const env = process.env[`RAZOR_${name}`];
-  if (env !== undefined && env !== '') return true;
-  const opt = process.env[`CLAUDE_PLUGIN_OPTION_${name}`];
+function settingGiven(name, env = process.env) {
+  const explicit = env[`RAZOR_${name}`];
+  if (explicit !== undefined && explicit !== '') return true;
+  const opt = env[`CLAUDE_PLUGIN_OPTION_${name}`];
   return opt !== undefined && opt !== '';
 }
 
@@ -94,8 +94,8 @@ function settingGiven(name) {
 // State lives in the plugin's persistent data directory when the host
 // provides one (tmp cleaners can't re-arm fired gates mid-session there);
 // tmpdir is the fallback.
-function stateDir() {
-  const dir = process.env.CLAUDE_PLUGIN_DATA;
+function stateDir(env = process.env) {
+  const dir = env.CLAUDE_PLUGIN_DATA;
   if (dir) {
     try {
       fs.mkdirSync(dir, { recursive: true });

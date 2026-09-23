@@ -495,8 +495,8 @@ const MANAGER_ECO = {
 };
 
 // Dispatcher entry: mutates gate state, returns the deny reason or null.
-function check(data, state) {
-  if (settingOff('DEP_GUARD')) return null;
+function check(data, state, { env }) {
+  if (settingOff('DEP_GUARD', env)) return null;
   if (data.tool_name !== 'Bash' && data.tool_name !== 'PowerShell') return null;
 
   // Every install on the line, not just the first. A chained command that

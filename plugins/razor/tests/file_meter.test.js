@@ -104,9 +104,9 @@ describe('unit: classify', () => {
 
 describe('unit: isExemptPath', () => {
   test('tmpdir and scratchpad are exempt, repo paths are not', () => {
-    assert.strictEqual(isExemptPath(path.join(os.tmpdir(), 'x', 'y.js')), true);
-    assert.strictEqual(isExemptPath(path.join('D:', 'w', 'scratchpad', 'y.js')), true);
-    assert.strictEqual(isExemptPath(newFile(0)), false);
+    assert.strictEqual(isExemptPath(path.join(os.tmpdir(), 'x', 'y.js'), os.tmpdir()), true);
+    assert.strictEqual(isExemptPath(path.join('D:', 'w', 'scratchpad', 'y.js'), os.tmpdir()), true);
+    assert.strictEqual(isExemptPath(newFile(0), os.tmpdir()), false);
   });
 });
 

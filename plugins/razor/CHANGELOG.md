@@ -2,7 +2,13 @@
 
 All notable changes to razor are documented here. The version number lives in
 both plugin manifests, `.claude-plugin/plugin.json` and
-`.codex-plugin/plugin.json`.
+`.cursor-plugin/plugin.json`.
+
+## 1.6.3 — 2026-09-22
+
+razor behaves as before. The PreToolUse gates now read every setting on each
+call, not once when the hook loads. The tests can now run the gates without
+a new process.
 
 ## 1.6.2 — 2026-09-22
 

@@ -22,14 +22,9 @@
 // this meter with them.
 
 const fs = require('fs');
-const os = require('os');
 const path = require('path');
 const { turnKey, settingNumber, settingGiven } = require('./razor-lib');
 const { PROVENANCE, retryContract } = require('./dep-guard');
-
-const BUDGET = settingNumber('FILE_BUDGET', 4);
-// An explicitly named budget is an explicit ceiling: count everything.
-const RAW_CEILING = settingGiven('FILE_BUDGET');
 
 // Plural labels for the message. Anything not listed here is production.
 const UNCOUNTED = {
@@ -46,9 +41,9 @@ function norm(p) {
   return path.resolve(p).replace(/\\/g, '/').toLowerCase();
 }
 
-function isExemptPath(filePath) {
+function isExemptPath(filePath, tmpDir) {
   const target = norm(filePath);
-  const tmp = norm(os.tmpdir());
+  const tmp = norm(tmpDir);
   return target === tmp || target.startsWith(tmp + '/') || target.includes('/scratchpad/');
 }
 
@@ -123,22 +118,25 @@ function otherKinds(kinds) {
 }
 
 // Dispatcher entry: mutates gate state, returns the deny reason or null.
-function check(data, state) {
-  if (BUDGET <= 0) return null; // 0 or negative disables the meter
+function check(data, state, { env, tmpDir }) {
+  const budget = settingNumber('FILE_BUDGET', 4, env);
+  if (budget <= 0) return null; // 0 or negative disables the meter
   if (data.tool_name !== 'Write') return null;
 
   const filePath = data.tool_input && data.tool_input.file_path;
-  if (!filePath || isExemptPath(filePath)) return null;
+  if (!filePath || isExemptPath(filePath, tmpDir)) return null;
   if (fs.existsSync(filePath)) return null; // overwrite/edit, not a new file
 
+  // An explicitly named budget is an explicit ceiling: count everything.
+  const rawCeiling = settingGiven('FILE_BUDGET', env);
   const kind = classify(filePath);
-  const { next, deny } = stepTurn(state.turn, turnKey(data), BUDGET, kind, RAW_CEILING);
+  const { next, deny } = stepTurn(state.turn, turnKey(data), budget, kind, rawCeiling);
   state.turn = next;
 
   if (!deny) return null;
-  const noun = RAW_CEILING ? 'new file' : 'new production file';
+  const noun = rawCeiling ? 'new file' : 'new production file';
   return (
-    `razor: ${noun} #${next.count} this turn (budget ${BUDGET}). ` +
+    `razor: ${noun} #${next.count} this turn (budget ${budget}). ` +
     placement(filePath) +
     otherKinds(next.kinds) +
     'Rung 2 — does an existing file or module already cover this, and does this shape match what was asked for? ' +
@@ -148,4 +146,4 @@ function check(data, state) {
   );
 }
 
-module.exports = { check, stepTurn, classify, isExemptPath, BUDGET, RAW_CEILING };
+module.exports = { check, stepTurn, classify, isExemptPath };

@@ -47,8 +47,8 @@ function safeId(id) {
   return String(id || 'unknown').replace(/[^a-zA-Z0-9-]/g, '_');
 }
 
-function statePath(sessionId) {
-  return path.join(harness.stateDir(), `razor-${safeId(sessionId)}.json`);
+function statePath(sessionId, env) {
+  return path.join(harness.stateDir(env), `razor-${safeId(sessionId)}.json`);
 }
 
 // State files are swept by age alone — a session's file must outlive the
@@ -78,34 +78,42 @@ function gcStateFiles() {
   }
 }
 
-function readState(sessionId) {
+function readState(sessionId, env = process.env) {
   try {
-    return JSON.parse(fs.readFileSync(statePath(sessionId), 'utf-8'));
+    return JSON.parse(fs.readFileSync(statePath(sessionId, env), 'utf-8'));
   } catch {
     return {};
   }
 }
 
-function writeState(sessionId, state) {
+function writeState(sessionId, state, env = process.env) {
   try {
-    safeWriteFileSync(statePath(sessionId), JSON.stringify(state));
+    safeWriteFileSync(statePath(sessionId, env), JSON.stringify(state), env);
   } catch {
     /* best effort — losing state means one extra nudge, not breakage */
   }
 }
 
+// The state files, as the store the PreToolUse dispatcher's run() takes.
+function fileStore(env = process.env) {
+  return {
+    read: (id) => readState(id, env),
+    write: (id, state) => writeState(id, state, env),
+  };
+}
+
 // The env kill-switch. Separate from isActive because the toggle hook must
 // stay silent under it while still honouring "/razor on" in an ordinary
 // session that was toggled off.
-function killed() {
-  return process.env.RAZOR_DISABLE === '1';
+function killed(env = process.env) {
+  return env.RAZOR_DISABLE === '1';
 }
 
 // Razor is on unless the env kill-switch is set or the session was toggled
 // off via "/razor off". Absent state (e.g. a subagent hook that can't
 // resolve the parent session) fails safe to on.
-function isActive(state) {
-  if (killed()) return false;
+function isActive(state, env = process.env) {
+  if (killed(env)) return false;
   return !(state && state.off === true);
 }
 
@@ -133,6 +141,7 @@ module.exports = {
   gcStateFiles,
   readState,
   writeState,
+  fileStore,
   isActive,
   killed,
   git,

@@ -25,16 +25,16 @@ describe('unit: every install on the line', () => {
   test('each package is checkpointed once, then the command passes', () => {
     const state = {};
     const data = { tool_name: 'Bash', cwd: os.tmpdir(), tool_input: { command: CHAINED } };
-    assert.match(check(data, state), /axios/);
-    assert.match(check(data, state), /lodash/);
-    assert.strictEqual(check(data, state), null);
+    assert.match(check(data, state, { env: {} }), /axios/);
+    assert.match(check(data, state, { env: {} }), /lodash/);
+    assert.strictEqual(check(data, state, { env: {} }), null);
   });
 });
 
 // The ledger files each record under an ecosystem and a name, so every
 // manager needs an ecosystem.
 describe('unit: one ledger record for every manager', () => {
-  const run = (command, state) => check({ tool_name: 'Bash', cwd: os.tmpdir(), tool_input: { command } }, state);
+  const run = (command, state) => check({ tool_name: 'Bash', cwd: os.tmpdir(), tool_input: { command } }, state, { env: {} });
   const ONE_PER_MANAGER = [
     ...Object.keys(ADD_SUBCOMMANDS).map((m) => `${m} ${ADD_SUBCOMMANDS[m][0]} a`),
     'dotnet add package a',
