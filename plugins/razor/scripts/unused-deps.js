@@ -106,8 +106,7 @@ function packageJsonScripts(projectDir) {
 }
 
 // devDependencies alone (the node reader merges every dependency section, losing
-// the distinction this classification needs). Audit-specific read, kept local
-// — the manifest module's reader stays untouched.
+// the distinction this classification needs). Audit-specific read, kept local.
 function packageJsonDevDeps(projectDir) {
   const pkg = readJson(path.join(projectDir, 'package.json'));
   return new Set(Object.keys((pkg && pkg.devDependencies) || {}));

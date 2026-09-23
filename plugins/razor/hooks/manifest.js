@@ -289,7 +289,6 @@ function readManifest(eco, dir) {
 
 // Declared names of the manifest in this directory. Null = none here.
 function readDeps(eco, dir) {
-  if (!MANIFESTS[eco] || !dir) return null;
   const found = readManifest(eco, dir);
   return found && found.deps;
 }
