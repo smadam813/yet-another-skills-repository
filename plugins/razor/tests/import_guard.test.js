@@ -7,8 +7,9 @@ const os = require('os');
 const path = require('path');
 const { mapStore, preToolUse, dispatch } = require('./helpers');
 const {
-  jsImportRoots, pyImportRoots, newImports, isTestFile, ecosystemOf, findManifest,
+  jsImportRoots, pyImportRoots, newImports, isTestFile, ecosystemOf,
 } = require('../hooks/import-guard');
+const { nearestManifest } = require('../hooks/manifest');
 
 describe('unit: jsImportRoots', () => {
   // `@/x` and `~/x` are the path-alias forms nearly every modern TS/JS setup
@@ -249,7 +250,7 @@ describe('integration: import gate', () => {
     const deep = fs.mkdtempSync(path.join(os.tmpdir(), 'razor-igg-'));
     // Guard the assumption instead of trusting the machine: a stray
     // package.json above tmpdir would make this test lie.
-    if (findManifest('node', deep)) return t.skip('a manifest exists above tmpdir on this machine');
+    if (nearestManifest('node', deep)) return t.skip('a manifest exists above tmpdir on this machine');
     const write = preToolUse('Write', {
       file_path: path.join(deep, 'app.js'),
       content: "const axios = require('axios');\n",

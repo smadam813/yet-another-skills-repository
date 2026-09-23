@@ -7,7 +7,8 @@ const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const { mapStore, dispatch, startSession, stopTurn } = require('./helpers');
-const { installedDeps, denyReason, parseInstallCommand } = require('../hooks/dep-guard');
+const { denyReason, parseInstallCommand } = require('../hooks/dep-guard');
+const { nearestManifest } = require('../hooks/manifest');
 const { shouldFire } = require('../hooks/build-ledger');
 
 function fixtureDir(files) {
@@ -18,7 +19,13 @@ function fixtureDir(files) {
   return dir;
 }
 
-describe('unit: installedDeps manifest readers', () => {
+// The declared names of the nearest manifest, or null when there is none.
+function declared(eco, dir) {
+  const manifest = nearestManifest(eco, dir);
+  return manifest && manifest.deps;
+}
+
+describe('unit: nearestManifest readers', () => {
   test('package.json: dependencies + devDependencies', () => {
     const dir = fixtureDir({
       'package.json': JSON.stringify({
@@ -26,8 +33,7 @@ describe('unit: installedDeps manifest readers', () => {
         devDependencies: { jest: '^29' },
       }),
     });
-    assert.deepStrictEqual(installedDeps('npm', dir).sort(), ['axios', 'jest', 'lodash']);
-    assert.deepStrictEqual(installedDeps('pnpm', dir).sort(), ['axios', 'jest', 'lodash']);
+    assert.deepStrictEqual(declared('node', dir).sort(), ['axios', 'jest', 'lodash']);
   });
 
   // Regression: optionalDependencies and peerDependencies were absent from
@@ -42,14 +48,14 @@ describe('unit: installedDeps manifest readers', () => {
         peerDependencies: { react: '^18' },
       }),
     });
-    assert.deepStrictEqual(installedDeps('npm', dir).sort(), ['jest', 'lodash', 'react', 'sharp']);
+    assert.deepStrictEqual(declared('node', dir).sort(), ['jest', 'lodash', 'react', 'sharp']);
   });
 
   test('walks up from a nested subdirectory', () => {
     const dir = fixtureDir({ 'package.json': JSON.stringify({ dependencies: { zod: '^3' } }) });
     const nested = path.join(dir, 'src', 'deep');
     fs.mkdirSync(nested, { recursive: true });
-    assert.deepStrictEqual(installedDeps('yarn', nested), ['zod']);
+    assert.deepStrictEqual(declared('node', nested), ['zod']);
   });
 
   test('stops at a nested manifest that declares nothing', () => {
@@ -57,8 +63,15 @@ describe('unit: installedDeps manifest readers', () => {
     const nested = path.join(dir, 'packages', 'app');
     fs.mkdirSync(nested, { recursive: true });
     fs.writeFileSync(path.join(nested, 'package.json'), JSON.stringify({ name: 'app' }));
-    assert.deepStrictEqual(installedDeps('npm', nested), []);
-    assert.deepStrictEqual(installedDeps('npm', path.join(nested, 'src')), []);
+    assert.deepStrictEqual(declared('node', nested), []);
+    assert.deepStrictEqual(declared('node', path.join(nested, 'src')), []);
+  });
+
+  test('stops at a nested manifest that cannot be read', () => {
+    const dir = fixtureDir({ 'package.json': JSON.stringify({ dependencies: { lodash: '^4' } }) });
+    const nested = path.join(dir, 'packages', 'app');
+    fs.mkdirSync(path.join(nested, 'package.json'), { recursive: true });
+    assert.deepStrictEqual(declared('node', nested), []);
   });
 
   test('pyproject.toml PEP 621 arrays, specifiers stripped', () => {
@@ -71,7 +84,7 @@ describe('unit: installedDeps manifest readers', () => {
         'test = ["pytest>=7"]',
       ].join('\n'),
     });
-    assert.deepStrictEqual(installedDeps('pip', dir).sort(), ['flask', 'pydantic', 'pytest', 'requests']);
+    assert.deepStrictEqual(declared('python', dir).sort(), ['flask', 'pydantic', 'pytest', 'requests']);
   });
 
   test('pyproject.toml poetry tables, python entry excluded', () => {
@@ -89,14 +102,14 @@ describe('unit: installedDeps manifest readers', () => {
       ].join('\n'),
     });
     // build-system requires is tooling, not installed deps — excluded
-    assert.deepStrictEqual(installedDeps('poetry', dir).sort(), ['httpx', 'ruff']);
+    assert.deepStrictEqual(declared('python', dir).sort(), ['httpx', 'ruff']);
   });
 
   test('requirements.txt fallback, comments and flags skipped', () => {
     const dir = fixtureDir({
       'requirements.txt': '# deps\nrequests==2.31\n-r other.txt\nflask>=2\n\n',
     });
-    assert.deepStrictEqual(installedDeps('pip', dir).sort(), ['flask', 'requests']);
+    assert.deepStrictEqual(declared('python', dir).sort(), ['flask', 'requests']);
   });
 
   test('Cargo.toml sections incl. [dependencies.foo] form', () => {
@@ -116,7 +129,7 @@ describe('unit: installedDeps manifest readers', () => {
         'insta = "1"',
       ].join('\n'),
     });
-    assert.deepStrictEqual(installedDeps('cargo', dir).sort(), ['clap', 'insta', 'serde', 'tokio']);
+    assert.deepStrictEqual(declared('rust', dir).sort(), ['clap', 'insta', 'serde', 'tokio']);
   });
 
   test('go.mod require block and single-line require', () => {
@@ -135,7 +148,7 @@ describe('unit: installedDeps manifest readers', () => {
       ].join('\n'),
     });
     assert.deepStrictEqual(
-      installedDeps('go', dir).sort(),
+      declared('go', dir).sort(),
       ['github.com/gorilla/mux', 'github.com/single/dep', 'golang.org/x/sync']
     );
   });
@@ -147,14 +160,14 @@ describe('unit: installedDeps manifest readers', () => {
         'require-dev': { 'phpunit/phpunit': '^10' },
       }),
     });
-    assert.deepStrictEqual(installedDeps('composer', dir).sort(), ['monolog/monolog', 'phpunit/phpunit']);
+    assert.deepStrictEqual(declared('php', dir).sort(), ['monolog/monolog', 'phpunit/phpunit']);
   });
 
   test('Gemfile gem lines', () => {
     const dir = fixtureDir({
       Gemfile: "source 'https://rubygems.org'\ngem 'rails', '~> 7.1'\ngem \"puma\"\n",
     });
-    assert.deepStrictEqual(installedDeps('gem', dir).sort(), ['puma', 'rails']);
+    assert.deepStrictEqual(declared('ruby', dir).sort(), ['puma', 'rails']);
   });
 
   test('csproj PackageReference entries', () => {
@@ -163,13 +176,20 @@ describe('unit: installedDeps manifest readers', () => {
         '<Project><ItemGroup><PackageReference Include="Newtonsoft.Json" Version="13" />' +
         '<PackageReference Include="Serilog" Version="3" /></ItemGroup></Project>',
     });
-    assert.deepStrictEqual(installedDeps('dotnet', dir).sort(), ['Newtonsoft.Json', 'Serilog']);
+    assert.deepStrictEqual(declared('dotnet', dir).sort(), ['Newtonsoft.Json', 'Serilog']);
   });
 
   test('no manifest anywhere → null', () => {
     const dir = fixtureDir({});
-    assert.strictEqual(installedDeps('cargo', dir), null);
-    assert.strictEqual(installedDeps('npm', undefined), null);
+    assert.strictEqual(declared('rust', dir), null);
+    assert.strictEqual(declared('node', undefined), null);
+  });
+
+  test('the file the walk found names the manifest', () => {
+    const py = fixtureDir({ 'pyproject.toml': '[project]\nname = "x"\n', 'requirements.txt': 'flask\n' });
+    assert.deepStrictEqual(nearestManifest('python', py), { dir: py, name: 'pyproject.toml', deps: ['flask'] });
+    const cs = fixtureDir({ 'App.csproj': '<Project />' });
+    assert.deepStrictEqual(nearestManifest('dotnet', cs), { dir: cs, name: 'App.csproj', deps: [] });
   });
 });
 

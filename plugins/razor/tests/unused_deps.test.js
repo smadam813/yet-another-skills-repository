@@ -13,7 +13,7 @@ const {
   configuredIgnores,
   mentionedOutsideImports,
 } = require('../scripts/unused-deps');
-const { readPythonDeps } = require('../hooks/dep-guard');
+const { readDeps } = require('../hooks/manifest');
 
 function tmp(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -212,7 +212,7 @@ describe('unused-deps: python ecosystem bucketing', () => {
     const dir = tmp('razor-unused-req-');
     write(dir, 'requirements.txt', '-r requirements-dev.txt\nrequests==2.31.0\n');
     write(dir, 'requirements-dev.txt', 'pytest==8.0.0\n');
-    assert.deepStrictEqual(readPythonDeps(dir).sort(), ['pytest', 'requests']);
+    assert.deepStrictEqual(readDeps('python', dir).sort(), ['pytest', 'requests']);
   });
 
   test('PEP 735 dependency groups are declared, and an include-group name is not a package', () => {
@@ -223,7 +223,7 @@ describe('unused-deps: python ecosystem bucketing', () => {
       '[project]\nname = "x"\ndependencies = ["requests"]\n\n' +
         '[dependency-groups]\ntest = ["pytest", "coverage"]\nall = [{include-group = "test"}]\n',
     );
-    const deps = readPythonDeps(dir).sort();
+    const deps = readDeps('python', dir).sort();
     assert.deepStrictEqual(deps, ['coverage', 'pytest', 'requests']);
   });
 });

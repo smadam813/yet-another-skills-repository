@@ -25,7 +25,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { readNodeDeps, readPythonDeps } = require('../hooks/dep-guard');
+const { MANIFESTS, readDeps } = require('../hooks/manifest');
 const {
   jsImportRoots,
   jsTypeImportRoots,
@@ -33,8 +33,6 @@ const {
   ecosystemOf,
 } = require('../hooks/import-guard');
 const { isDeclared } = require('../hooks/reconsideration-ledger');
-
-const MANIFEST_NAME = { node: 'package.json', python: 'requirements.txt / pyproject.toml' };
 
 // Generated/vendored dirs never hold source worth scanning — same doctrine
 // as the gates (grandfather what's already there, don't chase build output).
@@ -107,9 +105,8 @@ function packageJsonScripts(projectDir) {
   return pkg ? Object.values(pkg.scripts || {}).join('\n') : '';
 }
 
-// devDependencies alone (readNodeDeps merges every dependency section, losing
-// the distinction this classification needs). Audit-specific read, kept local
-// — dep-guard's manifest reader stays untouched.
+// devDependencies alone (the node reader merges every dependency section, losing
+// the distinction this classification needs). Audit-specific read, kept local.
 function packageJsonDevDeps(projectDir) {
   const pkg = readJson(path.join(projectDir, 'package.json'));
   return new Set(Object.keys((pkg && pkg.devDependencies) || {}));
@@ -267,12 +264,12 @@ function mentionedOutsideImports(dep, haystack) {
 // against its own manifest and its own files, never the root's.
 function auditDir(projectDir) {
   const ecosystems = [];
-  const nodeDeps = readNodeDeps(projectDir);
+  const nodeDeps = readDeps('node', projectDir);
   if (nodeDeps !== null) {
     const peerOnly = packageJsonPeerOnlyDeps(projectDir);
     ecosystems.push({ eco: 'node', deps: nodeDeps.filter((d) => !peerOnly.has(d)) });
   }
-  const pythonDeps = readPythonDeps(projectDir);
+  const pythonDeps = readDeps('python', projectDir);
   if (pythonDeps !== null) ecosystems.push({ eco: 'python', deps: pythonDeps });
   if (!ecosystems.length) return { ecosystems: [], usedCount: 0 };
 
@@ -359,7 +356,7 @@ function auditDir(projectDir) {
 
     result.ecosystems.push({
       eco,
-      manifest: MANIFEST_NAME[eco],
+      manifest: MANIFESTS[eco].join(' / '),
       declaredCount: deps.length,
       scanned,
       resolved: Boolean(evidence),
@@ -479,7 +476,7 @@ function ecoLines(eco) {
 function formatReport(projectDir, result) {
   const lines = [`razor:unused audit — ${projectDir}`, ''];
   if (!result.ecosystems.length && !(result.workspaces || []).length) {
-    lines.push('No supported manifest found (package.json, requirements.txt, pyproject.toml).');
+    lines.push(`No supported manifest found (${[...MANIFESTS.node, ...MANIFESTS.python].join(', ')}).`);
     return lines.join('\n');
   }
 

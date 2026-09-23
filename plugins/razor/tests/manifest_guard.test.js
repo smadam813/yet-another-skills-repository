@@ -6,7 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { mapStore, preToolUse, dispatch } = require('./helpers');
-const { jsonDepNames, reqDepNames, simulate } = require('../hooks/manifest-guard');
+const { depNames, simulate } = require('../hooks/manifest-guard');
 
 const PKG = JSON.stringify(
   { name: 'ws', version: '1.0.0', dependencies: { express: '^4.19.2', lodash: '^4.17.21' } },
@@ -24,14 +24,14 @@ function workspace(files) {
 
 describe('unit: dependency-name extraction', () => {
   test('package.json: dependencies + devDependencies, lowercased', () => {
-    const names = jsonDepNames(JSON.stringify({
+    const names = depNames('package.json', JSON.stringify({
       dependencies: { Express: '^4' }, devDependencies: { jest: '^29' }, scripts: { test: 'x' },
     }));
     assert.deepStrictEqual([...names].sort(), ['express', 'jest']);
   });
 
   test('package.json: optional and peer sections count, lowercased', () => {
-    const names = jsonDepNames(JSON.stringify({
+    const names = depNames('package.json', JSON.stringify({
       dependencies: { express: '^4' },
       optionalDependencies: { Sharp: '^0.33' },
       peerDependencies: { react: '^18' },
@@ -40,11 +40,11 @@ describe('unit: dependency-name extraction', () => {
   });
 
   test('unparseable JSON yields null, not an empty set', () => {
-    assert.strictEqual(jsonDepNames('{ not json'), null);
+    assert.strictEqual(depNames('package.json', '{ not json'), null);
   });
 
   test('requirements.txt: names without specifiers, comments and flags skipped', () => {
-    const names = reqDepNames('# deps\nrequests==2.31\nFlask[async]>=2\n-r other.txt\n\n');
+    const names = depNames('requirements.txt', '# deps\nrequests==2.31\nFlask[async]>=2\n-r other.txt\n\n');
     assert.deepStrictEqual([...names].sort(), ['flask', 'requests']);
   });
 
