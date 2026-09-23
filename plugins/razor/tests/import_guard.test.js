@@ -5,7 +5,7 @@ const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { runHook, hookOutput, freshSession } = require('./helpers');
+const { mapStore, preToolUse, dispatch } = require('./helpers');
 const {
   jsImportRoots, pyImportRoots, newImports, isTestFile, ecosystemOf, findManifest,
 } = require('../hooks/import-guard');
@@ -140,87 +140,70 @@ function makeWorkspace() {
 }
 
 describe('integration: import gate', () => {
-  const input = (sessionId, toolName, toolInput) => ({
-    session_id: sessionId,
-    hook_event_name: 'PreToolUse',
-    tool_name: toolName,
-    tool_input: toolInput,
-  });
-
   test('Write that imports an undeclared package: denied once with evidence, retry passes', () => {
     const ws = makeWorkspace();
-    const session = freshSession();
-    const write = input(session, 'Write', {
+    const store = mapStore();
+    const write = preToolUse('Write', {
       file_path: path.join(ws, 'http_client.js'),
       content: "const axios = require('axios');\nasync function fetchJson(url) {}\nmodule.exports = { fetchJson };\n",
     });
-    const first = hookOutput(runHook('pre-tool-use.js', write));
-    assert.strictEqual(first.hookSpecificOutput.permissionDecision, 'deny');
-    assert.match(first.hookSpecificOutput.permissionDecisionReason, /adds a new node dependency/);
-    assert.match(first.hookSpecificOutput.permissionDecisionReason, /`axios`/);
-    assert.match(first.hookSpecificOutput.permissionDecisionReason, /express, lodash/);
+    const first = dispatch(write, {}, store);
+    assert.match(first, /adds a new node dependency/);
+    assert.match(first, /`axios`/);
+    assert.match(first, /express, lodash/);
 
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', write)), null);
+    assert.strictEqual(dispatch(write, {}, store), null);
   });
 
   test('Edit whose new_string imports an undeclared package is gated the same way', () => {
     const ws = makeWorkspace();
-    const session = freshSession();
-    const edit = input(session, 'Edit', {
+    const store = mapStore();
+    const edit = preToolUse('Edit', {
       file_path: path.join(ws, 'http_client.js'),
       old_string: 'async function fetchJson(url) {}',
       new_string: "const axios = require('axios');\nasync function fetchJson(url) {}",
     });
-    const first = hookOutput(runHook('pre-tool-use.js', edit));
-    assert.strictEqual(first.hookSpecificOutput.permissionDecision, 'deny');
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', edit)), null);
+    assert.match(dispatch(edit, {}, store), /`axios`/);
+    assert.strictEqual(dispatch(edit, {}, store), null);
   });
 
   test('declared deps, builtins, and local imports pass silently', () => {
     const ws = makeWorkspace();
-    const write = input(freshSession(), 'Write', {
+    const write = preToolUse('Write', {
       file_path: path.join(ws, 'http_client.js'),
       content: "const _ = require('lodash');\nconst fs = require('node:fs');\nconst u = require('./util');\nmodule.exports = {};\n",
     });
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', write)), null);
+    assert.strictEqual(dispatch(write, {}), null);
   });
 
   test('an import the file already has on disk is grandfathered', () => {
     const ws = makeWorkspace();
     fs.writeFileSync(path.join(ws, 'http_client.js'), "const axios = require('axios');\nmodule.exports = {};\n");
-    const write = input(freshSession(), 'Write', {
+    const write = preToolUse('Write', {
       file_path: path.join(ws, 'http_client.js'),
       content: "const axios = require('axios');\nasync function fetchJson(url) { return (await axios.get(url)).data; }\nmodule.exports = { fetchJson };\n",
     });
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', write)), null);
+    assert.strictEqual(dispatch(write, {}), null);
   });
 
   test('test files are exempt', () => {
     const ws = makeWorkspace();
-    const write = input(freshSession(), 'Write', {
+    const write = preToolUse('Write', {
       file_path: path.join(ws, 'http_client.test.js'),
       content: "const request = require('supertest');\n",
     });
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', write)), null);
+    assert.strictEqual(dispatch(write, {}), null);
   });
 
   test('python: vibe-named dep denied, dotenv suppressed when python-dotenv is declared', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'razor-igpy-'));
     fs.writeFileSync(path.join(dir, 'requirements.txt'), 'python-dotenv==1.0.0\n');
-    const session = freshSession();
-    const declared = input(session, 'Write', {
-      file_path: path.join(dir, 'env.py'),
-      content: 'import dotenv\n',
-    });
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', declared)), null);
+    const store = mapStore();
+    const declared = preToolUse('Write', { file_path: path.join(dir, 'env.py'), content: 'import dotenv\n' });
+    assert.strictEqual(dispatch(declared, {}, store), null);
 
-    const undeclared = input(session, 'Write', {
-      file_path: path.join(dir, 'env.py'),
-      content: 'import requests\n',
-    });
-    const deny = hookOutput(runHook('pre-tool-use.js', undeclared));
-    assert.strictEqual(deny.hookSpecificOutput.permissionDecision, 'deny');
-    assert.match(deny.hookSpecificOutput.permissionDecisionReason, /adds a new python dependency/);
+    const undeclared = preToolUse('Write', { file_path: path.join(dir, 'env.py'), content: 'import requests\n' });
+    assert.match(dispatch(undeclared, {}, store), /adds a new python dependency/);
   });
 
   // Regression: a package declared only in optionalDependencies was denied as
@@ -232,19 +215,17 @@ describe('integration: import gate', () => {
       dependencies: { express: '^4.19.2' },
       optionalDependencies: { sharp: '^0.33.4' },
     }));
-    const optional = input(freshSession(), 'Write', {
+    const optional = preToolUse('Write', {
       file_path: path.join(ws, 'thumb.js'),
       content: "const sharp = require('sharp');\nmodule.exports = sharp;\n",
     });
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', optional)), null);
+    assert.strictEqual(dispatch(optional, {}), null);
 
-    const undeclared = input(freshSession(), 'Write', {
+    const undeclared = preToolUse('Write', {
       file_path: path.join(ws, 'thumb.js'),
       content: "const axios = require('axios');\nmodule.exports = axios;\n",
     });
-    const deny = hookOutput(runHook('pre-tool-use.js', undeclared));
-    assert.strictEqual(deny.hookSpecificOutput.permissionDecision, 'deny');
-    assert.match(deny.hookSpecificOutput.permissionDecisionReason, /Already declared \(2\): express, sharp/);
+    assert.match(dispatch(undeclared, {}), /Already declared \(2\): express, sharp/);
   });
 
   test("python: the project's own package is local, not a dependency", () => {
@@ -253,18 +234,15 @@ describe('integration: import gate', () => {
     fs.mkdirSync(path.join(dir, 'src', 'myapp'), { recursive: true });
     fs.writeFileSync(path.join(dir, 'sibling.py'), 'X = 1\n');
 
-    const session = freshSession();
-    const localImports = input(session, 'Write', {
+    const store = mapStore();
+    const localImports = preToolUse('Write', {
       file_path: path.join(dir, 'main.py'),
       content: 'from myapp.utils import helper\nimport sibling\n',
     });
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', localImports)), null);
+    assert.strictEqual(dispatch(localImports, {}, store), null);
 
-    const external = input(session, 'Write', {
-      file_path: path.join(dir, 'main.py'),
-      content: 'import numpy\n',
-    });
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', external)).hookSpecificOutput.permissionDecision, 'deny');
+    const external = preToolUse('Write', { file_path: path.join(dir, 'main.py'), content: 'import numpy\n' });
+    assert.match(dispatch(external, {}, store), /razor:/);
   });
 
   test('no manifest up-tree: greenfield stays ungated', (t) => {
@@ -272,21 +250,20 @@ describe('integration: import gate', () => {
     // Guard the assumption instead of trusting the machine: a stray
     // package.json above tmpdir would make this test lie.
     if (findManifest('node', deep)) return t.skip('a manifest exists above tmpdir on this machine');
-    const write = input(freshSession(), 'Write', {
+    const write = preToolUse('Write', {
       file_path: path.join(deep, 'app.js'),
       content: "const axios = require('axios');\n",
     });
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', write)), null);
+    assert.strictEqual(dispatch(write, {}), null);
   });
 
   test('RAZOR_IMPORT_GUARD=off disables the gate', () => {
     const ws = makeWorkspace();
-    const write = input(freshSession(), 'Write', {
+    const write = preToolUse('Write', {
       file_path: path.join(ws, 'http_client.js'),
       content: "const axios = require('axios');\n",
     });
-    const r = runHook('pre-tool-use.js', write, { RAZOR_IMPORT_GUARD: 'off' });
-    assert.strictEqual(hookOutput(r), null);
+    assert.strictEqual(dispatch(write, { RAZOR_IMPORT_GUARD: 'off' }), null);
   });
 });
 
