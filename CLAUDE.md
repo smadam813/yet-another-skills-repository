@@ -91,9 +91,12 @@ Bump a plugin's version in the same PR that changes its skills, as a separate co
 - Link the skill from `plugins/<plugin>/README.md` in alphabetical order. Nothing generates that index, and the checker errors on a skill directory the README does not link.
 - Put supporting material beside the SKILL.md: `references/` for Markdown that a pointer reaches, `scripts/` for templates the skill copies.
 
-## Forked plugins
+## hush and razor
 
-`plugins/hush` and `plugins/razor` began as vendored copies and are now this repo's own plugins. See `docs/adr/0001-fork-hush.md` and `docs/adr/0002-fork-razor.md`. Repo conventions apply to all of their files.
+Repo conventions apply to all files in `plugins/hush` and `plugins/razor`. A hook or script change counts as a patch. Some parts are an interface to users and to the host. Keep them fixed:
+
+- hush: the contract goldens, the environment variables, and the `saved.json` path.
+- razor: the contract goldens, the `RAZOR_*` environment variables, and the plugin options.
 
 ## Invocation choice
 
