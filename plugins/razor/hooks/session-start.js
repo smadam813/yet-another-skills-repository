@@ -11,9 +11,9 @@
 const { RULESET, readInput, emitContext, isActive, settingOff, fileStore, git } = require('./razor-lib');
 const { tally, isUncounted } = require('./build-ledger');
 
-// Hands the ladder to `emit`, then records the ledger baseline in `store`.
-// `emit` is a callback, not a return value, so the ladder leaves before any
-// git call starts.
+// Writes the ladder through `emit`, then records the ledger baseline in
+// `store`. `emit` is a callback, not a return value, so the ladder is written
+// before any git call starts.
 //
 // Every setting comes from `env`. `store` has read(id), write(id, state), and
 // sweep().

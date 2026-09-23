@@ -76,14 +76,14 @@ function dispatch(data, env, store = mapStore(), tmpDir = os.tmpdir()) {
   return run(data, { env, store, tmpDir });
 }
 
-/** Runs session-start's run() and returns what it emitted, or '' when it stayed silent. */
+/** Runs session-start's run() and returns the ladder it wrote, or '' when it wrote nothing. */
 function startSession(data, env, store = mapStore()) {
   let out = '';
   sessionStart.run(data, { env, store, emit: (text) => (out += text) });
   return out;
 }
 
-/** Runs the build ledger's run() and returns its message, or null. */
+/** Runs build-ledger's run() and returns the ledger question, or null. */
 function stopTurn(data, env, store = mapStore()) {
   return buildLedger.run(data, { env, store });
 }

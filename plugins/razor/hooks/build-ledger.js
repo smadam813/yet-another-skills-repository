@@ -13,7 +13,10 @@
 const { readInput, emitContext, isActive, settingOff, settingNumber, fileStore, git } = require('./razor-lib');
 const { classify } = require('./file-meter');
 
-// A budget of zero or less falls back to the default.
+const DEFAULT_LOC_BUDGET = 500;
+const DEFAULT_FILES_BUDGET = 8;
+
+// A budget of zero or less uses the default.
 function budget(name, fallback, env) {
   const n = settingNumber(name, fallback, env);
   return n > 0 ? n : fallback;
@@ -91,7 +94,8 @@ function diffStats(ledger, cwd) {
 }
 
 // Measures the session against its baseline and returns the ledger question,
-// or null to stay silent. The question fires at most once per session.
+// or null when there is nothing to ask. The question fires at most once per
+// session.
 //
 // Every setting comes from `env`. `store` has read(id) and write(id, state).
 function run(data, { env, store }) {
@@ -103,7 +107,10 @@ function run(data, { env, store }) {
   if (!ledger || !ledger.baseSha || ledger.fired) return null;
 
   const stats = diffStats(ledger, data.cwd);
-  if (!stats || !shouldFire(stats, budget('LEDGER_LOC', 500, env), budget('LEDGER_FILES', 8, env))) return null;
+  if (!stats) return null;
+  const locBudget = budget('LEDGER_LOC', DEFAULT_LOC_BUDGET, env);
+  const filesBudget = budget('LEDGER_FILES', DEFAULT_FILES_BUDGET, env);
+  if (!shouldFire(stats, locBudget, filesBudget)) return null;
 
   ledger.fired = true;
   store.write(data.session_id, state);

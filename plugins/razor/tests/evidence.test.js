@@ -374,7 +374,7 @@ describe('integration: build ledger', () => {
     repoStore.write('s1', { ledger: { baseSha: sha, baseUntrackedFiles: [], fired: false } });
     for (let i = 0; i < 9; i++) fs.writeFileSync(path.join(repo, `n${i}.js`), '// x\n');
     assert.strictEqual(stopTurn({ session_id: 's1', cwd: repo }, { RAZOR_LEDGER: 'off' }, repoStore), null);
-    // The same store fires once the next call's env turns the ledger back on.
+    // The question fires on the next call, whose env leaves the ledger on.
     assert.match(stopTurn({ session_id: 's1', cwd: repo }, {}, repoStore), /9 new files/);
   });
 
