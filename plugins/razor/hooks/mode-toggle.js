@@ -22,7 +22,7 @@ function parseToggle(prompt) {
 }
 
 // Returns the context for one prompt, or null to stay silent. Every setting
-// comes from `env`. `store` has read(id) and write(id, state).
+// comes from `env`.
 function run(data, { env, store }) {
   if (killed(env)) return null; // RAZOR_DISABLE=1 silences the toggle too — gates are off either way
   const toggle = parseToggle(data.prompt);

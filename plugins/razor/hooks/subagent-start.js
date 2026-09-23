@@ -46,7 +46,7 @@ function shouldInject(agentType, env) {
 
 // Returns the ladder for one subagent, or null to stay silent. Every
 // setting, RAZOR_AGENT_SKIP and RAZOR_AGENT_INJECT included, comes from
-// `env`. `store` has read(id) and write(id, state).
+// `env`.
 function run(data, { env, store }) {
   if (!isActive(store.read(data.session_id), env)) return null;
   if (!shouldInject(data.agent_type, env)) return null;
