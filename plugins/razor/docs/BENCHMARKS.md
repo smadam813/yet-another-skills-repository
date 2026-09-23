@@ -7,8 +7,6 @@ Every session is scored on the code it left behind, and correctness is checked
 by running that code. **A short answer that breaks the task scores as a
 failure, not a win.**
 
-You can run all of it yourself. See [benchmarks/](https://github.com/V-Songbird/foundry/tree/main/benchmarks/razor).
-
 > [!NOTE]
 > Numbers move between runs, sometimes by a lot. These are a few hundred
 > sessions against a live model, not a powered experiment. Read the direction,
@@ -169,13 +167,3 @@ Opus saving reproduces.
 **The gains are smaller on Sonnet across the board.** Most of the headline
 numbers on this page are Opus numbers. Sonnet moves in the same direction, less
 far, and less reliably.
-
-## Reproducing this
-
-The harness is in [benchmarks/](https://github.com/V-Songbird/foundry/tree/main/benchmarks/razor). It drives real sessions
-against the same fixed jobs, so it costs real money — the cheap default run is
-about $3 on Sonnet. Start with `node runner/run.js --selftest`, which is free
-and proves every scorer catches a wrong answer before you spend anything.
-
-You will not reproduce these exact figures. If razor comes out leaner and no
-pricier with correctness intact, the claim holds.

@@ -264,8 +264,11 @@ function mentionedOutsideImports(dep, haystack) {
 // against its own manifest and its own files, never the root's.
 function auditDir(projectDir) {
   const ecosystems = [];
+  // readDeps returns [] for a package.json that fails to parse, so the gates'
+  // manifest walk stops there. The audit read nothing from it, so it skips
+  // node rather than report every declared dependency as used.
   const nodeDeps = readDeps('node', projectDir);
-  if (nodeDeps !== null) {
+  if (nodeDeps !== null && readJson(path.join(projectDir, 'package.json'))) {
     const peerOnly = packageJsonPeerOnlyDeps(projectDir);
     ecosystems.push({ eco: 'node', deps: nodeDeps.filter((d) => !peerOnly.has(d)) });
   }

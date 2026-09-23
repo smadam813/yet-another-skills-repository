@@ -279,6 +279,13 @@ describe('unused-deps: report', () => {
   test('no supported manifest reports cleanly', () => {
     assert.match(report(tmp('razor-unused-empty-')), /No supported manifest found/);
   });
+
+  test('a package.json that fails to parse is not reported as all used', () => {
+    const dir = tmp('razor-unused-broken-');
+    write(dir, 'package.json', '{ "dependencies": { "lodash": ');
+    write(dir, 'src/app.js', "require('lodash');\n");
+    assert.doesNotMatch(report(dir), /Every declared dependency is imported somewhere/);
+  });
 });
 
 function installFakeKnip(dir) {

@@ -3,7 +3,7 @@
   "ignores": [
     "node_modules/**",
     ".claude/worktrees/**",
-    // Prose that hush and razor took from upstream keeps its own style.
+    // Prose in hush and razor keeps its own style.
     "plugins/hush/docs/**",
     "plugins/hush/CHANGELOG.md",
     "plugins/hush/tests/**",

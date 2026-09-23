@@ -40,7 +40,3 @@ node --test tests/*.test.js
 ```
 
 The tests need Node 22 or later and run in CI on Ubuntu and Windows.
-
-## Origin
-
-Hush is a fork of [V-Songbird/hush](https://github.com/V-Songbird/hush) by Victor Villegas, MIT license, taken at upstream commit `6ef6c1c5f7b2ae12793dbf041fa932c88352d393` (version 1.12.1). It is now this repo's own plugin. Upstream fixes are ported by hand. See [ADR-0001](../../docs/adr/0001-fork-hush.md).
