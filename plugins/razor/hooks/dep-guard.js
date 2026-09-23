@@ -218,7 +218,7 @@ function readNodeDeps(dir) {
       ...pkg.peerDependencies,
     });
   } catch {
-    return null;
+    return []; // a manifest that fails to parse still stops the manifest walk
   }
 }
 
@@ -378,7 +378,7 @@ function readComposerDeps(dir) {
       (n) => n !== 'php' && !n.startsWith('ext-')
     );
   } catch {
-    return null;
+    return []; // a manifest that fails to parse still stops the manifest walk
   }
 }
 
@@ -424,16 +424,17 @@ const READERS = {
   dotnet: readDotnetDeps,
 };
 
-// Walk up from cwd to the nearest manifest for this ecosystem; the declared
-// dependency names become evidence in the deny reason. Null = no evidence.
-// razor: nearest-to-cwd resolution; per-subpackage targeting if monorepos bite.
+// Walk up from startDir to the nearest manifest for this ecosystem; the
+// declared dependency names become evidence in the deny reason. The walk stops
+// at that manifest even when it declares nothing. A root dependency that the
+// nested package does not declare is new for it. Null = no manifest.
 function installedDeps(manager, startDir) {
   const reader = READERS[manager];
   if (!reader || !startDir) return null;
   let dir = path.resolve(startDir);
   for (let i = 0; i < 12; i++) {
     const found = reader(dir);
-    if (found && found.length) return found;
+    if (found) return found;
     const parent = path.dirname(dir);
     if (parent === dir) break;
     dir = parent;

@@ -52,6 +52,15 @@ describe('unit: installedDeps manifest readers', () => {
     assert.deepStrictEqual(installedDeps('yarn', nested), ['zod']);
   });
 
+  test('stops at a nested manifest that declares nothing', () => {
+    const dir = fixtureDir({ 'package.json': JSON.stringify({ dependencies: { lodash: '^4' } }) });
+    const nested = path.join(dir, 'packages', 'app');
+    fs.mkdirSync(nested, { recursive: true });
+    fs.writeFileSync(path.join(nested, 'package.json'), JSON.stringify({ name: 'app' }));
+    assert.deepStrictEqual(installedDeps('npm', nested), []);
+    assert.deepStrictEqual(installedDeps('npm', path.join(nested, 'src')), []);
+  });
+
   test('pyproject.toml PEP 621 arrays, specifiers stripped', () => {
     const dir = fixtureDir({
       'pyproject.toml': [

@@ -222,3 +222,22 @@ describe('pyproject.toml is gated like the other manifests', () => {
     assert.strictEqual(dispatch(call, {}), null);
   });
 });
+
+// The manifest walk stops at the nearest manifest, even one that declares
+// nothing, so the deny for a nested manifest never lists the root's dependencies.
+describe('nested manifest: evidence comes from the edited manifest only', () => {
+  test('an edit to an empty nested package.json lists no root dependencies', () => {
+    const root = workspace({ 'package.json': PKG });
+    const app = path.join(root, 'packages', 'app');
+    fs.mkdirSync(app, { recursive: true });
+    fs.writeFileSync(path.join(app, 'package.json'), JSON.stringify({ name: 'app' }));
+    const write = preToolUse('Write', {
+      file_path: path.join(app, 'package.json'),
+      content: JSON.stringify({ name: 'app', dependencies: { axios: '^1' } }),
+    });
+    const reason = dispatch(write, {});
+    assert.match(reason, /axios/);
+    assert.doesNotMatch(reason, /Already declared/);
+    assert.doesNotMatch(reason, /express|lodash/);
+  });
+});

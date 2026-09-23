@@ -187,6 +187,25 @@ describe('integration: soft gate', () => {
     assert.strictEqual(dispatch({ ...input("pip install 'flask>=2.1'"), cwd: py }, {}), null);
   });
 
+  // A nested manifest that fails to parse declares nothing. The manifest walk
+  // stops there, so the root's dependencies are not a restore for it.
+  test('a nested manifest that fails to parse stops the manifest walk', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'razor-dg-'));
+    fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { lodash: '^4' } }));
+    fs.writeFileSync(path.join(root, 'composer.json'), JSON.stringify({ require: { 'monolog/monolog': '^3' } }));
+    const app = path.join(root, 'packages', 'app');
+    fs.mkdirSync(app, { recursive: true });
+    fs.writeFileSync(path.join(app, 'package.json'), '{ not json');
+    fs.writeFileSync(path.join(app, 'composer.json'), '{ not json');
+
+    const npm = dispatch({ ...input('npm install lodash'), cwd: app }, {});
+    assert.match(npm, /lodash/);
+    assert.doesNotMatch(npm, /Already declared/);
+    const composer = dispatch({ ...input('composer require monolog/monolog'), cwd: app }, {});
+    assert.match(composer, /monolog\/monolog/);
+    assert.doesNotMatch(composer, /Already declared/);
+  });
+
   test('the hyphen and underscore spellings of a pip package share one nudge', () => {
     const store = mapStore();
     assert.match(dispatch(input('pip install python_dotenv'), {}, store), /razor:/);

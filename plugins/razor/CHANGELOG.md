@@ -4,6 +4,13 @@ All notable changes to razor are documented here. The version number lives in
 both plugin manifests, `.claude-plugin/plugin.json` and
 `.cursor-plugin/plugin.json`.
 
+## 1.6.6 — 2026-09-22
+
+The import, manifest, and dep guards now stop at the nearest manifest, even
+one that declares no dependencies or fails to parse. A root dependency that a nested package
+does not declare is a new dependency for that package. The deny no longer
+lists the root's dependencies as evidence for a nested manifest.
+
 ## 1.6.5 — 2026-09-22
 
 razor behaves as before. The tests now run the toggle, the drift note, and
