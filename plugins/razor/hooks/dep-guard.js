@@ -424,10 +424,10 @@ const READERS = {
   dotnet: readDotnetDeps,
 };
 
-// Walk up from cwd to the nearest manifest for this ecosystem; the declared
-// dependency names become evidence in the deny reason. The walk stops at that
-// manifest even when it declares nothing: a root dependency the nested
-// package does not declare is a new dependency for it. Null = no manifest.
+// Walk up from startDir to the nearest manifest for this ecosystem; the
+// declared dependency names become evidence in the deny reason. The walk stops
+// at that manifest even when it declares nothing. A root dependency that the
+// nested package does not declare is new for it. Null = no manifest.
 function installedDeps(manager, startDir) {
   const reader = READERS[manager];
   if (!reader || !startDir) return null;

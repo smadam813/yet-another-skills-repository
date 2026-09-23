@@ -223,8 +223,8 @@ describe('pyproject.toml is gated like the other manifests', () => {
   });
 });
 
-// The evidence walk stops at the nearest manifest, even one that declares
-// nothing, so a nested manifest never borrows the root's names (#63).
+// The manifest walk stops at the nearest manifest, even one that declares
+// nothing, so the deny for a nested manifest never lists the root's dependencies.
 describe('nested manifest: evidence comes from the edited manifest only', () => {
   test('an edit to an empty nested package.json lists no root dependencies', () => {
     const root = workspace({ 'package.json': PKG });

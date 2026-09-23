@@ -285,10 +285,10 @@ describe('the test-file exemption covers the whole JS/TS family', () => {
 });
 
 // A nested manifest that declares nothing is still the nearest manifest. The
-// walk stops there, so the root's dependencies are neither declared for the
-// nested package nor shown as evidence for it (#63).
+// manifest walk stops there, so razor neither counts the root's dependencies
+// as declared for the nested package nor shows them as evidence.
 describe('nested manifest: the nearest manifest decides', () => {
-  function nestedWorkspace(rootFiles, nestedFiles) {
+  function nestedSrcDir(rootFiles, nestedFiles) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'razor-ign-'));
     const app = path.join(root, 'packages', 'app');
     fs.mkdirSync(path.join(app, 'src'), { recursive: true });
@@ -298,9 +298,10 @@ describe('nested manifest: the nearest manifest decides', () => {
   }
 
   const ROOT_PKG = JSON.stringify({ dependencies: { lodash: '^4' } });
+  const APP_PKG = JSON.stringify({ name: 'app' });
 
-  test('node: a root dependency the nested package does not declare is denied once', () => {
-    const src = nestedWorkspace({ 'package.json': ROOT_PKG }, { 'package.json': JSON.stringify({ name: 'app' }) });
+  test('node: razor denies a root dependency that the nested package does not declare, once', () => {
+    const src = nestedSrcDir({ 'package.json': ROOT_PKG }, { 'package.json': APP_PKG });
     const store = mapStore();
     const write = preToolUse('Write', { file_path: path.join(src, 'a.js'), content: "const _ = require('lodash');\n" });
     assert.match(dispatch(write, {}, store), /`lodash`/);
@@ -308,7 +309,7 @@ describe('nested manifest: the nearest manifest decides', () => {
   });
 
   test('node: the deny lists no root dependencies as evidence', () => {
-    const src = nestedWorkspace({ 'package.json': ROOT_PKG }, { 'package.json': JSON.stringify({ name: 'app' }) });
+    const src = nestedSrcDir({ 'package.json': ROOT_PKG }, { 'package.json': APP_PKG });
     const write = preToolUse('Write', { file_path: path.join(src, 'a.js'), content: "const axios = require('axios');\n" });
     const reason = dispatch(write, {});
     assert.match(reason, /`axios`/);
@@ -317,7 +318,7 @@ describe('nested manifest: the nearest manifest decides', () => {
   });
 
   test("node: evidence is the nested manifest's names only", () => {
-    const src = nestedWorkspace(
+    const src = nestedSrcDir(
       { 'package.json': ROOT_PKG },
       { 'package.json': JSON.stringify({ dependencies: { zod: '^3' } }) }
     );
@@ -326,10 +327,18 @@ describe('nested manifest: the nearest manifest decides', () => {
     assert.match(reason, /Already declared \(1\): zod\./);
   });
 
-  for (const nested of ['pyproject.toml', 'requirements.txt']) {
-    test(`python: an empty nested ${nested} stops the walk`, () => {
-      const empty = nested === 'pyproject.toml' ? '[project]\nname = "app"\n' : '';
-      const src = nestedWorkspace({ 'requirements.txt': 'requests==2.31\n' }, { [nested]: empty });
+  test('node: a nested package.json that fails to parse lists no root dependencies', () => {
+    const src = nestedSrcDir({ 'package.json': ROOT_PKG }, { 'package.json': '{ not json' });
+    const write = preToolUse('Write', { file_path: path.join(src, 'a.js'), content: "const _ = require('lodash');\n" });
+    const reason = dispatch(write, {});
+    assert.match(reason, /`lodash`/);
+    assert.doesNotMatch(reason, /Already declared/);
+  });
+
+  for (const manifestName of ['pyproject.toml', 'requirements.txt']) {
+    test(`python: an empty nested ${manifestName} stops the manifest walk`, () => {
+      const empty = manifestName === 'pyproject.toml' ? '[project]\nname = "app"\n' : '';
+      const src = nestedSrcDir({ 'requirements.txt': 'requests==2.31\n' }, { [manifestName]: empty });
       const store = mapStore();
       const write = preToolUse('Write', { file_path: path.join(src, 'a.py'), content: 'import requests\n' });
       const reason = dispatch(write, {}, store);
