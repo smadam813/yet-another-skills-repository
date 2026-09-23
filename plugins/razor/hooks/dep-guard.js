@@ -218,7 +218,7 @@ function readNodeDeps(dir) {
       ...pkg.peerDependencies,
     });
   } catch {
-    return null;
+    return []; // a manifest that fails to parse still stops the manifest walk
   }
 }
 
@@ -378,7 +378,7 @@ function readComposerDeps(dir) {
       (n) => n !== 'php' && !n.startsWith('ext-')
     );
   } catch {
-    return null;
+    return []; // a manifest that fails to parse still stops the manifest walk
   }
 }
 

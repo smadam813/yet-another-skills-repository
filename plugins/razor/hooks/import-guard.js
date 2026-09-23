@@ -264,8 +264,8 @@ function check(data, state, { env }) {
   try { existing = fs.readFileSync(path.resolve(filePath), 'utf-8'); } catch { /* new file */ }
 
   // Read only the manifest that the deny names, so "declared" and the
-  // evidence both come from it. A manifest that fails to parse declares nothing.
-  const deps = (eco === 'node' ? readNodeDeps : readPythonDeps)(manifest.dir) || [];
+  // evidence both come from it.
+  const deps = (eco === 'node' ? readNodeDeps : readPythonDeps)(manifest.dir);
   let fresh = newImports(eco, incoming, existing, deps);
   if (eco === 'python') {
     const local = [fileDir, manifest.dir, path.join(manifest.dir, 'src')];
