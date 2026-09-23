@@ -10,7 +10,7 @@
 // named. A note, never a gate — it has never once stopped a session.
 
 const {
-  RULESET, DRIFT_NOTE, readInput, emitContext, readState, writeState, killed, isActive, settingOff,
+  RULESET, DRIFT_NOTE, readInput, emitContext, fileStore, killed, isActive, settingOff,
 } = require('./razor-lib');
 
 function parseToggle(prompt) {
@@ -21,27 +21,29 @@ function parseToggle(prompt) {
   return null;
 }
 
-function main() {
-  if (killed()) return; // RAZOR_DISABLE=1 silences the toggle too — gates are off either way
-  const data = readInput();
+// Returns the context for one prompt, or null to stay silent. Every setting
+// comes from `env`. `store` has read(id) and write(id, state).
+function run(data, { env, store }) {
+  if (killed(env)) return null; // RAZOR_DISABLE=1 silences the toggle too — gates are off either way
   const toggle = parseToggle(data.prompt);
 
   if (toggle) {
-    const state = readState(data.session_id);
+    const state = store.read(data.session_id);
     state.off = toggle === 'off';
-    writeState(data.session_id, state);
-    emitContext(
-      'UserPromptSubmit',
-      toggle === 'off' ? 'RAZOR OFF — the ladder and guards no longer apply this session.' : RULESET
-    );
-    return;
+    store.write(data.session_id, state);
+    return toggle === 'off' ? 'RAZOR OFF — the ladder and guards no longer apply this session.' : RULESET;
   }
 
-  if (settingOff('DRIFT_NOTE')) return;
-  if (!isActive(readState(data.session_id))) return;
-  emitContext('UserPromptSubmit', DRIFT_NOTE);
+  if (settingOff('DRIFT_NOTE', env)) return null;
+  if (!isActive(store.read(data.session_id), env)) return null;
+  return DRIFT_NOTE;
+}
+
+function main() {
+  const env = process.env;
+  emitContext('UserPromptSubmit', run(readInput(), { env, store: fileStore(env) }));
 }
 
 if (require.main === module) main();
 
-module.exports = { main, parseToggle };
+module.exports = { run, main, parseToggle };
