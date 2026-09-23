@@ -5,6 +5,8 @@ const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const { run } = require('../hooks/pre-tool-use');
+const sessionStart = require('../hooks/session-start');
+const buildLedger = require('../hooks/build-ledger');
 const subagentStart = require('../hooks/subagent-start');
 const modeToggle = require('../hooks/mode-toggle');
 
@@ -62,6 +64,7 @@ function mapStore() {
     map,
     read: (id) => structuredClone(map.get(id) || {}),
     write: (id, state) => map.set(id, structuredClone(state)),
+    sweep: () => {},
   };
 }
 
@@ -73,6 +76,18 @@ function preToolUse(toolName, toolInput, extra) {
 /** Runs one call through the dispatcher's run(), with a new Map store unless the caller passes one. */
 function dispatch(data, env, store = mapStore(), tmpDir = os.tmpdir()) {
   return run(data, { env, store, tmpDir });
+}
+
+/** Runs session-start's run() and returns the ladder it wrote, or '' when it wrote nothing. */
+function startSession(data, env, store = mapStore()) {
+  let out = '';
+  sessionStart.run(data, { env, store, emit: (text) => (out += text) });
+  return out;
+}
+
+/** Runs build-ledger's run() and returns the ledger question, or null. */
+function stopTurn(data, env, store = mapStore()) {
+  return buildLedger.run(data, { env, store });
 }
 
 /** Runs the SubagentStart hook's run() for one agent type in session s1. */
@@ -98,5 +113,16 @@ function writeTranscript(uuid) {
 }
 
 module.exports = {
-  runHook, hookOutput, freshSession, mapStore, preToolUse, dispatch, subagent, prompt, writeTranscript, HOOKS_DIR,
+  runHook,
+  hookOutput,
+  freshSession,
+  mapStore,
+  preToolUse,
+  dispatch,
+  startSession,
+  stopTurn,
+  subagent,
+  prompt,
+  writeTranscript,
+  HOOKS_DIR,
 };

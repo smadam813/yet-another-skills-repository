@@ -55,8 +55,8 @@ function statePath(sessionId, env) {
 // session so a later --resume still sees its /razor off toggle.
 const GC_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
-function gcStateFiles() {
-  const dir = harness.stateDir();
+function gcStateFiles(env = process.env) {
+  const dir = harness.stateDir(env);
   let names;
   try {
     names = fs.readdirSync(dir);
@@ -94,11 +94,12 @@ function writeState(sessionId, state, env = process.env) {
   }
 }
 
-// The state files, as the store the PreToolUse dispatcher's run() takes.
+// The state files, as the store each hook's run() takes.
 function fileStore(env = process.env) {
   return {
     read: (id) => readState(id, env),
     write: (id, state) => writeState(id, state, env),
+    sweep: () => gcStateFiles(env),
   };
 }
 
