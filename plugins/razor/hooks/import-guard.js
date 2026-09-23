@@ -263,7 +263,9 @@ function check(data, state, { env }) {
   let existing = '';
   try { existing = fs.readFileSync(path.resolve(filePath), 'utf-8'); } catch { /* new file */ }
 
-  const deps = installedDeps(eco === 'node' ? 'npm' : 'pip', fileDir);
+  // Read from the manifest the deny names, so "declared" and the evidence
+  // both come from it.
+  const deps = installedDeps(eco === 'node' ? 'npm' : 'pip', manifest.dir);
   let fresh = newImports(eco, incoming, existing, deps);
   if (eco === 'python') {
     const local = [fileDir, manifest.dir, path.join(manifest.dir, 'src')];
