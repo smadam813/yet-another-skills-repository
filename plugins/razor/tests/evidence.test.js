@@ -52,8 +52,6 @@ describe('unit: installedDeps manifest readers', () => {
     assert.deepStrictEqual(installedDeps('yarn', nested), ['zod']);
   });
 
-  // A manifest that declares nothing still stops the walk: an empty list
-  // means "declares nothing", not "keep walking".
   test('stops at a nested manifest that declares nothing', () => {
     const dir = fixtureDir({ 'package.json': JSON.stringify({ dependencies: { lodash: '^4' } }) });
     const nested = path.join(dir, 'packages', 'app');
