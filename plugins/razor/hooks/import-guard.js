@@ -85,8 +85,7 @@ function ecosystemOf(filePath) {
   return null;
 }
 
-// Same convention as the benchmark scorers and common runners: test files
-// never gate.
+// Same convention as common test runners: test files never gate.
 // One pattern over the whole JS/TS extension family, so a `.test.tsx` or a
 // `.spec.mjs` is exempt for the same reason a `.test.js` is.
 const TEST_SUFFIX = /[._](test|spec)\.(js|mjs|cjs|jsx|ts|tsx|mts|cts)$/;

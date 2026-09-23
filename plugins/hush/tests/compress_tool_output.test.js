@@ -250,7 +250,7 @@ describe('unit: transforms', () => {
   });
 
   test('requestsEnumeration stays quiet on ordinary prose and non-enumerate tasks', () => {
-    // No carve-out for the other benchmark prompts — compression stays on.
+    // No carve-out for these other prompts — compression stays on.
     assert.strictEqual(requestsEnumeration('Explore this repository and give me an architectural overview'), false);
     assert.strictEqual(requestsEnumeration('Investigate logs/app.log and tell me the root cause of the outage'), false);
     assert.strictEqual(requestsEnumeration('Update the whole repo accordingly and verify with node --test'), false);

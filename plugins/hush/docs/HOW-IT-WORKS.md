@@ -62,8 +62,7 @@ Claude Code guards the output of a failing command: a plugin cannot replace it i
 hush is allowed to trim it in two situations — when the session has stopped asking you to approve
 each step, or when you set `HUSH_WRAP=1`.
 
-If you never set that, failing output comes through in full. That is the safe default, and it is
-why the benchmark numbers were measured with `HUSH_WRAP=1`.
+If you never set that, failing output comes through in full. That is the safe default.
 
 ## The reminder
 

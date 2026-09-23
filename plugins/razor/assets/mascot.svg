@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 390" role="img" aria-labelledby="title desc">
-<title id="title">Ember — razor</title><desc id="desc">Unnecessary extras are removed, leaving what was requested. Original closing line: Done. Nothing extra. Illustrative animation, not benchmark timing.</desc>
+<title id="title">Ember — razor</title><desc id="desc">Unnecessary extras are removed, leaving what was requested. Original closing line: Done. Nothing extra.</desc>
 <style>
 :root{--paper:#fff;--ink:#252820;--muted:#67716a;--line:#dadfd8;--blue:#bf4935;--wash:#faf0ec;--warm:#f4f0e8}
 @media(prefers-color-scheme:dark){:root{--paper:#191c1b;--ink:#eee9de;--muted:#b5bfb7;--line:#49524b;--blue:#eb8d79;--wash:#412c29;--warm:#30342e}}

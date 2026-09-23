@@ -159,8 +159,7 @@ describe('RAZOR_DISABLE silences every hook, not just the gates', () => {
   });
 });
 
-// The ladder is frozen by owner decision and the published benchmark numbers
-// are tied to its exact text, but nothing detected a change to it: the only
+// The ladder is frozen by owner decision, but nothing detected a change to it: the only
 // assertion compared the emitted string to the same constant it came from.
 // These pin the content itself, with literals, so a drift fails here.
 describe('the frozen ladder', () => {

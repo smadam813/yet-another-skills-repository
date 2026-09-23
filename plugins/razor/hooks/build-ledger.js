@@ -55,9 +55,8 @@ function tally(numstat, skip = () => false) {
 // attribution needs a full diff snapshot at session start.
 // A regenerated lockfile is thousands of insertions nobody wrote, and it lands
 // with almost no deletions -- exactly the shape shouldFire reads as sprawl.
-// The benchmark runner's own diff metric already skips these; the ledger has
-// to as well or a routine dependency update ends the session with a question
-// about code the agent never authored.
+// The ledger skips them, or a routine dependency update ends the session with
+// a question about code the agent never authored.
 // git reports every path with forward slashes, so the name is what is after
 // the last one.
 function isLockfile(file) {
