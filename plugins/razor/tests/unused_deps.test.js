@@ -5,7 +5,6 @@ const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { spawnSync } = require('child_process');
 const {
   auditProject,
   knipAvailable,
@@ -261,29 +260,24 @@ describe('unused-deps: TypeScript toolchain classification', () => {
   });
 });
 
-describe('unused-deps: CLI', () => {
-  const run = (dir) =>
-    spawnSync('node', [path.join(__dirname, '..', 'scripts', 'unused-deps.js'), dir], { encoding: 'utf-8' });
+describe('unused-deps: report', () => {
+  const run = (dir) => formatReport(dir, auditProject(dir));
 
   test('prints per-bucket lines, verdict, and known-limits footer', () => {
-    const r = run(makeNodeWorkspace());
-    assert.strictEqual(r.status, 0);
-    assert.match(r.stdout, /Likely unused \(1\) — nothing references them, and nothing could prove it:/);
-    assert.match(r.stdout, /lodash: no import found in \d+ source files scanned/);
-    assert.match(r.stdout, /Unknown \(1\)/);
-    assert.match(r.stdout, /Verdict: 2 used, 0 confirmed unused, 1 likely unused, 1 unknown\./);
-    assert.match(r.stdout, /Known limits:/);
+    const out = run(makeNodeWorkspace());
+    assert.match(out, /Likely unused \(1\) — nothing references them, and nothing could prove it:/);
+    assert.match(out, /lodash: no import found in \d+ source files scanned/);
+    assert.match(out, /Unknown \(1\)/);
+    assert.match(out, /Verdict: 2 used, 0 confirmed unused, 1 likely unused, 1 unknown\./);
+    assert.match(out, /Known limits:/);
   });
 
   test('never claims high confidence for a result no resolver proved', () => {
-    const r = run(makeNodeWorkspace());
-    assert.doesNotMatch(r.stdout, /high confidence/i);
+    assert.doesNotMatch(run(makeNodeWorkspace()), /high confidence/i);
   });
 
   test('no supported manifest reports cleanly', () => {
-    const r = run(tmp('razor-unused-empty-'));
-    assert.strictEqual(r.status, 0);
-    assert.match(r.stdout, /No supported manifest found/);
+    assert.match(run(tmp('razor-unused-empty-')), /No supported manifest found/);
   });
 });
 

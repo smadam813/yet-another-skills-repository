@@ -6,7 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { runHook, hookOutput, freshSession, mapStore, startSession, stopTurn } = require('./helpers');
+const { mapStore, dispatch, startSession, stopTurn } = require('./helpers');
 const { installedDeps, denyReason, parseInstallCommand } = require('../hooks/dep-guard');
 const { shouldFire } = require('../hooks/build-ledger');
 
@@ -197,33 +197,17 @@ describe('unit: denyReason', () => {
 });
 
 describe('integration: evidence-carrying deny', () => {
+  const bash = (cwd, command) => dispatch({ session_id: 's1', cwd, tool_name: 'Bash', tool_input: { command } }, {});
+
   test('deny reason includes the manifest deps when cwd has one', () => {
     const dir = fixtureDir({
       'package.json': JSON.stringify({ dependencies: { 'date-fns': '^3', lodash: '^4' } }),
     });
-    const out = hookOutput(
-      runHook('pre-tool-use.js', {
-        session_id: freshSession(),
-        cwd: dir,
-        tool_name: 'Bash',
-        tool_input: { command: 'npm i dayjs' },
-      })
-    );
-    assert.strictEqual(out.hookSpecificOutput.permissionDecision, 'deny');
-    assert.match(out.hookSpecificOutput.permissionDecisionReason, /Already declared \(2\): date-fns, lodash/);
+    assert.match(bash(dir, 'npm i dayjs'), /Already declared \(2\): date-fns, lodash/);
   });
 
   test('deny falls back to generic wording without a manifest', () => {
-    const dir = fixtureDir({});
-    const out = hookOutput(
-      runHook('pre-tool-use.js', {
-        session_id: freshSession(),
-        cwd: dir,
-        tool_name: 'Bash',
-        tool_input: { command: 'cargo add serde' },
-      })
-    );
-    assert.match(out.hookSpecificOutput.permissionDecisionReason, /Rungs 3-5/);
+    assert.match(bash(fixtureDir({}), 'cargo add serde'), /Rungs 3-5/);
   });
 
   // Regression case from a 2026-07-06 rival-comparison benchmark (dep-toml task):
@@ -232,17 +216,9 @@ describe('integration: evidence-carrying deny', () => {
   // support). The gate must still catch a pip install of that exact package.
   test('catches a stdlib-covered pip install (tomli fallback) with evidence', () => {
     const dir = fixtureDir({ 'requirements.txt': 'flask==3.0.3\nrequests==2.32.3\nrich==13.7.1\n' });
-    const out = hookOutput(
-      runHook('pre-tool-use.js', {
-        session_id: freshSession(),
-        cwd: dir,
-        tool_name: 'Bash',
-        tool_input: { command: 'pip install tomli' },
-      })
-    );
-    assert.strictEqual(out.hookSpecificOutput.permissionDecision, 'deny');
-    assert.match(out.hookSpecificOutput.permissionDecisionReason, /Already declared \(3\): flask, requests, rich/);
-    assert.match(out.hookSpecificOutput.permissionDecisionReason, /tomli/);
+    const reason = bash(dir, 'pip install tomli');
+    assert.match(reason, /Already declared \(3\): flask, requests, rich/);
+    assert.match(reason, /tomli/);
   });
 });
 

@@ -5,7 +5,7 @@ const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { runHook, hookOutput, freshSession } = require('./helpers');
+const { mapStore, preToolUse, dispatch } = require('./helpers');
 const { claim, isDeclared } = require('../hooks/reconsideration-ledger');
 
 describe('unit: claim', () => {
@@ -72,67 +72,54 @@ describe('unit: isDeclared', () => {
 });
 
 describe('integration: one nudge per dependency across gates, through an alias', () => {
-  const input = (sessionId, toolName, toolInput) => ({
-    session_id: sessionId,
-    hook_event_name: 'PreToolUse',
-    tool_name: toolName,
-    tool_input: toolInput,
-  });
-
   function pyWorkspace(files) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'razor-rl-'));
     for (const [name, content] of Object.entries(files)) fs.writeFileSync(path.join(dir, name), content);
     return dir;
   }
 
-  const denied = (r) => hookOutput(r).hookSpecificOutput.permissionDecision === 'deny';
+  // One store per test, so each test is one session.
+  const session = () => {
+    const store = mapStore();
+    return (toolName, toolInput) => dispatch(preToolUse(toolName, toolInput), {}, store);
+  };
 
   test('pip install pyyaml, then import yaml: one nudge', () => {
     const ws = pyWorkspace({ 'requirements.txt': 'flask>=2.0\n' });
-    const session = freshSession();
-    assert.ok(denied(runHook('pre-tool-use.js', input(session, 'Bash', { command: 'pip install pyyaml' }))));
-    const code = input(session, 'Write', { file_path: path.join(ws, 'app.py'), content: 'import yaml\n' });
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', code)), null);
+    const call = session();
+    assert.ok(call('Bash', { command: 'pip install pyyaml' }));
+    assert.strictEqual(call('Write', { file_path: path.join(ws, 'app.py'), content: 'import yaml\n' }), null);
   });
 
   test('import yaml, then pip install pyyaml: one nudge', () => {
     const ws = pyWorkspace({ 'requirements.txt': 'flask>=2.0\n' });
-    const session = freshSession();
-    const code = input(session, 'Write', { file_path: path.join(ws, 'app.py'), content: 'import yaml\n' });
-    assert.ok(denied(runHook('pre-tool-use.js', code)));
-    assert.strictEqual(
-      hookOutput(runHook('pre-tool-use.js', input(session, 'Bash', { command: 'pip install pyyaml' }))),
-      null
-    );
+    const call = session();
+    assert.ok(call('Write', { file_path: path.join(ws, 'app.py'), content: 'import yaml\n' }));
+    assert.strictEqual(call('Bash', { command: 'pip install pyyaml' }), null);
   });
 
   test('a manifest edit that adds pillow, then import PIL: one nudge', () => {
     const ws = pyWorkspace({ 'requirements.txt': 'flask>=2.0\n' });
-    const session = freshSession();
-    const edit = input(session, 'Edit', {
-      file_path: path.join(ws, 'requirements.txt'),
-      old_string: 'flask>=2.0\n',
-      new_string: 'flask>=2.0\npillow>=10\n',
-    });
-    assert.ok(denied(runHook('pre-tool-use.js', edit)));
-    const code = input(session, 'Write', { file_path: path.join(ws, 'img.py'), content: 'from PIL import Image\n' });
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', code)), null);
+    const call = session();
+    assert.ok(
+      call('Edit', {
+        file_path: path.join(ws, 'requirements.txt'),
+        old_string: 'flask>=2.0\n',
+        new_string: 'flask>=2.0\npillow>=10\n',
+      })
+    );
+    assert.strictEqual(call('Write', { file_path: path.join(ws, 'img.py'), content: 'from PIL import Image\n' }), null);
   });
 
   test('the deny names only the packages that still owe a nudge', () => {
-    const session = freshSession();
-    runHook('pre-tool-use.js', input(session, 'Bash', { command: 'npm install axios' }));
-    const reason = hookOutput(runHook('pre-tool-use.js', input(session, 'Bash', { command: 'npm install axios dayjs' })))
-      .hookSpecificOutput.permissionDecisionReason;
-    assert.match(reason, /'dayjs' adds/);
+    const call = session();
+    call('Bash', { command: 'npm install axios' });
+    assert.match(call('Bash', { command: 'npm install axios dayjs' }), /'dayjs' adds/);
   });
 
   test('a cargo install nudges once per crate, not once per command line', () => {
-    const session = freshSession();
-    assert.ok(denied(runHook('pre-tool-use.js', input(session, 'Bash', { command: 'cargo add serde tokio' }))));
-    assert.strictEqual(
-      hookOutput(runHook('pre-tool-use.js', input(session, 'Bash', { command: 'cargo add serde' }))),
-      null
-    );
+    const call = session();
+    assert.ok(call('Bash', { command: 'cargo add serde tokio' }));
+    assert.strictEqual(call('Bash', { command: 'cargo add serde' }), null);
   });
 });
