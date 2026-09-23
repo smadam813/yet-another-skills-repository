@@ -8,12 +8,12 @@ const path = require('path');
 const { mapStore, preToolUse, dispatch, writeTranscript } = require('./helpers');
 const { stepTurn, classify, isExemptPath } = require('../hooks/file-meter');
 
-// The workspace lives in the OS temp directory, so the run's tmpDir points
-// somewhere else to keep the meter live. newFile paths are nonexistent and
+// The workspace is in the OS temp directory, so the run's tmpDir points
+// elsewhere to keep the file meter active. newFile paths do not exist and are
 // outside any test/docs/config tree, so they classify as production.
-const REPO = fs.mkdtempSync(path.join(os.tmpdir(), 'razor-fm-'));
-const TMP_DIR = path.join(REPO, 'tmp');
-const newFile = (i) => path.join(REPO, 'src-does-not-exist', `f${i}.js`);
+const WS = fs.mkdtempSync(path.join(os.tmpdir(), 'razor-fm-'));
+const TMP_DIR = path.join(WS, 'tmp');
+const newFile = (i) => path.join(WS, 'src-does-not-exist', `f${i}.js`);
 
 describe('unit: stepTurn', () => {
   test('fires once when the budget is crossed, then self-clears', () => {
@@ -99,7 +99,7 @@ describe('unit: classify', () => {
   ];
   for (const [file, kind] of cases) {
     test(`${file} -> ${kind}`, () => {
-      assert.strictEqual(classify(path.join(REPO, file)), kind);
+      assert.strictEqual(classify(path.join(WS, file)), kind);
     });
   }
 });
@@ -115,7 +115,7 @@ describe('unit: isExemptPath', () => {
 describe('integration: per-turn budget', () => {
   const input = (transcript, filePath) =>
     preToolUse('Write', { file_path: filePath }, { transcript_path: transcript });
-  const meter = (data, env, store) => dispatch(data, env || {}, store, TMP_DIR);
+  const meter = (data, env, store) => dispatch(data, env, store, TMP_DIR);
 
   test('5th new production file denied, 6th passes, new turn resets', () => {
     const store = mapStore();
@@ -144,7 +144,7 @@ describe('integration: per-turn budget', () => {
       'config/orders.yaml',
       'docs/orders.md',
       'dist/orders.min.js',
-    ].map((f) => path.join(REPO, f));
+    ].map((f) => path.join(WS, f));
     for (const f of files) {
       assert.strictEqual(meter(input(t, f), {}, store), null);
     }
@@ -153,8 +153,8 @@ describe('integration: per-turn budget', () => {
   test('the deny names the uncounted work and the placement', () => {
     const store = mapStore();
     const t = writeTranscript('turn-uuid-msg');
-    meter(input(t, path.join(REPO, 'tests', 'a.test.js')), {}, store);
-    meter(input(t, path.join(REPO, 'docs', 'a.md')), {}, store);
+    meter(input(t, path.join(WS, 'tests', 'a.test.js')), {}, store);
+    meter(input(t, path.join(WS, 'docs', 'a.md')), {}, store);
     for (let i = 1; i <= 4; i++) {
       meter(input(t, newFile(40 + i)), {}, store);
     }
@@ -203,9 +203,9 @@ describe('integration: per-turn budget', () => {
     const t = writeTranscript('turn-uuid-raw');
     const env = { RAZOR_FILE_BUDGET: '2' };
     const files = [
-      path.join(REPO, 'tests', 'raw1.test.js'),
-      path.join(REPO, 'docs', 'raw1.md'),
-      path.join(REPO, 'config', 'raw1.yaml'),
+      path.join(WS, 'tests', 'raw1.test.js'),
+      path.join(WS, 'docs', 'raw1.md'),
+      path.join(WS, 'config', 'raw1.yaml'),
     ];
     assert.strictEqual(meter(input(t, files[0]), env, store), null);
     assert.strictEqual(meter(input(t, files[1]), env, store), null);

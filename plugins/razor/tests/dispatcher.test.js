@@ -33,8 +33,8 @@ describe('integration: one call, one state', () => {
   });
 
   test('one deny per call, and every gate records its nudge, so the retry passes', () => {
-    // Workspace in the OS temp directory with its own manifest. The run's
-    // tmpDir points elsewhere, so the file meter stays live.
+    // The workspace is in the OS temp directory and has its own manifest.
+    // The run's tmpDir points elsewhere, so the file meter stays active.
     const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'razor-disp-'));
     const tmpDir = path.join(ws, 'tmp');
     try {
