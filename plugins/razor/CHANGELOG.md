@@ -4,6 +4,13 @@ All notable changes to razor are documented here. The version number lives in
 both plugin manifests, `.claude-plugin/plugin.json` and
 `.cursor-plugin/plugin.json`.
 
+## 1.6.7 — 2026-09-22
+
+One manifest module now reads every manifest for the gates and the
+unused-deps audit. The dep guard no longer gives a nudge for
+`pip install yaml` when the manifest declares `pyyaml`. The unused-deps
+report lists `pyproject.toml` before `requirements.txt`.
+
 ## 1.6.6 — 2026-09-22
 
 The import, manifest, and dep guards now stop at the nearest manifest, even
