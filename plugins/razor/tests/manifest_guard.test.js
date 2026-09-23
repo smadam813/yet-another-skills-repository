@@ -5,7 +5,7 @@ const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { runHook, hookOutput, freshSession } = require('./helpers');
+const { mapStore, preToolUse, dispatch } = require('./helpers');
 const { jsonDepNames, reqDepNames, simulate } = require('../hooks/manifest-guard');
 
 const PKG = JSON.stringify(
@@ -21,13 +21,6 @@ function workspace(files) {
   }
   return dir;
 }
-
-const input = (sessionId, toolName, toolInput) => ({
-  session_id: sessionId,
-  hook_event_name: 'PreToolUse',
-  tool_name: toolName,
-  tool_input: toolInput,
-});
 
 describe('unit: dependency-name extraction', () => {
   test('package.json: dependencies + devDependencies, lowercased', () => {
@@ -65,118 +58,106 @@ describe('unit: dependency-name extraction', () => {
 describe('integration: manifest gate', () => {
   test('Write that adds a dependency to package.json: denied once with evidence, retry passes', () => {
     const ws = workspace({ 'package.json': PKG });
-    const session = freshSession();
-    const write = input(session, 'Write', {
+    const store = mapStore();
+    const write = preToolUse('Write', {
       file_path: path.join(ws, 'package.json'),
       content: PKG.replace('"lodash": "^4.17.21"', '"lodash": "^4.17.21",\n    "pg": "^8.11.0"'),
     });
-    const first = hookOutput(runHook('pre-tool-use.js', write));
-    assert.strictEqual(first.hookSpecificOutput.permissionDecision, 'deny');
-    assert.match(first.hookSpecificOutput.permissionDecisionReason, /adds a new node dependency/);
-    assert.match(first.hookSpecificOutput.permissionDecisionReason, /`pg`/);
-    assert.match(first.hookSpecificOutput.permissionDecisionReason, /Already declared \(2\): express, lodash/);
+    const first = dispatch(write, {}, store);
+    assert.match(first, /adds a new node dependency/);
+    assert.match(first, /`pg`/);
+    assert.match(first, /Already declared \(2\): express, lodash/);
 
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', write)), null);
+    assert.strictEqual(dispatch(write, {}, store), null);
   });
 
   test('Edit fragment that adds a dependency is gated the same way', () => {
     const ws = workspace({ 'package.json': PKG });
-    const session = freshSession();
-    const edit = input(session, 'Edit', {
+    const store = mapStore();
+    const edit = preToolUse('Edit', {
       file_path: path.join(ws, 'package.json'),
       old_string: '"lodash": "^4.17.21"',
       new_string: '"lodash": "^4.17.21",\n    "axios": "^1.7.0"',
     });
-    const first = hookOutput(runHook('pre-tool-use.js', edit));
-    assert.strictEqual(first.hookSpecificOutput.permissionDecision, 'deny');
-    assert.match(first.hookSpecificOutput.permissionDecisionReason, /`axios`/);
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', edit)), null);
+    assert.match(dispatch(edit, {}, store), /`axios`/);
+    assert.strictEqual(dispatch(edit, {}, store), null);
   });
 
   test('version bumps of existing entries never fire', () => {
     const ws = workspace({ 'package.json': PKG });
-    const edit = input(freshSession(), 'Edit', {
+    const edit = preToolUse('Edit', {
       file_path: path.join(ws, 'package.json'),
       old_string: '"express": "^4.19.2"',
       new_string: '"express": "^5.0.0"',
     });
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', edit)), null);
+    assert.strictEqual(dispatch(edit, {}), null);
   });
 
   test('creating a fresh manifest is scaffolding, not gated', () => {
     const ws = workspace({});
-    const write = input(freshSession(), 'Write', {
+    const write = preToolUse('Write', {
       file_path: path.join(ws, 'package.json'),
       content: JSON.stringify({ name: 'new', dependencies: { pg: '^8' } }),
     });
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', write)), null);
+    assert.strictEqual(dispatch(write, {}), null);
   });
 
   test('requirements.txt line adds are gated, python ecosystem named', () => {
     const ws = workspace({ 'requirements.txt': 'flask==3.0.3\nrequests==2.32.3\n' });
-    const session = freshSession();
-    const edit = input(session, 'Edit', {
+    const store = mapStore();
+    const edit = preToolUse('Edit', {
       file_path: path.join(ws, 'requirements.txt'),
       old_string: 'requests==2.32.3\n',
       new_string: 'requests==2.32.3\ntenacity==8.3.0\n',
     });
-    const first = hookOutput(runHook('pre-tool-use.js', edit));
-    assert.strictEqual(first.hookSpecificOutput.permissionDecision, 'deny');
-    assert.match(first.hookSpecificOutput.permissionDecisionReason, /adds a new python dependency/);
-    assert.match(first.hookSpecificOutput.permissionDecisionReason, /`tenacity`/);
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', edit)), null);
+    const first = dispatch(edit, {}, store);
+    assert.match(first, /adds a new python dependency/);
+    assert.match(first, /`tenacity`/);
+    assert.strictEqual(dispatch(edit, {}, store), null);
   });
 
   test('RAZOR_MANIFEST_GUARD=off disables the gate', () => {
     const ws = workspace({ 'package.json': PKG });
-    const write = input(freshSession(), 'Write', {
+    const write = preToolUse('Write', {
       file_path: path.join(ws, 'package.json'),
       content: PKG.replace('"lodash": "^4.17.21"', '"lodash": "^4.17.21",\n    "pg": "^8.11.0"'),
     });
-    const r = runHook('pre-tool-use.js', write, { RAZOR_MANIFEST_GUARD: 'off' });
-    assert.strictEqual(hookOutput(r), null);
+    assert.strictEqual(dispatch(write, { RAZOR_MANIFEST_GUARD: 'off' }), null);
   });
 });
 
 describe('integration: one reconsideration per dependency, across gates', () => {
   test('an install deny covers the later manifest edit for the same package', () => {
     const ws = workspace({ 'package.json': PKG });
-    const session = freshSession();
-    const install = hookOutput(
-      runHook('pre-tool-use.js', input(session, 'Bash', { command: 'npm install pg' }))
-    );
-    assert.strictEqual(install.hookSpecificOutput.permissionDecision, 'deny');
+    const store = mapStore();
+    assert.match(dispatch(preToolUse('Bash', { command: 'npm install pg' }), {}, store), /razor:/);
 
-    const edit = input(session, 'Edit', {
+    const edit = preToolUse('Edit', {
       file_path: path.join(ws, 'package.json'),
       old_string: '"lodash": "^4.17.21"',
       new_string: '"lodash": "^4.17.21",\n    "pg": "^8.11.0"',
     });
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', edit)), null);
+    assert.strictEqual(dispatch(edit, {}, store), null);
   });
 
   test('a manifest deny covers the later install and import for the same package', () => {
     const ws = workspace({ 'package.json': PKG });
-    const session = freshSession();
-    const edit = input(session, 'Edit', {
+    const store = mapStore();
+    const edit = preToolUse('Edit', {
       file_path: path.join(ws, 'package.json'),
       old_string: '"lodash": "^4.17.21"',
       new_string: '"lodash": "^4.17.21",\n    "pg": "^8.11.0"',
     });
-    const first = hookOutput(runHook('pre-tool-use.js', edit));
-    assert.strictEqual(first.hookSpecificOutput.permissionDecision, 'deny');
+    assert.match(dispatch(edit, {}, store), /razor:/);
 
-    assert.strictEqual(
-      hookOutput(runHook('pre-tool-use.js', input(session, 'Bash', { command: 'npm install pg' }))),
-      null
-    );
+    assert.strictEqual(dispatch(preToolUse('Bash', { command: 'npm install pg' }), {}, store), null);
     // package.json on disk still lacks pg (hooks never write), so the import
     // guard would fire — the shared ledger keeps it silent instead.
-    const code = input(session, 'Write', {
+    const code = preToolUse('Write', {
       file_path: path.join(ws, 'db.js'),
       content: "const { Pool } = require('pg');\nmodule.exports = {};\n",
     });
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', code)), null);
+    assert.strictEqual(dispatch(code, {}, store), null);
   });
 });
 
@@ -201,58 +182,43 @@ describe('pyproject.toml is gated like the other manifests', () => {
 
   test('a new PEP 621 dependency is denied once, and the retry passes', () => {
     const dir = workspace();
-    const file = path.join(dir, 'pyproject.toml');
-    const session = freshSession();
-    const call = {
-      session_id: session,
-      tool_name: 'Edit',
-      tool_input: { file_path: file, old_string: '  "flask>=2.1",', new_string: '  "flask>=2.1",\n  "requests",' },
-    };
-    const first = hookOutput(runHook('pre-tool-use.js', call));
-    assert.strictEqual(first.hookSpecificOutput.permissionDecision, 'deny');
-    assert.match(first.hookSpecificOutput.permissionDecisionReason, /requests/);
-    assert.strictEqual(runHook('pre-tool-use.js', call).stdout.trim(), '');
+    const store = mapStore();
+    const call = preToolUse('Edit', {
+      file_path: path.join(dir, 'pyproject.toml'),
+      old_string: '  "flask>=2.1",',
+      new_string: '  "flask>=2.1",\n  "requests",',
+    });
+    assert.match(dispatch(call, {}, store), /requests/);
+    assert.strictEqual(dispatch(call, {}, store), null);
   });
 
   test('a new poetry dependency is denied', () => {
     const dir = workspace();
-    const out = hookOutput(runHook('pre-tool-use.js', {
-      session_id: freshSession(),
-      tool_name: 'Edit',
-      tool_input: {
-        file_path: path.join(dir, 'pyproject.toml'),
-        old_string: 'click = "^8.1"',
-        new_string: 'click = "^8.1"\nhttpx = "^0.27"',
-      },
-    }));
-    assert.match(out.hookSpecificOutput.permissionDecisionReason, /httpx/);
+    const call = preToolUse('Edit', {
+      file_path: path.join(dir, 'pyproject.toml'),
+      old_string: 'click = "^8.1"',
+      new_string: 'click = "^8.1"\nhttpx = "^0.27"',
+    });
+    assert.match(dispatch(call, {}), /httpx/);
   });
 
   test('a version bump of a declared dependency stays silent', () => {
     const dir = workspace();
-    const r = runHook('pre-tool-use.js', {
-      session_id: freshSession(),
-      tool_name: 'Edit',
-      tool_input: {
-        file_path: path.join(dir, 'pyproject.toml'),
-        old_string: '  "flask>=2.1",',
-        new_string: '  "flask>=3.0",',
-      },
+    const call = preToolUse('Edit', {
+      file_path: path.join(dir, 'pyproject.toml'),
+      old_string: '  "flask>=2.1",',
+      new_string: '  "flask>=3.0",',
     });
-    assert.strictEqual(r.stdout.trim(), '');
+    assert.strictEqual(dispatch(call, {}), null);
   });
 
   test('the python version pin is never treated as a dependency', () => {
     const dir = workspace();
-    const r = runHook('pre-tool-use.js', {
-      session_id: freshSession(),
-      tool_name: 'Edit',
-      tool_input: {
-        file_path: path.join(dir, 'pyproject.toml'),
-        old_string: 'python = "^3.11"',
-        new_string: 'python = "^3.12"',
-      },
+    const call = preToolUse('Edit', {
+      file_path: path.join(dir, 'pyproject.toml'),
+      old_string: 'python = "^3.11"',
+      new_string: 'python = "^3.12"',
     });
-    assert.strictEqual(r.stdout.trim(), '');
+    assert.strictEqual(dispatch(call, {}), null);
   });
 });

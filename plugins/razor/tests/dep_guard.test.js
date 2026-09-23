@@ -5,7 +5,7 @@ const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { runHook, hookOutput, freshSession } = require('./helpers');
+const { mapStore, preToolUse, dispatch } = require('./helpers');
 const { parseInstallCommand, parseInstallCommands, check, packageName, pyprojectDepNames, ADD_SUBCOMMANDS, MANAGER_ECO } = require('../hooks/dep-guard');
 
 // A chained command used to be checkpointed for its first install alone, and
@@ -149,79 +149,62 @@ describe('unit: parseInstallCommand', () => {
 });
 
 describe('integration: soft gate', () => {
-  const input = (sessionId, command) => ({
-    session_id: sessionId,
-    hook_event_name: 'PreToolUse',
-    tool_name: 'Bash',
-    tool_input: { command },
-  });
+  const input = (command) => preToolUse('Bash', { command });
 
   test('first install denied with reason, identical retry passes', () => {
-    const session = freshSession();
-    const first = hookOutput(runHook('pre-tool-use.js', input(session, 'npm install lodash')));
-    assert.strictEqual(first.hookSpecificOutput.permissionDecision, 'deny');
-    assert.match(first.hookSpecificOutput.permissionDecisionReason, /razor:/);
-    assert.match(first.hookSpecificOutput.permissionDecisionReason, /lodash/);
-
-    const retry = hookOutput(runHook('pre-tool-use.js', input(session, 'npm install lodash')));
-    assert.strictEqual(retry, null);
+    const store = mapStore();
+    const first = dispatch(input('npm install lodash'), {}, store);
+    assert.match(first, /razor:/);
+    assert.match(first, /lodash/);
+    assert.strictEqual(dispatch(input('npm install lodash'), {}, store), null);
   });
 
   test('reworded retry with same packages passes too', () => {
-    const session = freshSession();
-    runHook('pre-tool-use.js', input(session, 'npm i lodash'));
-    const retry = hookOutput(runHook('pre-tool-use.js', input(session, 'npm install --save lodash')));
-    assert.strictEqual(retry, null);
+    const store = mapStore();
+    dispatch(input('npm i lodash'), {}, store);
+    assert.strictEqual(dispatch(input('npm install --save lodash'), {}, store), null);
   });
 
   test('a different package is a fresh gate', () => {
-    const session = freshSession();
-    runHook('pre-tool-use.js', input(session, 'npm i lodash'));
-    const other = hookOutput(runHook('pre-tool-use.js', input(session, 'npm i axios')));
-    assert.strictEqual(other.hookSpecificOutput.permissionDecision, 'deny');
+    const store = mapStore();
+    dispatch(input('npm i lodash'), {}, store);
+    assert.match(dispatch(input('npm i axios'), {}, store), /axios/);
   });
 
   test('non-install commands stay silent', () => {
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', input(freshSession(), 'git status'))), null);
+    assert.strictEqual(dispatch(input('git status'), {}), null);
   });
 
   test('installing an already-declared dependency never checkpoints', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'razor-dg-'));
     fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ dependencies: { lodash: '^4' } }));
-    const withCwd = { ...input(freshSession(), 'npm install lodash'), cwd: dir };
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', withCwd)), null);
+    assert.strictEqual(dispatch({ ...input('npm install lodash'), cwd: dir }, {}), null);
 
     const py = fs.mkdtempSync(path.join(os.tmpdir(), 'razor-dg-'));
     fs.writeFileSync(path.join(py, 'requirements.txt'), 'python-dotenv==1.0\nflask>=2.0\n');
-    const pyCwd = { ...input(freshSession(), 'pip install python_dotenv'), cwd: py };
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', pyCwd)), null);
+    assert.strictEqual(dispatch({ ...input('pip install python_dotenv'), cwd: py }, {}), null);
     // the realistic shell spelling of a spec'd reinstall: quoted
-    const quoted = { ...input(freshSession(), "pip install 'flask>=2.1'"), cwd: py };
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', quoted)), null);
+    assert.strictEqual(dispatch({ ...input("pip install 'flask>=2.1'"), cwd: py }, {}), null);
   });
 
   test('the hyphen and underscore spellings of a pip package share one nudge', () => {
-    const session = freshSession();
-    const first = hookOutput(runHook('pre-tool-use.js', input(session, 'pip install python_dotenv')));
-    assert.strictEqual(first.hookSpecificOutput.permissionDecision, 'deny');
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', input(session, 'pip install python-dotenv'))), null);
+    const store = mapStore();
+    assert.match(dispatch(input('pip install python_dotenv'), {}, store), /razor:/);
+    assert.strictEqual(dispatch(input('pip install python-dotenv'), {}, store), null);
   });
 
   test('a versioned install denied once passes on the bare-name retry', () => {
-    const session = freshSession();
-    const first = hookOutput(runHook('pre-tool-use.js', input(session, 'npm i axios@^1.8')));
-    assert.strictEqual(first.hookSpecificOutput.permissionDecision, 'deny');
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', input(session, 'npm install axios'))), null);
+    const store = mapStore();
+    assert.match(dispatch(input('npm i axios@^1.8'), {}, store), /razor:/);
+    assert.strictEqual(dispatch(input('npm install axios'), {}, store), null);
   });
 
   test('RAZOR_DEP_GUARD=off disables the gate', () => {
-    const r = runHook('pre-tool-use.js', input(freshSession(), 'npm i lodash'), { RAZOR_DEP_GUARD: 'off' });
-    assert.strictEqual(hookOutput(r), null);
+    assert.strictEqual(dispatch(input('npm i lodash'), { RAZOR_DEP_GUARD: 'off' }), null);
   });
 
   test('RAZOR_DISABLE=1 disables the gate', () => {
-    const r = runHook('pre-tool-use.js', input(freshSession(), 'npm i lodash'), { RAZOR_DISABLE: '1' });
-    assert.strictEqual(hookOutput(r), null);
+    assert.strictEqual(dispatch(input('npm i lodash'), { RAZOR_DISABLE: '1' }), null);
   });
 });
 
@@ -262,24 +245,14 @@ describe('locations, flag values, and self-upgrades are not dependencies', () =>
 
 describe('PowerShell is gated exactly like Bash', () => {
   test('an install issued through PowerShell is denied once, and the retry passes', () => {
-    const call = {
-      session_id: freshSession(),
-      tool_name: 'PowerShell',
-      tool_input: { command: 'npm install axios' },
-    };
-    const out = hookOutput(runHook('pre-tool-use.js', call));
-    assert.strictEqual(out.hookSpecificOutput.permissionDecision, 'deny');
-    assert.match(out.hookSpecificOutput.permissionDecisionReason, /axios/);
-    assert.strictEqual(runHook('pre-tool-use.js', call).stdout.trim(), '');
+    const store = mapStore();
+    const call = preToolUse('PowerShell', { command: 'npm install axios' });
+    assert.match(dispatch(call, {}, store), /axios/);
+    assert.strictEqual(dispatch(call, {}, store), null);
   });
 
   test('an ordinary PowerShell command is never gated', () => {
-    const r = runHook('pre-tool-use.js', {
-      session_id: freshSession(),
-      tool_name: 'PowerShell',
-      tool_input: { command: 'Get-ChildItem -Recurse' },
-    });
-    assert.strictEqual(r.stdout.trim(), '');
+    assert.strictEqual(dispatch(preToolUse('PowerShell', { command: 'Get-ChildItem -Recurse' }), {}), null);
   });
 });
 

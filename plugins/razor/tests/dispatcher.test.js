@@ -3,6 +3,7 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { mapStore, preToolUse, dispatch } = require('./helpers');
 const { gateStateId, turnKey } = require('../hooks/razor-lib');
@@ -32,23 +33,24 @@ describe('integration: one call, one state', () => {
   });
 
   test('one deny per call, and every gate records its nudge, so the retry passes', () => {
-    // Workspace at the plugin root: outside tmpdir (file meter live) and
-    // outside tests/ (import guard live), with its own manifest.
-    const ws = fs.mkdtempSync(path.join(__dirname, '..', 'disp-ws-'));
+    // Workspace in the OS temp directory with its own manifest. The run's
+    // tmpDir points elsewhere, so the file meter stays live.
+    const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'razor-disp-'));
+    const tmpDir = path.join(ws, 'tmp');
     try {
       fs.writeFileSync(path.join(ws, 'package.json'), JSON.stringify({ dependencies: { lodash: '^4' } }));
       const store = mapStore();
       const env = { RAZOR_FILE_BUDGET: '1' };
 
       const first = preToolUse('Write', { file_path: path.join(ws, 'a.js'), content: 'const x = 1;\n' }, { prompt_id: 'p1' });
-      assert.strictEqual(dispatch(first, env, store), null);
+      assert.strictEqual(dispatch(first, env, store, tmpDir), null);
 
       const both = preToolUse(
         'Write',
         { file_path: path.join(ws, 'b.js'), content: "const axios = require('axios');\n" },
         { prompt_id: 'p1' }
       );
-      const reason = dispatch(both, env, store);
+      const reason = dispatch(both, env, store, tmpDir);
       assert.match(reason, /adds a new node dependency/);
       assert.doesNotMatch(reason, /new file #/);
 
@@ -57,7 +59,7 @@ describe('integration: one call, one state', () => {
       assert.deepStrictEqual(state.reconsidered, { node: ['axios'] });
       assert.strictEqual(state.turn.fired, true);
 
-      assert.strictEqual(dispatch(both, env, store), null);
+      assert.strictEqual(dispatch(both, env, store, tmpDir), null);
     } finally {
       fs.rmSync(ws, { recursive: true, force: true });
     }

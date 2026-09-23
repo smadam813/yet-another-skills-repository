@@ -2,15 +2,17 @@
 
 const { test, describe } = require('node:test');
 const assert = require('node:assert');
+const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { runHook, hookOutput, freshSession, writeTranscript } = require('./helpers');
+const { mapStore, preToolUse, dispatch, writeTranscript } = require('./helpers');
 const { stepTurn, classify, isExemptPath } = require('../hooks/file-meter');
 
-// Nonexistent, outside tmpdir, outside any test/docs/config tree, so it
-// classifies as production. Not under tests/ — that is the point of the
-// classifier.
-const REPO = path.join(__dirname, '..');
+// The workspace lives in the OS temp directory, so the run's tmpDir points
+// somewhere else to keep the meter live. newFile paths are nonexistent and
+// outside any test/docs/config tree, so they classify as production.
+const REPO = fs.mkdtempSync(path.join(os.tmpdir(), 'razor-fm-'));
+const TMP_DIR = path.join(REPO, 'tmp');
 const newFile = (i) => path.join(REPO, 'src-does-not-exist', `f${i}.js`);
 
 describe('unit: stepTurn', () => {
@@ -106,38 +108,32 @@ describe('unit: isExemptPath', () => {
   test('tmpdir and scratchpad are exempt, repo paths are not', () => {
     assert.strictEqual(isExemptPath(path.join(os.tmpdir(), 'x', 'y.js'), os.tmpdir()), true);
     assert.strictEqual(isExemptPath(path.join('D:', 'w', 'scratchpad', 'y.js'), os.tmpdir()), true);
-    assert.strictEqual(isExemptPath(newFile(0), os.tmpdir()), false);
+    assert.strictEqual(isExemptPath(newFile(0), TMP_DIR), false);
   });
 });
 
 describe('integration: per-turn budget', () => {
-  const input = (sessionId, transcript, filePath) => ({
-    session_id: sessionId,
-    transcript_path: transcript,
-    hook_event_name: 'PreToolUse',
-    tool_name: 'Write',
-    tool_input: { file_path: filePath },
-  });
+  const input = (transcript, filePath) =>
+    preToolUse('Write', { file_path: filePath }, { transcript_path: transcript });
+  const meter = (data, env, store) => dispatch(data, env || {}, store, TMP_DIR);
 
   test('5th new production file denied, 6th passes, new turn resets', () => {
-    const session = freshSession();
+    const store = mapStore();
     const t1 = writeTranscript('turn-uuid-1');
     for (let i = 1; i <= 4; i++) {
-      assert.strictEqual(hookOutput(runHook('pre-tool-use.js', input(session, t1, newFile(i)))), null);
+      assert.strictEqual(meter(input(t1, newFile(i)), {}, store), null);
     }
-    const fifth = hookOutput(runHook('pre-tool-use.js', input(session, t1, newFile(5))));
-    assert.strictEqual(fifth.hookSpecificOutput.permissionDecision, 'deny');
-    assert.match(fifth.hookSpecificOutput.permissionDecisionReason, /razor: new production file #5/);
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', input(session, t1, newFile(6)))), null);
+    assert.match(meter(input(t1, newFile(5)), {}, store), /razor: new production file #5/);
+    assert.strictEqual(meter(input(t1, newFile(6)), {}, store), null);
 
     const t2 = writeTranscript('turn-uuid-2');
     for (let i = 1; i <= 4; i++) {
-      assert.strictEqual(hookOutput(runHook('pre-tool-use.js', input(session, t2, newFile(10 + i)))), null);
+      assert.strictEqual(meter(input(t2, newFile(10 + i)), {}, store), null);
     }
   });
 
   test('a feature shipping with tests, a migration and config is never denied', () => {
-    const session = freshSession();
+    const store = mapStore();
     const t = writeTranscript('turn-uuid-shape');
     const files = [
       'src-does-not-exist/order.js',
@@ -150,20 +146,19 @@ describe('integration: per-turn budget', () => {
       'dist/orders.min.js',
     ].map((f) => path.join(REPO, f));
     for (const f of files) {
-      assert.strictEqual(hookOutput(runHook('pre-tool-use.js', input(session, t, f))), null);
+      assert.strictEqual(meter(input(t, f), {}, store), null);
     }
   });
 
   test('the deny names the uncounted work and the placement', () => {
-    const session = freshSession();
+    const store = mapStore();
     const t = writeTranscript('turn-uuid-msg');
-    runHook('pre-tool-use.js', input(session, t, path.join(REPO, 'tests', 'a.test.js')));
-    runHook('pre-tool-use.js', input(session, t, path.join(REPO, 'docs', 'a.md')));
+    meter(input(t, path.join(REPO, 'tests', 'a.test.js')), {}, store);
+    meter(input(t, path.join(REPO, 'docs', 'a.md')), {}, store);
     for (let i = 1; i <= 4; i++) {
-      runHook('pre-tool-use.js', input(session, t, newFile(40 + i)));
+      meter(input(t, newFile(40 + i)), {}, store);
     }
-    const denied = hookOutput(runHook('pre-tool-use.js', input(session, t, newFile(45))));
-    const reason = denied.hookSpecificOutput.permissionDecisionReason;
+    const reason = meter(input(t, newFile(45)), {}, store);
     assert.match(reason, /razor: new production file #5 this turn \(budget 4\)/);
     assert.match(reason, /uncounted: 1 tests, 1 docs/);
     assert.match(reason, /creates a new directory, src-does-not-exist\//);
@@ -171,42 +166,40 @@ describe('integration: per-turn budget', () => {
   });
 
   test('existing files are never gated', () => {
-    const session = freshSession();
+    const store = mapStore();
     const t = writeTranscript('turn-uuid-3');
     for (let i = 0; i < 6; i++) {
-      assert.strictEqual(hookOutput(runHook('pre-tool-use.js', input(session, t, __filename))), null);
+      assert.strictEqual(meter(input(t, __filename), {}, store), null);
     }
   });
 
   test('tmpdir files are exempt even past budget', () => {
-    const session = freshSession();
+    const store = mapStore();
     const t = writeTranscript('turn-uuid-4');
     for (let i = 0; i < 6; i++) {
-      const p = path.join(os.tmpdir(), 'razor-nope', `f${i}.js`);
-      assert.strictEqual(hookOutput(runHook('pre-tool-use.js', input(session, t, p))), null);
+      const p = path.join(TMP_DIR, 'razor-nope', `f${i}.js`);
+      assert.strictEqual(meter(input(t, p), {}, store), null);
     }
   });
 
   test('RAZOR_FILE_BUDGET=0 disables the meter', () => {
-    const session = freshSession();
+    const store = mapStore();
     const t = writeTranscript('turn-uuid-5');
     for (let i = 0; i < 3; i++) {
-      const r = runHook('pre-tool-use.js', input(session, t, newFile(20 + i)), { RAZOR_FILE_BUDGET: '0' });
-      assert.strictEqual(hookOutput(r), null);
+      assert.strictEqual(meter(input(t, newFile(20 + i)), { RAZOR_FILE_BUDGET: '0' }, store), null);
     }
   });
 
   test('RAZOR_FILE_BUDGET=1 fires on the second new file', () => {
-    const session = freshSession();
+    const store = mapStore();
     const t = writeTranscript('turn-uuid-6');
     const env = { RAZOR_FILE_BUDGET: '1' };
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', input(session, t, newFile(30)), env)), null);
-    const second = hookOutput(runHook('pre-tool-use.js', input(session, t, newFile(31)), env));
-    assert.strictEqual(second.hookSpecificOutput.permissionDecision, 'deny');
+    assert.strictEqual(meter(input(t, newFile(30)), env, store), null);
+    assert.match(meter(input(t, newFile(31)), env, store), /razor: new file #2/);
   });
 
   test('an explicit budget is a raw ceiling: tests and docs count too', () => {
-    const session = freshSession();
+    const store = mapStore();
     const t = writeTranscript('turn-uuid-raw');
     const env = { RAZOR_FILE_BUDGET: '2' };
     const files = [
@@ -214,10 +207,8 @@ describe('integration: per-turn budget', () => {
       path.join(REPO, 'docs', 'raw1.md'),
       path.join(REPO, 'config', 'raw1.yaml'),
     ];
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', input(session, t, files[0]), env)), null);
-    assert.strictEqual(hookOutput(runHook('pre-tool-use.js', input(session, t, files[1]), env)), null);
-    const third = hookOutput(runHook('pre-tool-use.js', input(session, t, files[2]), env));
-    assert.strictEqual(third.hookSpecificOutput.permissionDecision, 'deny');
-    assert.match(third.hookSpecificOutput.permissionDecisionReason, /razor: new file #3/);
+    assert.strictEqual(meter(input(t, files[0]), env, store), null);
+    assert.strictEqual(meter(input(t, files[1]), env, store), null);
+    assert.match(meter(input(t, files[2]), env, store), /razor: new file #3/);
   });
 });
