@@ -6,10 +6,9 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { runHook, hookOutput, freshSession } = require('./helpers');
+const { runHook, hookOutput, freshSession, mapStore, startSession, stopTurn } = require('./helpers');
 const { installedDeps, denyReason, parseInstallCommand } = require('../hooks/dep-guard');
 const { shouldFire } = require('../hooks/build-ledger');
-const { readState, writeState } = require('../hooks/razor-lib');
 
 function fixtureDir(files) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'razor-fx-'));
@@ -280,36 +279,48 @@ describe('unit: shouldFire', () => {
 describe('integration: build ledger', () => {
   test('session-start snapshots the git baseline', () => {
     const { dir, sha } = gitRepo();
-    const session = freshSession();
-    const r = runHook('session-start.js', { session_id: session, cwd: dir, hook_event_name: 'SessionStart' });
-    assert.match(r.stdout, /RAZOR ACTIVE/);
-    const state = readState(session);
+    const store = mapStore();
+    assert.match(startSession({ session_id: 's1', cwd: dir }, {}, store), /RAZOR ACTIVE/);
+    const state = store.read('s1');
     assert.strictEqual(state.ledger.baseSha, sha);
     assert.strictEqual(state.ledger.fired, false);
   });
 
+  test('session-start keeps the first baseline on resume', () => {
+    const { dir } = gitRepo();
+    const store = mapStore();
+    store.write('s1', { ledger: { baseSha: 'earlier', fired: false } });
+    startSession({ session_id: 's1', cwd: dir }, {}, store);
+    assert.strictEqual(store.read('s1').ledger.baseSha, 'earlier');
+  });
+
+  test('session-start records no baseline under RAZOR_LEDGER=off', () => {
+    const { dir } = gitRepo();
+    const store = mapStore();
+    assert.match(startSession({ session_id: 's1', cwd: dir }, { RAZOR_LEDGER: 'off' }, store), /RAZOR ACTIVE/);
+    assert.strictEqual(store.read('s1').ledger, undefined);
+  });
+
   test('fires once on sprawl, then stays silent', () => {
     const { dir, sha } = gitRepo();
-    const session = freshSession();
-    writeState(session, { ledger: { baseSha: sha, baseUntrackedFiles: [], fired: false } });
+    const store = mapStore();
+    store.write('s1', { ledger: { baseSha: sha, baseUntrackedFiles: [], fired: false } });
 
     // sprawl: 600 added lines in a tracked file + several new untracked files
     fs.appendFileSync(path.join(dir, 'a.js'), Array.from({ length: 600 }, (_, i) => `line ${i}`).join('\n'));
     for (let i = 0; i < 9; i++) fs.writeFileSync(path.join(dir, `new${i}.js`), '// x\n');
 
-    const input = { session_id: session, cwd: dir, hook_event_name: 'Stop' };
-    const first = hookOutput(runHook('build-ledger.js', input));
-    assert.match(first.hookSpecificOutput.additionalContext, /razor ledger: \+600 \/ -0 LOC, 9 new files/);
-
-    assert.strictEqual(hookOutput(runHook('build-ledger.js', input)), null); // fired already
+    const input = { session_id: 's1', cwd: dir };
+    assert.match(stopTurn(input, {}, store), /razor ledger: \+600 \/ -0 LOC, 9 new files/);
+    assert.strictEqual(stopTurn(input, {}, store), null); // fired already
   });
 
   // A regenerated lockfile is thousands of insertions nobody wrote, landing
   // with no deletions -- the exact shape the sprawl rule reads as sprawl.
   test('a regenerated lockfile is not sprawl', () => {
     const { dir, sha } = gitRepo();
-    const session = freshSession();
-    writeState(session, { ledger: { baseSha: sha, baseUntrackedFiles: [], fired: false } });
+    const store = mapStore();
+    store.write('s1', { ledger: { baseSha: sha, baseUntrackedFiles: [], fired: false } });
 
     fs.writeFileSync(
       path.join(dir, 'package-lock.json'),
@@ -322,8 +333,7 @@ describe('integration: build ledger', () => {
     g('add', 'package-lock.json');
     g('commit', '-qm', 'lock');
 
-    const out = hookOutput(runHook('build-ledger.js', { session_id: session, cwd: dir, hook_event_name: 'Stop' }));
-    assert.strictEqual(out, null, 'a lockfile is not code the agent wrote');
+    assert.strictEqual(stopTurn({ session_id: 's1', cwd: dir }, {}, store), null, 'a lockfile is not code the agent wrote');
   });
 
   // Prose the repo mandates -- ADR amendments, docs, a design note -- lands as
@@ -331,80 +341,87 @@ describe('integration: build ledger', () => {
   // on a question about lines nobody would want cut.
   test('docs prose is not sprawl, but code alongside it still is', () => {
     const { dir, sha } = gitRepo();
-    const session = freshSession();
-    writeState(session, { ledger: { baseSha: sha, baseUntrackedFiles: [], fired: false } });
+    const store = mapStore();
+    store.write('s1', { ledger: { baseSha: sha, baseUntrackedFiles: [], fired: false } });
 
     const prose = Array.from({ length: 900 }, (_, i) => `paragraph ${i}`).join('\n');
     fs.mkdirSync(path.join(dir, 'docs', 'adr'), { recursive: true });
     fs.writeFileSync(path.join(dir, 'docs', 'adr', '0004-records.md'), prose);
     fs.writeFileSync(path.join(dir, 'DESIGN.md'), prose);
-    assert.strictEqual(
-      hookOutput(runHook('build-ledger.js', { session_id: session, cwd: dir, hook_event_name: 'Stop' })),
-      null,
-      'mandated prose is not sprawl'
-    );
+    assert.strictEqual(stopTurn({ session_id: 's1', cwd: dir }, {}, store), null, 'mandated prose is not sprawl');
 
     // The same session's actual code is still measured, on its own.
     fs.appendFileSync(path.join(dir, 'a.js'), Array.from({ length: 600 }, (_, i) => `line ${i}\n`).join(''));
-    const out = hookOutput(runHook('build-ledger.js', { session_id: session, cwd: dir, hook_event_name: 'Stop' }));
-    assert.match(out.hookSpecificOutput.additionalContext, /\+600 \/ -0 LOC, 0 new files/);
+    assert.match(stopTurn({ session_id: 's1', cwd: dir }, {}, store), /\+600 \/ -0 LOC, 0 new files/);
   });
 
   test('silent on a well-behaved session', () => {
     const { dir, sha } = gitRepo();
-    const session = freshSession();
-    writeState(session, { ledger: { baseSha: sha, baseUntrackedFiles: [], fired: false } });
+    const store = mapStore();
+    store.write('s1', { ledger: { baseSha: sha, baseUntrackedFiles: [], fired: false } });
     fs.appendFileSync(path.join(dir, 'a.js'), 'two\nthree\n');
-    const out = hookOutput(runHook('build-ledger.js', { session_id: session, cwd: dir }));
-    assert.strictEqual(out, null);
+    assert.strictEqual(stopTurn({ session_id: 's1', cwd: dir }, {}, store), null);
   });
 
   test('silent outside a git repo and under RAZOR_LEDGER=off', () => {
     const dir = fixtureDir({});
-    const session = freshSession();
-    writeState(session, { ledger: { baseSha: 'deadbeef', baseUntracked: 0, fired: false } });
-    assert.strictEqual(hookOutput(runHook('build-ledger.js', { session_id: session, cwd: dir })), null);
+    const store = mapStore();
+    store.write('s1', { ledger: { baseSha: 'deadbeef', baseUntracked: 0, fired: false } });
+    assert.strictEqual(stopTurn({ session_id: 's1', cwd: dir }, {}, store), null);
 
     const { dir: repo, sha } = gitRepo();
-    const s2 = freshSession();
-    writeState(s2, { ledger: { baseSha: sha, baseUntrackedFiles: [], fired: false } });
+    const repoStore = mapStore();
+    repoStore.write('s1', { ledger: { baseSha: sha, baseUntrackedFiles: [], fired: false } });
     for (let i = 0; i < 9; i++) fs.writeFileSync(path.join(repo, `n${i}.js`), '// x\n');
-    const r = runHook('build-ledger.js', { session_id: s2, cwd: repo }, { RAZOR_LEDGER: 'off' });
-    assert.strictEqual(hookOutput(r), null);
+    assert.strictEqual(stopTurn({ session_id: 's1', cwd: repo }, { RAZOR_LEDGER: 'off' }, repoStore), null);
+    // The same store fires once the next call's env turns the ledger back on.
+    assert.match(stopTurn({ session_id: 's1', cwd: repo }, {}, repoStore), /9 new files/);
+  });
+
+  test('each call reads the ledger budgets from its own env', () => {
+    const { dir, sha } = gitRepo();
+    const store = mapStore();
+    store.write('s1', { ledger: { baseSha: sha, baseUntrackedFiles: [], fired: false } });
+    fs.appendFileSync(path.join(dir, 'a.js'), Array.from({ length: 600 }, (_, i) => `line ${i}\n`).join(''));
+    for (let i = 0; i < 3; i++) fs.writeFileSync(path.join(dir, `n${i}.js`), '// x\n');
+
+    const input = { session_id: 's1', cwd: dir };
+    assert.strictEqual(stopTurn(input, { RAZOR_LEDGER_LOC: '5000' }, store), null);
+    assert.strictEqual(stopTurn(input, { CLAUDE_PLUGIN_OPTION_LEDGER_LOC: '5000' }, store), null);
+    assert.match(stopTurn(input, { RAZOR_LEDGER_LOC: '5000', RAZOR_LEDGER_FILES: '2' }, store), /3 new files/);
   });
 
   test('pre-existing dirty work is never charged to the session', () => {
     const { dir } = gitRepo();
     // 600 dirty insertions before the session ever starts
     fs.appendFileSync(path.join(dir, 'a.js'), Array.from({ length: 600 }, (_, i) => `old ${i}\n`).join(''));
-    const session = freshSession();
-    runHook('session-start.js', { session_id: session, cwd: dir, hook_event_name: 'SessionStart' });
+    const store = mapStore();
+    startSession({ session_id: 's1', cwd: dir }, {}, store);
 
     // the session itself writes nothing → silent
-    assert.strictEqual(hookOutput(runHook('build-ledger.js', { session_id: session, cwd: dir })), null);
+    assert.strictEqual(stopTurn({ session_id: 's1', cwd: dir }, {}, store), null);
 
     // the session then adds its own 700 → fires with the session's delta only
     fs.appendFileSync(path.join(dir, 'a.js'), Array.from({ length: 700 }, (_, i) => `new ${i}\n`).join(''));
-    const out = hookOutput(runHook('build-ledger.js', { session_id: session, cwd: dir }));
-    assert.match(out.hookSpecificOutput.additionalContext, /\+700 \/ -0 LOC/);
+    assert.match(stopTurn({ session_id: 's1', cwd: dir }, {}, store), /\+700 \/ -0 LOC/);
   });
 
   test('untracked baseline is subtracted', () => {
     const { dir, sha } = gitRepo();
     fs.writeFileSync(path.join(dir, 'pre-existing.js'), '// was here\n');
-    const session = freshSession();
-    writeState(session, { ledger: { baseSha: sha, baseUntrackedFiles: ['pre-existing.js'], fired: false } });
+    const store = mapStore();
+    store.write('s1', { ledger: { baseSha: sha, baseUntrackedFiles: ['pre-existing.js'], fired: false } });
     for (let i = 0; i < 8; i++) fs.writeFileSync(path.join(dir, `n${i}.js`), '// x\n');
     // 9 untracked total - 1 baseline = 8 new → not > 8, stays silent
-    assert.strictEqual(hookOutput(runHook('build-ledger.js', { session_id: session, cwd: dir })), null);
+    assert.strictEqual(stopTurn({ session_id: 's1', cwd: dir }, {}, store), null);
   });
 
   test('staging pre-existing untracked files is never charged to the session', () => {
     const { dir } = gitRepo();
     // 10 one-line untracked files exist BEFORE the session starts
     for (let i = 0; i < 10; i++) fs.writeFileSync(path.join(dir, `pre${i}.js`), '// dirt\n');
-    const session = freshSession();
-    runHook('session-start.js', { session_id: session, cwd: dir, hook_event_name: 'SessionStart' });
+    const store = mapStore();
+    startSession({ session_id: 's1', cwd: dir }, {}, store);
 
     // the session's only act: commit that pre-existing dirt
     const g = (...args) =>
@@ -412,6 +429,6 @@ describe('integration: build ledger', () => {
     g('add', '-A');
     g('commit', '-qm', 'sweep');
 
-    assert.strictEqual(hookOutput(runHook('build-ledger.js', { session_id: session, cwd: dir })), null);
+    assert.strictEqual(stopTurn({ session_id: 's1', cwd: dir }, {}, store), null);
   });
 });

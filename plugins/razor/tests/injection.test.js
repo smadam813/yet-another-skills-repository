@@ -5,7 +5,7 @@ const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { runHook, hookOutput, freshSession } = require('./helpers');
+const { runHook, hookOutput, freshSession, startSession } = require('./helpers');
 const { shouldInject } = require('../hooks/subagent-start');
 const { RULESET, DRIFT_NOTE, writeState } = require('../hooks/razor-lib');
 const { parseToggle } = require('../hooks/mode-toggle');
@@ -75,12 +75,7 @@ describe('integration: injection lifecycle', () => {
   });
 
   test('session-start is silent under RAZOR_DISABLE', () => {
-    const r = runHook(
-      'session-start.js',
-      { session_id: freshSession(), hook_event_name: 'SessionStart' },
-      { RAZOR_DISABLE: '1' }
-    );
-    assert.strictEqual(r.stdout.trim(), '');
+    assert.strictEqual(startSession({ session_id: 's1' }, { RAZOR_DISABLE: '1' }), '');
   });
 
   test('subagent-start wraps the ladder in the SubagentStart JSON envelope', () => {
@@ -227,12 +222,8 @@ describe('the frozen ladder', () => {
 describe('the ladder does not depend on git finishing', () => {
   test('session-start emits the ladder even where git cannot run', () => {
     // cwd points nowhere, so every git() call fails and no ledger is recorded.
-    const r = runHook('session-start.js', {
-      session_id: freshSession(),
-      hook_event_name: 'SessionStart',
-      cwd: '/definitely/not/a/repo/anywhere',
-    });
-    assert.match(r.stdout, /RAZOR ACTIVE/);
+    const out = startSession({ session_id: 's1', cwd: '/definitely/not/a/repo/anywhere' }, {});
+    assert.match(out, /RAZOR ACTIVE/);
   });
 });
 
