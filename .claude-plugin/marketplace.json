@@ -14,25 +14,11 @@
       "keywords": ["code-review", "code-quality", "engineering", "workflow"]
     },
     {
-      "name": "hush",
-      "source": "./plugins/hush",
-      "description": "Quieter sessions for Claude Code: less narration, shorter tool output and concise answers focused on the result.",
-      "license": "MIT",
-      "keywords": ["tokens", "token-optimization", "output-style", "compression", "hooks", "terse", "cost"]
-    },
-    {
       "name": "productivity",
       "source": "./plugins/productivity",
       "description": "Skills for everyday productivity",
       "license": "MIT",
       "keywords": ["writing", "editing", "productivity", "workflow"]
-    },
-    {
-      "name": "razor",
-      "source": "./plugins/razor",
-      "description": "Reuse-first checks: reconsider dependencies, file growth and unnecessary code before adding more.",
-      "license": "MIT",
-      "keywords": ["yagni", "token-optimization", "minimalism", "over-engineering", "hooks", "subagents", "dependency-guard", "lazy"]
     }
   ]
 }

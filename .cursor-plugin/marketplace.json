@@ -17,11 +17,6 @@
       "name": "productivity",
       "source": "productivity",
       "description": "Skills for everyday productivity"
-    },
-    {
-      "name": "razor",
-      "source": "razor",
-      "description": "Reuse-first checks: reconsider dependencies, file growth and unnecessary code before adding more."
     }
   ]
 }

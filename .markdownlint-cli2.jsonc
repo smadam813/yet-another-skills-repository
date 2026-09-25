@@ -2,13 +2,6 @@
   "globs": ["**/*.md"],
   "ignores": [
     "node_modules/**",
-    ".claude/worktrees/**",
-    // Prose in hush and razor keeps its own style.
-    "plugins/hush/docs/**",
-    "plugins/hush/CHANGELOG.md",
-    "plugins/hush/tests/**",
-    "plugins/razor/docs/**",
-    "plugins/razor/CHANGELOG.md",
-    "plugins/razor/tests/**"
+    ".claude/worktrees/**"
   ]
 }

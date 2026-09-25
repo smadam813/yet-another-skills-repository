@@ -28,30 +28,6 @@ jobs:
       - name: Check both marketplaces
         run: node scripts/check-marketplace.mjs
 
-  # hush and razor ship hook code with tests. Runs on both platforms because
-  # the hooks resolve Windows paths differently. Not a required check: validate gates.
-  test:
-    name: test (${{ matrix.os }})
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-      - name: Test every plugin that ships tests
-        run: |
-          for dir in plugins/*/tests; do
-            echo "== ${dir%/tests}"
-            (cd "${dir%/tests}" && node --test tests/*.test.js) || exit 1
-          done
-
   # Not a required check: prose style advises, the marketplace checker gates.
   lint:
     name: lint
