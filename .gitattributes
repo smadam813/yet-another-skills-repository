@@ -1,4 +1,3 @@
-# Every text file checks out with LF. The hush and razor tests compare
-# emitted bytes against golden files and fail on a CRLF checkout.
+# Every text file checks out with LF.
 * text=auto eol=lf
 *.png binary

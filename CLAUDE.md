@@ -44,7 +44,7 @@ Single-context: one `CONTEXT.md` and one `docs/adr/` at the repo root. See `docs
 
 A plugin marketplace of agent skills. Claude Code and Cursor both install the skills from the same directories.
 
-Most of the content is Markdown. The repo has no `package.json`. The marketplace checker and the hook code in hush and razor are the only programs in it.
+Most of the content is Markdown. The repo has no `package.json`. The marketplace checker is the only program in it.
 
 ## Validate
 
@@ -56,14 +56,6 @@ The checker runs on plain Node and needs no dependencies. `.github/workflows/val
 
 Lint Markdown with `npx markdownlint-cli2` (rules in `.markdownlint.jsonc`). CI runs it as the `lint` job, which advises and does not gate the merge.
 
-Run a plugin's tests from its directory after you change its hooks:
-
-```
-node --test tests/*.test.js
-```
-
-CI runs them as the `test` job on Ubuntu and Windows with Node 22. `.gitattributes` forces LF on checkout because the tests compare hook output against golden files byte for byte.
-
 ## Packaging for both tools
 
 Four manifests describe each plugin. The checker fails when they disagree:
@@ -74,7 +66,7 @@ Four manifests describe each plugin. The checker fails when they disagree:
 
 A new description therefore changes four files for a plugin in both marketplaces, and two for a Claude-only one. A new version changes both plugin.json files. List a new plugin in both marketplaces: the checker fails on a plugin that only one marketplace names.
 
-A plugin with no `.cursor-plugin/plugin.json` is Claude-only. It ships hooks or output styles that Cursor cannot load. The checker then requires it to stay out of the Cursor marketplace and skips the Cursor manifest checks. `hush` is Claude-only.
+A plugin with no `.cursor-plugin/plugin.json` is Claude-only. It ships hooks or output styles that Cursor cannot load. The checker then requires it to stay out of the Cursor marketplace and skips the Cursor manifest checks.
 
 Both tools read a skill from the same path, in the same format: `plugins/<plugin>/skills/<name>/SKILL.md`.
 
@@ -90,13 +82,6 @@ Bump a plugin's version in the same PR that changes its skills, as a separate co
 - Keep skill names unique across plugins. The checker only warns about a repeated name, because Claude Code gives each plugin its own namespace. Cursor does not, so one skill there hides the other.
 - Link the skill from `plugins/<plugin>/README.md` in alphabetical order. Nothing generates that index, and the checker errors on a skill directory the README does not link.
 - Put supporting material beside the SKILL.md: `references/` for Markdown that a pointer reaches, `scripts/` for templates the skill copies.
-
-## hush and razor
-
-Repo conventions apply to all files in `plugins/hush` and `plugins/razor`. A hook or script change counts as a patch. Some parts are an interface to users and to the host. Keep them fixed:
-
-- hush: the contract goldens, the environment variables, and the `saved.json` path.
-- razor: the contract goldens, the `RAZOR_*` environment variables, and the plugin options.
 
 ## Invocation choice
 
