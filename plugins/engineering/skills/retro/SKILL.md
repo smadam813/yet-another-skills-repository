@@ -12,6 +12,8 @@ The user asks for a **retrospective**. Suggest changes to the coding agent's **e
 
 2. Look for candidates for improvement in these categories:
 
+   Caution: the Style axis of `review-changes` reads the `## Agent behaviors` section of CLAUDE.md or AGENTS.md. Do not suggest moving the writing-style rules out of that section.
+
    - **Navigation**: how easily did the agent find the right files? Are there hidden dependencies between files? Would a **navigation pointer** help? _Use when_ the session took a long time to find a piece of information.
    - **Automated checks**: could an automated check catch the errors the agent made? Think of linting, typing, tests, and filesystem linters. _Use when_ the agent made a mistake an automated check could catch, or the repo has no guardrail at all.
      - First read the repo's own check command: its `package.json` or build-tool `lint` and `check` scripts, and its CI workflow.
@@ -25,8 +27,6 @@ The user asks for a **retrospective**. Suggest changes to the coding agent's **e
    - **Tool economy**: did the agent make expensive tool calls that could be cheaper? Does custom tooling (a CLI, an MCP server) waste tokens? _Use when_ the agent made an expensive tool call.
    - **No-ops**: find instructions in steering files that do not change the agent's behavior. _Use when_ the steering files are large and hard to manage.
    - **Information access**: find ways to give the agent more information, such as dev server logs written to a file, or read-only access to third-party services. _Use when_ the agent lacked a piece of information it needed.
-
-   Caution: the Style axis of `review-changes` reads the `## Agent behaviors` section of CLAUDE.md or AGENTS.md. Do not suggest moving the writing-style rules out of that section.
 
 3. Present the candidates to the user, most severe first.
 

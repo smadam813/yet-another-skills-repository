@@ -24,7 +24,7 @@ Caution: on the local-markdown tracker, the spec and the tickets live in the mai
 
 2. (Optional) Use an **exploration subagent** for any exploration the tickets need: codebase files or external docs. The exploration subagent saves its Markdown notes in a directory outside the repo that every later subagent can read. The implementer subagents can then focus on implementation, not exploration.
 
-3. Create the integration branch, and record its base commit (`git rev-parse HEAD`). This is the fixed point for the review in step 7. If a PR closes tickets on this tracker, or the user asks for a PR, push the integration branch and open a draft PR after the first merge in step 5. You cannot open a PR from a branch with no commits ahead of main. If a PR closes tickets, end the PR body with a closing reference for the spec and for each ticket.
+3. Create the integration branch, and record its base commit (`git rev-parse HEAD`). This is the fixed point for the review in step 7. You need a PR if a PR closes tickets on this tracker, or if the user asks for one. Open it as a draft after the first merge in step 5, because a PR needs commits ahead of main. Push the integration branch before you open it. If a PR closes tickets, end the PR body with a closing reference for the spec and for each ticket.
 
 4. Use **implementer subagents** to implement each ticket, each in its own worktree on its own branch. Each implementer subagent:
    - checks that its worktree starts from the integration branch, and resets onto it if not;
@@ -35,7 +35,7 @@ Caution: on the local-markdown tracker, the spec and the tickets live in the mai
 
 6. If the merge changes the frontier, start more implementer subagents on the new tickets.
 
-7. When all tickets are complete, call the Skill tool with "review-changes" on the integration branch. Name the base commit from step 3 as the fixed point and the spec as the spec source. Review-changes reports findings and changes no code.
+7. When all tickets are complete, go to the integration branch's worktree. Call the Skill tool with "review-changes" there, so that `HEAD` is the integration branch tip. Name the base commit from step 3 as the fixed point and the spec as the spec source. Review-changes reports findings and changes no code.
 
 8. Check each finding against the code, as `receiving-code-review` describes. Fix the findings you accept in one implementer subagent, and merge its work.
 
