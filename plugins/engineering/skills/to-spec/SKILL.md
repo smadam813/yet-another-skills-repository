@@ -59,7 +59,7 @@ Exception: if a prototype produced a snippet that encodes a decision more precis
 The testing decisions you made. Include:
 
 - What makes a good test here: it tests external behavior, not implementation details
-- Which modules you will test
+- Seams under test: the seams the user confirmed in step 2
 - Prior art for the tests: similar tests in the codebase
 
 ## Out of Scope

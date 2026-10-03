@@ -57,6 +57,9 @@ Be specific about edge cases and error conditions.
 - `functionName()` return type: what it currently returns vs what it should return
 - Config shape: any new configuration options needed
 
+**Seams under test:**
+- The public interface where the tests observe the behavior
+
 **Acceptance criteria:**
 - [ ] Specific, testable criterion 1
 - [ ] Specific, testable criterion 2
