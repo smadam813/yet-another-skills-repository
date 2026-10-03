@@ -95,6 +95,9 @@ and add "..." to show that the text was cut.
   word boundaries
 - Any function that reads SKILL.md frontmatter and extracts the description
 
+**Seams under test:**
+- The function that reads SKILL.md frontmatter and returns the description
+
 **Acceptance criteria:**
 - [ ] Descriptions under 1024 chars are unchanged
 - [ ] Descriptions over 1024 chars are truncated at the last word boundary
@@ -132,6 +135,10 @@ requested the feature. Triage should check these files for matches.
   and a `**Prior requests:**` list with issue links
 - The triage workflow should read all `.out-of-scope/*.md` files early
   and match incoming issues against them by concept similarity
+
+**Seams under test:**
+- The triage workflow's wontfix path, observed through the files it
+  writes in `.out-of-scope/`
 
 **Acceptance criteria:**
 - [ ] Closing a feature as wontfix creates/updates a file in `.out-of-scope/`
@@ -173,6 +180,9 @@ output stays the same.
   instead of the plain-text error
 - Reuse the existing serializer the PR already added; don't introduce a second
 
+**Seams under test:**
+- The `triage list` command: its stdout and its exit code
+
 **Acceptance criteria:**
 - [ ] `triage list --json` emits valid JSON for both success and error cases
 - [ ] Exit codes match the non-JSON command
@@ -205,6 +215,7 @@ This is bad because:
 - No category
 - Vague description ("the triage thing is broken")
 - References file paths and line numbers that will become wrong
+- No seams under test, so the agent must pick its own
 - No acceptance criteria
 - No scope boundaries
 - No description of current vs desired behavior

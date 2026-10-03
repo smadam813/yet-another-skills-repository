@@ -127,7 +127,7 @@ Include the `### Triage labels` sub-block, and write `docs/agents/triage-labels.
 
 Copy the content from `references/writing-style.md` in full. Do not paraphrase it. If `## Agent behaviors` already exists with other subsections, add `### Writing style` to it. Do not create a second `## Agent behaviors` heading. If a `### Writing style` subsection already exists, replace its content in place. Do not leave two. If Section D said to keep the user's existing section, write nothing here.
 
-If exploration found an old `CONTEXT.md` or `CONTEXT-MAP.md`, rename it. Caution: if a `GLOSSARY.md` already exists beside an old file, do not overwrite it. Show the user both files and ask how to merge them. Otherwise, `git mv` each one to `GLOSSARY.md` or `GLOSSARY-MAP.md`. Do the same for each per-context `CONTEXT.md`, then update the map's links to the new names.
+If exploration found an old `CONTEXT.md` or `CONTEXT-MAP.md`, rename it. Caution: if a `GLOSSARY.md` already exists beside an old file, do not overwrite it. Show the user both files and ask how to merge them. Otherwise, `git mv` each one to `GLOSSARY.md` or `GLOSSARY-MAP.md`. Do the same for each per-context `CONTEXT.md`, then update the map's links to the new names. Then search the repo for other references to the old names, and update each one.
 
 Then write the docs files. Start from the templates in this skill folder:
 

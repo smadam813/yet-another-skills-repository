@@ -13,7 +13,7 @@ Skills for software engineering workflows.
 - [`domain-modeling`](skills/domain-modeling/SKILL.md) — build and sharpen a project's
   domain model in `GLOSSARY.md` and ADRs.
 - [`grill-with-docs`](skills/grill-with-docs/SKILL.md) — sharpen a plan in a relentless
-  interview, and write ADRs and glossary entries as each decision settles.
+  interview, write glossary entries, and offer ADRs as decisions settle.
 - [`implement`](skills/implement/SKILL.md) — implement a piece of work from a spec or a set
   of tickets.
 - [`implement-spec`](skills/implement-spec/SKILL.md) — implement a whole spec and its tickets

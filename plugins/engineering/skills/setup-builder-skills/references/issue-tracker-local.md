@@ -18,6 +18,10 @@ Create a new file under `.scratch/<feature-slug>/`. Create the directory if it d
 
 Read the file at the referenced path. The user normally gives you the path or the issue number.
 
+## How work closes
+
+A PR cannot close a local ticket. When the work for a ticket is done, set its `Status:` line to `done`. Set the same line in `spec.md` when every ticket of the spec is done.
+
 ## Wayfinding operations
 
 Used by `/wayfinder`. The **map** is one file, and each **child** file is a ticket.

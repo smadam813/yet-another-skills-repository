@@ -55,6 +55,6 @@ The skill infers which structure applies:
 
 - If `GLOSSARY-MAP.md` exists, read it to find the contexts
 - If only a root `GLOSSARY.md` exists, the repo has a single context
-- If neither exists, create a root `GLOSSARY.md` when you resolve the first term
+- If neither exists, and no old `CONTEXT.md` or `CONTEXT-MAP.md` exists, create a root `GLOSSARY.md` when you resolve the first term
 
 When multiple contexts exist, work out which one the current topic belongs to. If you cannot tell, ask.
