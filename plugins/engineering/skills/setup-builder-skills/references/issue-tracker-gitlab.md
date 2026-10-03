@@ -34,6 +34,10 @@ Create a GitLab issue.
 
 Run `glab issue view <number> --comments`.
 
+## How work closes
+
+An MR closes work. Put one `Closes #<number>` line in the MR description for each issue. GitLab closes those issues when the MR merges into the default branch. With no MR, post the reason with `glab issue note`, then run `glab issue close <number>`.
+
 ## Wayfinding operations
 
 Used by `/wayfinder`. The **map** is a single issue, and its **child** issues are the tickets.

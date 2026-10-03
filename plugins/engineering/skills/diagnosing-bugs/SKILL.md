@@ -1,11 +1,11 @@
 ---
 name: diagnosing-bugs
-description: Diagnosis loop for hard bugs and performance regressions. Use when the user says "diagnose"/"debug this", or reports something broken/throwing/failing/slow and the cause is not yet known. Once the cause is understood and the user wants the fix built test-first, that is `tdd`.
+description: Diagnosis loop for hard bugs and performance regressions. Use when the user says "diagnose"/"debug this", or reports something broken/throwing/failing/slow and the cause is not yet known. It carries the fix through to a regression test, so do not switch to `tdd` when the cause turns up mid-diagnosis.
 ---
 
 A discipline for hard bugs. Skip phases only when explicitly justified.
 
-When exploring the codebase, read `CONTEXT.md` (if it exists) to understand the relevant modules, and check ADRs in the area you are touching.
+When exploring the codebase, read `GLOSSARY.md` (if it exists) to understand the relevant modules, and check ADRs in the area you are touching.
 
 ## Redact
 

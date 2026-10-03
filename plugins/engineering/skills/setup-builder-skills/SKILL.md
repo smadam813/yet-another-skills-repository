@@ -8,7 +8,7 @@ Create the per-repo configuration that the engineering skills read:
 
 - **Issue tracker**: where issues live. GitHub by default; GitLab and local markdown also have templates.
 - **Triage labels**: the label strings for the five triage roles
-- **Domain docs**: where `CONTEXT.md` and ADRs live, and the rules for reading them
+- **Domain docs**: where `GLOSSARY.md` and ADRs live, and the rules for reading them
 - **Writing style**: whether to add the standard prose rules (ASD-STE100 and Orwell) to the repo's `## Agent behaviors` section
 
 This skill is a prompt, not a script. Explore the repo, present what you found, confirm with the user, then write the files.
@@ -22,7 +22,7 @@ Read the repo's current state. Check each item; do not assume:
 - `git remote -v` and `.git/config`: is this a GitHub repo? Which one?
 - `AGENTS.md` and `CLAUDE.md` at the repo root: does either exist? Does either already have an `## Agent skills` section?
 - `## Agent behaviors` and `### Writing style`: check `CLAUDE.md` first, then `AGENTS.md` if `CLAUDE.md` does not exist. This matches step 4's own file order. Is a Writing style section already there? Step 2 needs to know.
-- `CONTEXT.md` and `CONTEXT-MAP.md` at the repo root
+- `GLOSSARY.md` and `GLOSSARY-MAP.md` at the repo root
 - `docs/adr/` and any `src/*/docs/adr/` directories
 - `docs/agents/`: did an earlier run of this skill already write here?
 - `.scratch/`: if it exists, the repo may already track issues as local markdown
@@ -56,9 +56,9 @@ If it is installed, ask exactly one question:
 
 The defaults are the five roles, where each label string is the same as the role name: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. If the user answers yes, write them unchanged. If the user answers no, collect the replacement names. Users usually answer no because their tracker already uses other names, such as `bug:triage` for `needs-triage`. The replacement names let `triage` apply the existing labels instead of creating duplicates.
 
-**Section C: Domain docs.** Default to **single-context**: one `CONTEXT.md` and one `docs/adr/` at the repo root. This fits almost every repo. Write it without asking.
+**Section C: Domain docs.** Default to **single-context**: one `GLOSSARY.md` and one `docs/adr/` at the repo root. This fits almost every repo. Write it without asking.
 
-Offer **multi-context**, a root `CONTEXT-MAP.md` that points to one `CONTEXT.md` per context, only when exploration found monorepo signals. Then ask the user which layout they want.
+Offer **multi-context**, a root `GLOSSARY-MAP.md` that points to one `GLOSSARY.md` per context, only when exploration found monorepo signals. Then ask the user which layout they want.
 
 **Section D: Writing style.** Ask this question for every repo; it does not depend on which other engineering skills are installed.
 

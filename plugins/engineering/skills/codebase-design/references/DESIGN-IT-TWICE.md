@@ -27,7 +27,7 @@ Give each subagent its own technical brief: file paths, coupling details, the de
 - Subagent 3: "Optimize for the most common caller. Make the default case trivial."
 - Subagent 4 (if it applies): "Design around ports and adapters for dependencies that cross the seam."
 
-Put the vocabulary from [SKILL.md](../SKILL.md) and from CONTEXT.md in every brief, so each subagent names things consistently with the architecture language and the project's domain language.
+Put the vocabulary from [SKILL.md](../SKILL.md) and from GLOSSARY.md in every brief, so each subagent names things consistently with the architecture language and the project's domain language.
 
 Each subagent returns:
 

@@ -1,11 +1,11 @@
 ---
 name: tdd
-description: Test-driven development. Use when the user wants to build features test-first, fix a bug whose cause is already understood, mentions "red-green-refactor", or wants integration tests. When something is broken and the cause is still unknown, use `diagnosing-bugs` instead.
+description: Test-driven development. Use when the user wants to build features test-first, fix a bug whose cause is known before work starts, mentions "red-green-refactor", or wants integration tests. When something is broken and the cause is still unknown, use `diagnosing-bugs` instead; it owns the fix to the end.
 ---
 
 TDD is the red → green → refactor loop. This skill covers what makes that loop produce tests worth keeping: what a good test is, where tests go, the anti-patterns, and the rules of the loop. Every section applies on every cycle. Read them before and during the loop, not after.
 
-When you explore the codebase, read `CONTEXT.md` if it exists, so that test names and interface vocabulary match the project's domain language. Respect the ADRs in the area you touch.
+When you explore the codebase, read `GLOSSARY.md` if it exists, so that test names and interface vocabulary match the project's domain language. Respect the ADRs in the area you touch.
 
 ## What a good test is
 
@@ -17,7 +17,7 @@ See [tests.md](references/tests.md) for examples and [mocking.md](references/moc
 
 A **seam** is the public boundary you test at: the interface where you observe behavior without reaching inside. Tests live at seams, never against internals.
 
-**Test only at pre-agreed seams.** Before you write any test, write down the seams under test and confirm them with the user. Write no test at an unconfirmed seam. You cannot test everything, so agreeing the seams up front is what puts the effort on the critical paths and the complex logic instead of on every edge case.
+**Test only at pre-agreed seams.** Before you write any test, write down the seams under test and confirm them with the user. Write no test at an unconfirmed seam. Seams recorded in the spec, the ticket, or the agent brief count as confirmed; do not ask again. In an AFK run, where no user can answer, pick the seams yourself and name them in your report. You cannot test everything, so agreeing the seams up front is what puts the effort on the critical paths and the complex logic instead of on every edge case.
 
 Ask: "What is the public interface, and which seams should we test?"
 

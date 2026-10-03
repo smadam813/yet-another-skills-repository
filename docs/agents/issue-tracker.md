@@ -33,6 +33,10 @@ Create a GitHub issue.
 
 Run `gh issue view <number> --comments`.
 
+## How work closes
+
+A PR closes work. Put one `Closes #<number>` line in the PR body for each issue. GitHub closes those issues when the PR merges into the default branch. With no PR, run `gh issue close <number> --comment "..."`.
+
 ## Wayfinding operations
 
 Used by `/wayfinder`. The **map** is a single issue, and its **child** issues are the tickets.

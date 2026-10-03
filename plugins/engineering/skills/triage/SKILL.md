@@ -55,7 +55,7 @@ The maintainer runs `/triage` and describes what they want in plain words. Read 
 
 Query the issue tracker and present three groups, oldest first:
 
-1. **Unlabeled**: never triaged.
+1. **Unlabeled**: never triaged. Leave out a spec that carries a "Split into tickets:" comment. `to-tickets` removed its state on purpose, and its tickets carry the work.
 2. **`needs-triage`**: evaluation in progress.
 3. **`needs-info` with reporter activity since the last triage notes**: needs another look.
 
@@ -71,7 +71,7 @@ Show a count for each group and a one-line summary for each item. Let the mainta
 
 3. **Verify the claim.** Before you grill, check that the claim is true. For a bug, reproduce it from the reporter's steps. For a PR, check out the branch and run the relevant tests or commands to confirm the diff does what it claims. Report the result: confirmed, with the code path; failed; or not enough detail, which is a strong `needs-info` signal. A confirmed claim makes a much stronger agent brief.
 
-4. **Grill (if needed).** If the request needs more detail, call the Skill tool twice, for "productivity:grilling" and "domain-modeling" (if "productivity:grilling" does not resolve, run the interview inline in numbered rounds). Then work the request into shape, one round of questions at a time. Sharpen the domain terms and update `CONTEXT.md` and the ADRs as each decision is made.
+4. **Grill (if needed).** If the request needs more detail, call the Skill tool twice, for "productivity:grilling" and "domain-modeling" (if "productivity:grilling" does not resolve, run the interview inline in numbered rounds). Then work the request into shape, one round of questions at a time. Sharpen the domain terms and update `GLOSSARY.md` as each term settles. Offer an ADR only when a decision meets the criteria in domain-modeling.
 
 5. **Apply the outcome:**
    - `ready-for-agent`: post an agent brief comment ([AGENT-BRIEF.md](references/AGENT-BRIEF.md)).

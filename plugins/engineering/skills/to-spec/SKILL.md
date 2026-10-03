@@ -10,6 +10,8 @@ Setup gives you the issue tracker and the triage label vocabulary. If you do not
 
 ## Process
 
+0. If the user passes a reference, such as a wayfinder map, an issue, or a path, fetch it. Read the full body and the comments. Follow its links to resolved decision tickets and read those too, because each decision lives only in its ticket.
+
 1. Explore the repo to learn the current state of the codebase, if you have not already. Use the project's domain glossary throughout the spec, and respect the ADRs in the area you touch.
 
 2. Sketch the seams where you will test the feature. Prefer existing seams to new ones. Use the highest seam available. If you need new seams, propose them at the highest point you can. Fewer seams are better; one is ideal.
@@ -59,7 +61,7 @@ Exception: if a prototype produced a snippet that encodes a decision more precis
 The testing decisions you made. Include:
 
 - What makes a good test here: it tests external behavior, not implementation details
-- Which modules you will test
+- Seams under test: the seams the user confirmed in step 2
 - Prior art for the tests: similar tests in the codebase
 
 ## Out of Scope

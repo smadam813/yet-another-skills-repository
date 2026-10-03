@@ -50,6 +50,7 @@ Present the proposed breakdown as a numbered list. For each ticket, show:
 - **Title**: short descriptive name
 - **Blocked by**: the tickets that must complete first, if any
 - **What it delivers**: the end-to-end behavior this ticket makes work
+- **Seams under test**: the spec seams it uses, or "None (no tests)" and why
 
 Ask the user:
 
@@ -68,7 +69,7 @@ Publish the approved tickets. The method depends on the tracker that `/setup-bui
 
 Work the **frontier**: any ticket whose blockers are all done. In a linear chain, that means top to bottom.
 
-Do NOT close or modify any parent issue.
+Do NOT close the parent issue. If it carries the label for the `ready-for-agent` role (see `docs/agents/triage-labels.md`), remove that label, so that agents pick up the tickets and not the whole spec. On the local tracker, the label is the spec's `Status:` line, so delete that line. Then post a comment on the parent that starts with "Split into tickets:" and lists the tickets. `triage` reads that comment and keeps the parent out of its unlabeled group. Make no other change to the parent.
 
 <local-ticket-template>
 
@@ -77,6 +78,8 @@ Do NOT close or modify any parent issue.
 **What to build:** the end-to-end behavior this ticket makes work, from the user's perspective, not a layer-by-layer implementation list.
 
 **Blocked by:** the numbers and titles of the tickets that gate this one, or "None (can start immediately)".
+
+**Seams under test:** the seams from the spec that this ticket's tests use, or "None (no tests)" with the reason.
 
 **Status:** ready-for-agent
 
@@ -94,6 +97,10 @@ A reference to the parent issue on the tracker. Omit this section if the source 
 ## What to build
 
 The end-to-end behavior this ticket makes work, from the user's perspective, not layer-by-layer implementation.
+
+## Seams under test
+
+The seams from the spec that this ticket's tests use, or "None (no tests)" with the reason.
 
 ## Acceptance criteria
 

@@ -11,14 +11,18 @@ Skills for software engineering workflows.
 - [`diagnosing-bugs`](skills/diagnosing-bugs/SKILL.md) — run a diagnosis loop for hard bugs
   and performance regressions.
 - [`domain-modeling`](skills/domain-modeling/SKILL.md) — build and sharpen a project's
-  domain model in `CONTEXT.md` and ADRs.
+  domain model in `GLOSSARY.md` and ADRs.
 - [`grill-with-docs`](skills/grill-with-docs/SKILL.md) — sharpen a plan in a relentless
-  interview, and write ADRs and glossary entries as each decision settles.
+  interview, write glossary entries, and offer ADRs as decisions settle.
 - [`implement`](skills/implement/SKILL.md) — implement a piece of work from a spec or a set
   of tickets.
+- [`implement-spec`](skills/implement-spec/SKILL.md) — implement a whole spec and its tickets
+  in one run, with parallel subagents on one integration branch.
 - [`improve-codebase-architecture`](skills/improve-codebase-architecture/SKILL.md) — scan
   the codebase for deepening opportunities, report them as HTML, then grill the one you
   pick.
+- [`pr`](skills/pr/SKILL.md) — write a PR body: the smallest visual summary, before-and-after
+  evidence, and the merge danger.
 - [`prototype`](skills/prototype/SKILL.md) — build a throwaway prototype to answer a design
   question.
 - [`receiving-code-review`](skills/receiving-code-review/SKILL.md) — check each review
@@ -27,12 +31,14 @@ Skills for software engineering workflows.
   write the findings to Markdown.
 - [`resolving-merge-conflicts`](skills/resolving-merge-conflicts/SKILL.md) — resolve an
   in-progress merge or rebase conflict.
+- [`retro`](skills/retro/SKILL.md) — run a retrospective on a session and suggest changes to
+  the agent's environment.
 - [`review-changes`](skills/review-changes/SKILL.md) — review changes since a fixed point
   on three axes: standards, spec, and style.
 - [`setup-builder-skills`](skills/setup-builder-skills/SKILL.md) — set up the repo once:
   issue tracker, triage labels, domain doc layout, and writing style.
 - [`tdd`](skills/tdd/SKILL.md) — build features test-first, red-green-refactor; fix a bug
-  this way once its cause is known.
+  whose cause is known before work starts.
 - [`to-spec`](skills/to-spec/SKILL.md) — turn the current conversation into a spec and
   publish it to the tracker.
 - [`to-tickets`](skills/to-tickets/SKILL.md) — break a plan into tracer-bullet tickets with
@@ -43,3 +49,9 @@ Skills for software engineering workflows.
   of decision tickets.
 - [`wizard`](skills/wizard/SKILL.md) — generate an interactive bash wizard for steps only a
   human can perform.
+
+## Upgrading
+
+Since 0.5.0, the skills read `GLOSSARY.md` and `GLOSSARY-MAP.md`. If a repo has a
+`CONTEXT.md` or `CONTEXT-MAP.md`, `git mv` each one to its new name and fix the map's links.
+Then run `/setup-builder-skills` again, so that `docs/agents/domain.md` names the new files.
