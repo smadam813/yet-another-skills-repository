@@ -26,10 +26,10 @@ Run **implementer subagents** in the background where you can, for maximum concu
 
 4. Use **implementer subagents** to implement each ticket, each in its own worktree on its own branch. Each implementer subagent:
    - checks that its worktree starts from the integration branch, and resets onto it if not;
-   - calls the Skill tool with "tdd" to build the ticket, using the seams the ticket records;
+   - calls the Skill tool with "tdd" to build the ticket, using the seams the ticket records, or the spec's seams if the ticket has none, or its own pick, named in its report, if neither has any;
    - merges the integration branch tip into its own branch before it reports done.
 
-5. When an implementer subagent completes, merge its work into the integration branch with a **merger subagent**.
+5. When an implementer subagent completes, merge its work into the integration branch with a **merger subagent**. Run one merger at a time, in the integration branch's worktree.
 
 6. If the merge changes the frontier, start more implementer subagents on the new tickets.
 
@@ -37,6 +37,6 @@ Run **implementer subagents** in the background where you can, for maximum concu
 
 8. Check each finding against the code, as `receiving-code-review` describes. Fix the findings you accept in one implementer subagent, and merge its work.
 
-9. If a draft PR exists, mark it ready for review. Otherwise, resolve each ticket the way the issue tracker closes work, and report the integration branch.
+9. If a draft PR exists, mark it ready for review. Otherwise, resolve each ticket the way the issue tracker closes work, and report the integration branch. Say that it is not yet merged.
 
-10. Remove every implementer subagent worktree.
+10. Remove every implementer subagent worktree and delete its merged branch.

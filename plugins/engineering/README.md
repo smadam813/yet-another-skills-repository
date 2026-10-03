@@ -31,14 +31,14 @@ Skills for software engineering workflows.
   write the findings to Markdown.
 - [`resolving-merge-conflicts`](skills/resolving-merge-conflicts/SKILL.md) — resolve an
   in-progress merge or rebase conflict.
-- [`review-changes`](skills/review-changes/SKILL.md) — review changes since a fixed point
-  on three axes: standards, spec, and style.
 - [`retro`](skills/retro/SKILL.md) — run a retrospective on a session and suggest changes to
   the agent's environment.
+- [`review-changes`](skills/review-changes/SKILL.md) — review changes since a fixed point
+  on three axes: standards, spec, and style.
 - [`setup-builder-skills`](skills/setup-builder-skills/SKILL.md) — set up the repo once:
   issue tracker, triage labels, domain doc layout, and writing style.
 - [`tdd`](skills/tdd/SKILL.md) — build features test-first, red-green-refactor; fix a bug
-  this way once its cause is known.
+  whose cause is known before work starts.
 - [`to-spec`](skills/to-spec/SKILL.md) — turn the current conversation into a spec and
   publish it to the tracker.
 - [`to-tickets`](skills/to-tickets/SKILL.md) — break a plan into tracer-bullet tickets with

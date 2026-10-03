@@ -111,7 +111,7 @@ Tool preference:
 
 ## Phase 5: Fix + regression test
 
-This phase owns the fix. Do not hand off to `tdd`. The reproduction already found the seam, so the user does not need to confirm it.
+This phase owns the fix. Do not hand off to `tdd`. The user need not confirm the seam: the check below replaces that step.
 
 Write the regression test **before the fix**, but only if there is a **correct seam** for it.
 
