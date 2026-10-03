@@ -24,18 +24,16 @@ Documents written for agents (a SKILL.md, `AGENTS.md`, `CLAUDE.md`) may use a le
 
 For technical and instructional prose:
 
-1. Use short sentences. Write one instruction per sentence. Keep instructions under 20 words and descriptions under 25.
-2. Use the active voice and the present tense. Write instructions as commands. Name the actor when the actor matters.
+1. Use short sentences. Put one main action or statement in each sentence.
+2. Use a clear subject and an active verb. Name the actor when the actor matters.
 3. Use the same term for the same thing. Do not change a term only to avoid repetition.
 4. Use familiar words with one precise meaning. Avoid idioms, slang, figurative language, and vague verbs.
 5. Use a specific technical term when it is necessary for accuracy. Define it or link to its definition.
-6. Keep articles and connectors. Do not stack more than three nouns in a row. Use prepositions to show relationships between terms.
+6. Keep noun groups short. Use prepositions to show relationships between terms.
 7. Write procedures as direct instructions. State the condition, action, and expected result.
 8. Use positive instructions when they are clear. State what the reader must do.
 9. Use consistent American English spelling unless the user's style guide requires another variety.
 10. Preserve code, commands, identifiers, product names, legal text, and required quotations. Do not simplify them silently.
-11. Keep paragraphs to one topic and no more than six sentences.
-12. Put a warning or caution before the step it applies to.
 
 When strict STE is not possible, keep the text clear and mark the terms or passages that need a domain-specific exception.
 
@@ -46,7 +44,7 @@ When writing from scratch:
 1. Identify the audience, purpose, and promised tone from the user's request.
 2. Draft in concrete, direct English.
 3. Remove stock phrases, dead metaphors, filler, pompous diction, needless abstraction, and avoidable jargon.
-4. Use active verbs and clear subjects. Use the passive only when the actor is unknown or does not matter.
+4. Prefer active verbs and clear subjects unless passive voice better serves emphasis, tact, suspense, or technical accuracy.
 5. Keep necessary nuance; do not make prose crude, false, or flat just to make it short.
 6. Apply the ASD-STE100 baseline. Check terms, sentence structure, instructions, and technical exceptions.
 
