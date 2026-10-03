@@ -38,7 +38,7 @@ Write one when any of these is true:
 ### What does _not_ qualify
 
 - Material you only covered. Coverage is not learning. Wait for evidence.
-- Anything a glossary in `./reference/` already holds tersely as a term definition. Do not duplicate it.
+- Anything `GLOSSARY.md` already holds tersely as a term definition. Do not duplicate it.
 - Session-by-session activity logs. A learning record is not a journal. It is an insight you can decide from.
 
 ## Supersession
