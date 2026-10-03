@@ -13,7 +13,7 @@ A **flow** is a path through the skills. Most paths run along one **main flow**,
 The route most work travels. You have an idea and want it built.
 
 1. **`/grill-with-docs`** sharpens the idea by interview. Start here whenever you work **in a working directory**. It is stateful: it keeps what it learns in `GLOSSARY.md` and in ADRs. With no working directory, use **`/grill-me`** instead, covered under Standalone. Both run the same `/productivity:grilling` primitive, but `grill-with-docs` leaves a paper trail, so prefer it whenever a repo is there to hold one.
-2. **Branch: can you settle every question in conversation?** Some questions need a runnable answer: state, business logic, a UI you have to see. Detour through a prototype and bridge it with **`/handoff`** in both directions. The prototype is a side task you fork mid-phase, which is one of the cases `/handoff` is for (see Phase boundaries):
+2. **Branch: can you settle every question in conversation?** Some questions need a runnable answer: state, business logic, a UI you have to see. Detour through a prototype and bridge it with **`/handoff`** in both directions. A prototype is a side task you fork mid-phase, one of the cases `/handoff` is for (see Phase boundaries):
    - **`/handoff`** out, then open a fresh session against that file,
    - **`/prototype`** to answer the question with throwaway code,
    - **`/handoff`** back what you learned, then reference it from the original idea thread.
@@ -23,11 +23,11 @@ The route most work travels. You have an idea and want it built.
      - **`/implement-spec`** for the whole spec in one run. It reads the tickets as a **task graph**, runs implementer subagents across the ready **frontier** in parallel, and lands everything on one **integration branch**. Reach for it when you would rather orchestrate the build than drive each ticket yourself.
    - **No** → run **`/implement`** right here, in the same context window.
 
-   Either way, the code gets built by driving **`/tdd`**, one red-green slice at a time, and closes out with **`/review-changes`**, a three-axis review (Standards + Spec + Style) of the diff. `/implement` commits, then reviews, per ticket. `/implement-spec`'s implementers each drive `/tdd`, and it runs one `/review-changes` over the integration branch. Reach for **`/tdd`** on its own to build one concrete behavior test-first without a full spec, and **`/review-changes`** on its own to review a branch or PR against a fixed point.
+   Either way, **`/tdd`** builds the code one red-green slice at a time, and **`/review-changes`** finishes with a three-axis review (Standards + Spec + Style) of the diff. `/implement` commits, then reviews, per ticket. `/implement-spec` runs one `/review-changes` over the integration branch after its implementers finish. Reach for **`/tdd`** on its own to build one concrete behavior test-first without a full spec, and **`/review-changes`** on its own to review a branch or PR against a fixed point.
 
    When the work goes up as a pull request, **`/pr`** shapes the body: the smallest visual that shows the change, before-and-after evidence that it works, and a one-way or two-way door call. It is model-invoked, so the agent reaches for it whenever it writes a PR.
 
-4. **`/retro`** closes the loop. After a build, and above all after one that went wrong, it looks back over the session and suggests changes to the agent's **environment**, not the code: navigation pointers, automated checks, the coding standards `/review-changes` enforces, steering files, tooling. Mechanical mistakes become deterministic checks; judgment calls become coding standards. The next build then starts from a better environment.
+4. **`/retro`** reviews a finished build. Run it after any build, and above all after one that went wrong. It reads the session and suggests changes to the agent's **environment**, not the code: navigation pointers, automated checks, the coding standards `/review-changes` enforces, steering files, tooling. Mechanical mistakes become deterministic checks; judgment calls become coding standards. The next build then starts from a better environment.
 
 ### Context hygiene
 

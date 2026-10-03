@@ -22,10 +22,10 @@ Run **implementer subagents** in the background where you can, for maximum concu
 
 2. (Optional) Use an **exploration subagent** for any exploration the tickets need: codebase files or external docs. The exploration subagent saves its Markdown notes in a directory outside the repo that every later subagent can read. The implementer subagents can then focus on implementation, not exploration.
 
-3. Create the integration branch, and record its base commit (`git rev-parse HEAD`). This is the fixed point for the review in step 7. If the issue tracker closes work through PRs, or the user asks for one, open a draft PR after the first merge in step 5, marked as closing the spec and the tickets. A branch with no commits ahead of main cannot open one.
+3. Create the integration branch, and record its base commit (`git rev-parse HEAD`). This is the fixed point for the review in step 7. If the issue tracker closes work through PRs, or the user asks for a PR, open a draft PR after the first merge in step 5. Mark it as closing the spec and the tickets. You cannot open a PR from a branch with no commits ahead of main.
 
 4. Use **implementer subagents** to implement each ticket, each in its own worktree on its own branch. Each implementer subagent:
-   - confirms its worktree is based on the integration branch before it starts, and resets onto it if not;
+   - checks that its worktree starts from the integration branch, and resets onto it if not;
    - calls the Skill tool with "tdd" to build the ticket, using the seams the ticket records;
    - merges the integration branch tip into its own branch before it reports done.
 

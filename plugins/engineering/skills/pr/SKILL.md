@@ -29,12 +29,12 @@ Use this template for the PR body:
 
 **Blast Radius:** <one-word description>
 
-<optional: potential ramifications of merge>
+<optional: what the merge can break>
 ```
 
 ## Sections
 
-Skip all preambles and keep the prose short. Use the user's domain language from `GLOSSARY.md`.
+Skip preambles. Keep the prose short. Use the user's domain language from `GLOSSARY.md`.
 
 ### Summary
 
@@ -151,9 +151,9 @@ function expandSkill(command: string): string {
 
 #### Guidance
 
-Put each visual next to the short text it supports. Keep only the calls, files, props, states, and boundaries that the reader needs to understand the change.
+Put each visual next to the short text it supports. Keep only the calls, files, props, states, and boundaries the reader needs to understand the change.
 
-Use one of these views, or several. You will seldom need all of them. Do not overwhelm the reader.
+Use one of these views, or several. You will seldom need all of them.
 
 ### Evidence
 
@@ -167,4 +167,4 @@ Execution evidence comes next: test results and console output. Show the exact t
 
 Say whether the change is a one-way or a two-way door. You can walk back through a two-way door, but not through a one-way door. A PR that is cheap to roll back carries less risk. Destructive actions and decisions that are hard to reverse are one-way doors.
 
-The blast radius is the scope of what the PR can affect. Consider every possibility, such as layout shift, breakage for consumers, or mobile layout.
+The blast radius is the scope of what the PR can affect. Consider every area the PR can break, such as layout shift, breakage for consumers, or mobile layout.

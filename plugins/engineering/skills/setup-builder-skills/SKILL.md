@@ -22,7 +22,7 @@ Read the repo's current state. Check each item; do not assume:
 - `git remote -v` and `.git/config`: is this a GitHub repo? Which one?
 - `AGENTS.md` and `CLAUDE.md` at the repo root: does either exist? Does either already have an `## Agent skills` section?
 - `## Agent behaviors` and `### Writing style`: check `CLAUDE.md` first, then `AGENTS.md` if `CLAUDE.md` does not exist. This matches step 4's own file order. Is a Writing style section already there? Step 2 needs to know.
-- `GLOSSARY.md` and `GLOSSARY-MAP.md` at the repo root. An older layout names them `CONTEXT.md` and `CONTEXT-MAP.md`; if you find those, `git mv` each one to its new name, because the other skills read only the new names.
+- `GLOSSARY.md` and `GLOSSARY-MAP.md` at the repo root. An older layout names them `CONTEXT.md` and `CONTEXT-MAP.md`. Note any you find; step 4 renames them, because the other skills read only the new names.
 - `docs/adr/` and any `src/*/docs/adr/` directories
 - `docs/agents/`: did an earlier run of this skill already write here?
 - `.scratch/`: if it exists, the repo may already track issues as local markdown
@@ -79,6 +79,7 @@ Show the user a draft of:
 - The `## Agent skills` block to add to whichever of `CLAUDE.md` / `AGENTS.md` you are editing (see step 4 for the selection rules)
 - The contents of `docs/agents/issue-tracker.md`, `docs/agents/domain.md`, and `docs/agents/triage-labels.md`. Draft the last file only when `triage` is installed.
 - The `### Writing style` content to add under `## Agent behaviors`, when Section D said to add or replace it
+- The rename of an old `CONTEXT.md` or `CONTEXT-MAP.md`, when exploration found one
 
 Let them edit before you write.
 
@@ -125,6 +126,8 @@ Include the `### Triage labels` sub-block, and write `docs/agents/triage-labels.
 ```
 
 Copy the content from `references/writing-style.md` in full. Do not paraphrase it. If `## Agent behaviors` already exists with other subsections, add `### Writing style` to it. Do not create a second `## Agent behaviors` heading. If a `### Writing style` subsection already exists, replace its content in place. Do not leave two. If Section D said to keep the user's existing section, write nothing here.
+
+If exploration found an old `CONTEXT.md` or `CONTEXT-MAP.md`, `git mv` each one to `GLOSSARY.md` or `GLOSSARY-MAP.md`.
 
 Then write the docs files. Start from the templates in this skill folder:
 
