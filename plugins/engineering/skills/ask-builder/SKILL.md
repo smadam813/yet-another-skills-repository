@@ -18,14 +18,20 @@ The route most work travels. You have an idea and want it built.
    - **`/prototype`** to answer the question with throwaway code,
    - **`/handoff`** back what you learned, then reference it from the original idea thread.
 3. **Branch: is this a multi-session build?**
-   - **Yes** → **`/to-spec`** turns the thread into a spec, then **`/to-tickets`** splits it into tracer-bullet tickets. Each ticket declares its **blocking edges**. On a local tracker that is one file per ticket under `.scratch/<feature>/issues/`, worked blockers-first by hand. On a real tracker the edges become native blocking links, so you can grab any ticket whose blockers are done. Run **`/implement`** per ticket, and **`/clear` context between each one**. Each ticket is self-contained, so the last one's context is disposable.
+   - **Yes** → **`/to-spec`** turns the thread into a spec, then **`/to-tickets`** splits it into tracer-bullet tickets. Each ticket declares its **blocking edges**. Then work the tickets one of two ways:
+     - **`/implement`** per ticket, and **`/clear` context between each one**. On a local tracker that is one file per ticket under `.scratch/<feature>/issues/`, worked blockers-first by hand. On a real tracker the edges become native blocking links, so you can grab any ticket whose blockers are done. Each ticket is self-contained, so the last one's context is disposable.
+     - **`/implement-spec`** for the whole spec in one run. It reads the tickets as a **task graph**, runs implementer subagents across the ready **frontier** in parallel, and lands everything on one **integration branch**. Reach for it when you would rather orchestrate the build than drive each ticket yourself.
    - **No** → run **`/implement`** right here, in the same context window.
 
-   Either way, **`/implement`** builds each issue by driving **`/tdd`** internally, one red-green slice at a time. It then closes out by running **`/review-changes`**, a three-axis review (Standards + Spec + Style) of the diff, after committing. Reach for **`/tdd`** on its own to build one concrete behavior test-first without a full spec, and **`/review-changes`** on its own to review a branch or PR against a fixed point.
+   Either way, the code gets built by driving **`/tdd`**, one red-green slice at a time, and closes out with **`/review-changes`**, a three-axis review (Standards + Spec + Style) of the diff. `/implement` commits, then reviews, per ticket. `/implement-spec`'s implementers each drive `/tdd`, and it runs one `/review-changes` over the integration branch. Reach for **`/tdd`** on its own to build one concrete behavior test-first without a full spec, and **`/review-changes`** on its own to review a branch or PR against a fixed point.
+
+   When the work goes up as a pull request, **`/pr`** shapes the body: the smallest visual that shows the change, before-and-after evidence that it works, and a one-way or two-way door call. It is model-invoked, so the agent reaches for it whenever it writes a PR.
+
+4. **`/retro`** closes the loop. After a build, and above all after one that went wrong, it looks back over the session and suggests changes to the agent's **environment**, not the code: navigation pointers, automated checks, the coding standards `/review-changes` enforces, steering files, tooling. Mechanical mistakes become deterministic checks; judgment calls become coding standards. The next build then starts from a better environment.
 
 ### Context hygiene
 
-Keep steps 1–3 in **one unbroken context window**. Do not compact or clear until after `/to-tickets`, so the grilling, the spec, and the tickets all build on the same thinking. Each `/implement` then starts fresh, working from the ticket.
+Keep steps 1–3 in **one unbroken context window**. Do not compact or clear until after `/to-tickets`, so the grilling, the spec, and the tickets all build on the same thinking. Each `/implement` then starts fresh, working from the ticket. Run `/retro` in the session it looks back on, before you clear. After a clear, point it at that session's log instead.
 
 The limit on this is the **[smart zone](references/SMART-ZONE.md)**: the window (~150k tokens on current frontier models) within which the model still reasons sharply. If a session approaches it before `/to-tickets`, do not push on degraded. `/compact` at the nearest phase boundary and carry on (see Phase boundaries).
 
