@@ -63,7 +63,7 @@ Once the user picks a candidate, call the Skill tool with "productivity:grilling
 
 Make the changes below inline as decisions firm up; call the Skill tool with "domain-modeling" to keep the domain model current as you go:
 
-- **Naming a deepened module after a concept not in `GLOSSARY.md`?** Add the term to the glossary, as domain-modeling describes.
+- **Naming a deepened module after a concept not in `GLOSSARY.md`?** Add the term to `GLOSSARY.md`. Create the file lazily if it does not exist.
 - **Sharpening a fuzzy term during the conversation?** Update `GLOSSARY.md` right there.
 - **User rejects the candidate with a load-bearing reason?** Offer an ADR, framed as: _"Want me to record this as an ADR so future architecture reviews do not re-suggest it?"_ Only offer when a future review would need that reason to avoid re-suggesting the same thing; skip temporary reasons ("not worth it right now") and self-evident ones.
 - **Want to explore alternative interfaces for the deepened module?** Call the Skill tool with "codebase-design" and use its design-it-twice parallel subagent pattern.

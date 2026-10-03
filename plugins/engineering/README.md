@@ -49,3 +49,9 @@ Skills for software engineering workflows.
   of decision tickets.
 - [`wizard`](skills/wizard/SKILL.md) — generate an interactive bash wizard for steps only a
   human can perform.
+
+## Upgrading
+
+Since 0.5.0, the skills read `GLOSSARY.md` and `GLOSSARY-MAP.md`. If a repo has a
+`CONTEXT.md` or `CONTEXT-MAP.md`, `git mv` each one to its new name and fix the map's links.
+Then run `/setup-builder-skills` again, so that `docs/agents/domain.md` names the new files.
