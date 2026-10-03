@@ -35,7 +35,7 @@ If a `GLOSSARY-MAP.md` exists at the root, the repo has multiple contexts. The m
 │       └── docs/adr/
 ```
 
-Create files only when you have something to write. If no `GLOSSARY.md` exists, create one when you resolve the first term. If no `docs/adr/` exists, create it when you write the first ADR.
+Create files only when you have something to write. If no `GLOSSARY.md` exists, create one when you resolve the first term. Caution: an old `CONTEXT.md` or `CONTEXT-MAP.md` is the same file under its old name. If you find one, do not create a second glossary. Read the old file, and tell the user to run `/setup-builder-skills` to rename it. If no `docs/adr/` exists, create it when you write the first ADR.
 
 ## During the session
 

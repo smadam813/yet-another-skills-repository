@@ -22,7 +22,7 @@ Read the repo's current state. Check each item; do not assume:
 - `git remote -v` and `.git/config`: is this a GitHub repo? Which one?
 - `AGENTS.md` and `CLAUDE.md` at the repo root: does either exist? Does either already have an `## Agent skills` section?
 - `## Agent behaviors` and `### Writing style`: check `CLAUDE.md` first, then `AGENTS.md` if `CLAUDE.md` does not exist. This matches step 4's own file order. Is a Writing style section already there? Step 2 needs to know.
-- `GLOSSARY.md` and `GLOSSARY-MAP.md` at the repo root. An older layout names them `CONTEXT.md` and `CONTEXT-MAP.md`. Note any you find; step 4 renames them, because the other skills read only the new names.
+- `GLOSSARY.md` and `GLOSSARY-MAP.md` at the repo root. An older layout names them `CONTEXT.md` and `CONTEXT-MAP.md`. Note any you find, and every per-context `CONTEXT.md` that an old map links to. Step 4 renames them, because the other skills read only the new names.
 - `docs/adr/` and any `src/*/docs/adr/` directories
 - `docs/agents/`: did an earlier run of this skill already write here?
 - `.scratch/`: if it exists, the repo may already track issues as local markdown
@@ -127,7 +127,7 @@ Include the `### Triage labels` sub-block, and write `docs/agents/triage-labels.
 
 Copy the content from `references/writing-style.md` in full. Do not paraphrase it. If `## Agent behaviors` already exists with other subsections, add `### Writing style` to it. Do not create a second `## Agent behaviors` heading. If a `### Writing style` subsection already exists, replace its content in place. Do not leave two. If Section D said to keep the user's existing section, write nothing here.
 
-If exploration found an old `CONTEXT.md` or `CONTEXT-MAP.md`, `git mv` each one to `GLOSSARY.md` or `GLOSSARY-MAP.md`.
+If exploration found an old `CONTEXT.md` or `CONTEXT-MAP.md`, rename it. Caution: if a `GLOSSARY.md` already exists beside an old file, do not overwrite it. Show the user both files and ask how to merge them. Otherwise, `git mv` each one to `GLOSSARY.md` or `GLOSSARY-MAP.md`. Do the same for each per-context `CONTEXT.md`, then update the map's links to the new names.
 
 Then write the docs files. Start from the templates in this skill folder:
 
@@ -141,4 +141,4 @@ For an "other" issue tracker, write `docs/agents/issue-tracker.md` from the user
 
 ### 5. Done
 
-Tell the user that setup is complete, and name the engineering skills that now read these files. Tell them they can edit `docs/agents/*.md` later, and the `## Agent behaviors` section directly. They need to run this skill again only to change issue trackers, to update the Writing style section, or to start again.
+Tell the user that setup is complete, and name the engineering skills that now read these files. Tell them they can edit `docs/agents/*.md` later, and the `## Agent behaviors` section directly. They need to run this skill again only to change issue trackers, to update the Writing style section, to rename an old `CONTEXT.md` layout, or to start again.
