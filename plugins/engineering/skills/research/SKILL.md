@@ -3,7 +3,7 @@ name: research
 description: Investigate a question against high-trust primary sources and write the findings to a Markdown file in the repo. Use when the user wants a topic researched, docs or API facts gathered, or the reading delegated to a background agent.
 ---
 
-Start a **background agent** to do the research, so you keep working while it reads.
+Start a **background agent** to do the research, so you keep working while it reads. If you already run as a subagent, do the research yourself, inline. Do not start another agent.
 
 Its job:
 

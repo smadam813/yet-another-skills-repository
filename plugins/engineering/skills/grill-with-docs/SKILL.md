@@ -1,6 +1,6 @@
 ---
 name: grill-with-docs
-description: Sharpen a plan or design in a relentless interview, writing ADRs and glossary entries as decisions settle.
+description: Sharpen a plan or design in a relentless interview, writing glossary entries and offering ADRs as decisions settle.
 disable-model-invocation: true
 ---
 

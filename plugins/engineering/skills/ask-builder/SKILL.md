@@ -13,7 +13,7 @@ A **flow** is a path through the skills. Most paths run along one **main flow**,
 The route most work travels. You have an idea and want it built.
 
 1. **`/grill-with-docs`** sharpens the idea by interview. Start here whenever you work **in a working directory**. It is stateful: it keeps what it learns in `CONTEXT.md` and in ADRs. With no working directory, use **`/grill-me`** instead, covered under Standalone. Both run the same `/productivity:grilling` primitive, but `grill-with-docs` leaves a paper trail, so prefer it whenever a repo is there to hold one.
-2. **Branch: can you settle every question in conversation?** Some questions need a runnable answer: state, business logic, a UI you have to see. Detour through a prototype and bridge it with **`/handoff`** in both directions. A prototype lives in its own directory, which is exactly what `/handoff` is for (see Phase boundaries):
+2. **Branch: can you settle every question in conversation?** Some questions need a runnable answer: state, business logic, a UI you have to see. Detour through a prototype and bridge it with **`/handoff`** in both directions. The prototype is a side task you fork mid-phase, which is one of the cases `/handoff` is for (see Phase boundaries):
    - **`/handoff`** out, then open a fresh session against that file,
    - **`/prototype`** to answer the question with throwaway code,
    - **`/handoff`** back what you learned, then reference it from the original idea thread.
@@ -21,7 +21,7 @@ The route most work travels. You have an idea and want it built.
    - **Yes** → **`/to-spec`** turns the thread into a spec, then **`/to-tickets`** splits it into tracer-bullet tickets. Each ticket declares its **blocking edges**. On a local tracker that is one file per ticket under `.scratch/<feature>/issues/`, worked blockers-first by hand. On a real tracker the edges become native blocking links, so you can grab any ticket whose blockers are done. Run **`/implement`** per ticket, and **`/clear` context between each one**. Each ticket is self-contained, so the last one's context is disposable.
    - **No** → run **`/implement`** right here, in the same context window.
 
-   Either way, **`/implement`** builds each issue by driving **`/tdd`** internally, one red-green slice at a time. It then closes out by running **`/review-changes`**, a three-axis review (Standards + Spec + Style) of the diff, before committing. Reach for **`/tdd`** on its own to build one concrete behavior test-first without a full spec, and **`/review-changes`** on its own to review a branch or PR against a fixed point.
+   Either way, **`/implement`** builds each issue by driving **`/tdd`** internally, one red-green slice at a time. It then closes out by running **`/review-changes`**, a three-axis review (Standards + Spec + Style) of the diff, after committing. Reach for **`/tdd`** on its own to build one concrete behavior test-first without a full spec, and **`/review-changes`** on its own to review a branch or PR against a fixed point.
 
 ### Context hygiene
 
@@ -37,7 +37,7 @@ A starting situation that generates work, then merges onto the main flow.
 
   Triage is only for issues **you did not create**: bug reports, incoming feature requests, anything that arrives raw. Tickets that `/to-tickets` produced are already agent-ready, so **do not triage them**.
 
-- **Something is broken and the cause is still unknown** → **`/diagnosing-bugs`**. For the hard ones: the bug that resists a first glance, the intermittent flake, the regression that crept in between two known-good states. It refuses to theorize until it has a **tight feedback loop**, one command that already goes red on *this* bug, then fixes the bug with a regression test. Once the cause is understood and you want the fix built test-first, that is **`/tdd`**. When it finds no good seam to lock the bug down, it documents that as the finding and suggests **`/improve-codebase-architecture`**, where you design the missing seam.
+- **Something is broken and the cause is still unknown** → **`/diagnosing-bugs`**. For the hard ones: the bug that resists a first glance, the intermittent flake, the regression that crept in between two known-good states. It refuses to theorize until it has a **tight feedback loop**, one command that already goes red on *this* bug, then fixes the bug with a regression test. It owns the fix; **`/tdd`** is for a bug whose cause you already knew before you started. When it finds no good seam to lock the bug down, it documents that as the finding and suggests **`/improve-codebase-architecture`**, where you design the missing seam.
 
 - **A huge, foggy effort: a greenfield project, or a feature build too big for one session** → **`/wayfinder`**, the most demanding flow here. Use it when the way from here to the destination is not visible yet. It charts a **shared map** of **decision tickets** on the issue tracker and resolves them one at a time, producing **decisions, not deliverables**, until the fog is pushed back and the way is clear. **`/grill-with-docs`** sharpens an idea you can hold in one session; wayfinder is for the idea you cannot. It is slower and denser, so save it for exactly that, and never for a well-scoped feature.
 

@@ -3,6 +3,8 @@ name: grilling
 description: Grill the user about a plan, decision, or idea. Use when the user wants to stress-test their thinking, or says 'grill'.
 ---
 
+In a repo, also call the Skill tool with "domain-modeling" if it is not already loaded, so that settled terms reach the domain glossary and lasting decisions get an ADR offer. If "domain-modeling" does not resolve, continue without it.
+
 Interview the user relentlessly until you reach a shared understanding. Map the problem as a **design tree**: every decision branches into the decisions that depend on it.
 
 Work the tree in **rounds**. The **frontier** is every decision whose prerequisites are settled: the questions you can ask _now_ without guessing at answers you have not heard. Ask the whole frontier in one round. Number each question and give your recommended answer. Then wait for the user's answers.

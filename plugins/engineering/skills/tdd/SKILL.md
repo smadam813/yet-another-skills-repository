@@ -1,6 +1,6 @@
 ---
 name: tdd
-description: Test-driven development. Use when the user wants to build features test-first, fix a bug whose cause is already understood, mentions "red-green-refactor", or wants integration tests. When something is broken and the cause is still unknown, use `diagnosing-bugs` instead.
+description: Test-driven development. Use when the user wants to build features test-first, fix a bug whose cause is known before work starts, mentions "red-green-refactor", or wants integration tests. When something is broken and the cause is still unknown, use `diagnosing-bugs` instead; it owns the fix to the end.
 ---
 
 TDD is the red → green → refactor loop. This skill covers what makes that loop produce tests worth keeping: what a good test is, where tests go, the anti-patterns, and the rules of the loop. Every section applies on every cycle. Read them before and during the loop, not after.

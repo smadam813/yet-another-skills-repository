@@ -1,6 +1,6 @@
 ---
 name: diagnosing-bugs
-description: Diagnosis loop for hard bugs and performance regressions. Use when the user says "diagnose"/"debug this", or reports something broken/throwing/failing/slow and the cause is not yet known. Once the cause is understood and the user wants the fix built test-first, that is `tdd`.
+description: Diagnosis loop for hard bugs and performance regressions. Use when the user says "diagnose"/"debug this", or reports something broken/throwing/failing/slow and the cause is not yet known. It carries the fix through to a regression test, so do not switch to `tdd` when the cause turns up mid-diagnosis.
 ---
 
 A discipline for hard bugs. Skip phases only when explicitly justified.
@@ -110,6 +110,8 @@ Tool preference:
 **Performance regressions.** Logs are the wrong tool here. Take a baseline measurement (timing harness, `performance.now()`, profiler, query plan), then bisect. Measure first, fix second.
 
 ## Phase 5: Fix + regression test
+
+This phase owns the fix. Do not hand off to `tdd`. The reproduction already found the seam, so the user does not need to confirm it.
 
 Write the regression test **before the fix**, but only if there is a **correct seam** for it.
 
