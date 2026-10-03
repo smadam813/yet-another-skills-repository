@@ -55,7 +55,7 @@ The maintainer runs `/triage` and describes what they want in plain words. Read 
 
 Query the issue tracker and present three groups, oldest first:
 
-1. **Unlabeled**: never triaged. Leave out a spec that carries a "Split into tickets:" comment. `to-tickets` removed its state on purpose, and its tickets carry the work.
+1. **Unlabeled**: never triaged.
 2. **`needs-triage`**: evaluation in progress.
 3. **`needs-info` with reporter activity since the last triage notes**: needs another look.
 

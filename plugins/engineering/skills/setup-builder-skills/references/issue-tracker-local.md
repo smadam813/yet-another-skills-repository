@@ -20,7 +20,7 @@ Read the file at the referenced path. The user normally gives you the path or th
 
 ## How work closes
 
-A PR cannot close a local ticket. When the work for a ticket is done, set its `Status:` line to `done`. When every ticket of the spec is done, set `Status: done` in `spec.md`, and add the line if it is missing.
+A PR cannot close a local ticket. When the work for a ticket is done, set its `Status:` line to `resolved`. Set the same line in `spec.md` when every ticket of the spec is done.
 
 ## Wayfinding operations
 

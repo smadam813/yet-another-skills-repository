@@ -111,8 +111,6 @@ Tool preference:
 
 ## Phase 5: Fix + regression test
 
-This phase owns the fix. Do not hand off to `tdd`. The user need not confirm the seam: the check below replaces that step.
-
 Write the regression test **before the fix**, but only if there is a **correct seam** for it.
 
 A correct seam is one where the test exercises the **real bug pattern** as it occurs at the call site. If the only seam available is too shallow (a single-caller test when the bug needs multiple callers, a unit test that cannot replicate the chain that triggered the bug), a regression test there gives false confidence.

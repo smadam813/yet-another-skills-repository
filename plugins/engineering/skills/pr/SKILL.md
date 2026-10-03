@@ -36,8 +36,6 @@ Use this template for the PR body:
 
 Skip preambles. Keep the prose short. Use the user's domain language from `GLOSSARY.md`.
 
-After the template, add the closing references that the issue tracker's "How work closes" section asks for.
-
 ### Summary
 
 Pick the smallest view that makes the key point clear.

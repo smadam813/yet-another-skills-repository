@@ -28,10 +28,10 @@ Caution: on the local-markdown tracker, the spec and the tickets live in the mai
 
 4. Use **implementer subagents** to implement each ticket, each in its own worktree on its own branch. Each implementer subagent:
    - checks that its worktree starts from the integration branch, and resets onto it if not;
-   - calls the Skill tool with "tdd" to build the ticket at the seams the ticket records. If the ticket records "None (no tests)", it builds the ticket without "tdd" and writes no tests. If the ticket has no seams field, it uses the spec's seams. If the spec has none either, it picks its own seams and names them in its report;
+   - calls the Skill tool with "tdd" to build the ticket at the seams the ticket records. If the ticket records "None (no tests)", it builds the ticket without "tdd" and writes no tests;
    - merges the integration branch tip into its own branch before it reports done.
 
-5. When an implementer subagent completes, merge its work into the integration branch with a **merger subagent**. Run one merger at a time, in the integration branch's worktree. If a draft PR exists, push the integration branch after each merge.
+5. When an implementer subagent completes, merge its work into the integration branch with a **merger subagent**. Run one merger at a time, in the integration branch's worktree.
 
 6. If the merge changes the frontier, start more implementer subagents on the new tickets.
 
@@ -39,6 +39,6 @@ Caution: on the local-markdown tracker, the spec and the tickets live in the mai
 
 8. Check each finding against the code, as `receiving-code-review` describes. Fix the findings you accept in one implementer subagent, and merge its work.
 
-9. If a draft PR exists, push the integration branch, then mark the PR ready for review. If no PR closes the tickets, resolve each ticket the way the issue tracker closes work. Report the integration branch, and say that it is not yet merged.
+9. If a draft PR exists, push the integration branch, then mark the PR ready for review. If no PR closes the tickets, resolve the spec and each ticket the way the issue tracker closes work. Report the integration branch, and say that it is not yet merged.
 
 10. Remove every implementer subagent worktree and delete its merged branch.

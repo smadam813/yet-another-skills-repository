@@ -27,8 +27,8 @@ Before you go further, confirm that the fixed point resolves (`git rev-parse <fi
 
 Look for the originating spec, in this order:
 
-1. Issue references in the commit messages (`#123`, `Closes #45`, GitLab `!67`). Fetch them with the workflow in `docs/agents/issue-tracker.md`.
-2. A path the user passed as an argument.
+1. A spec that the user or the calling skill names: a path, or an issue id. Fetch an issue with the workflow in `docs/agents/issue-tracker.md`.
+2. Issue references in the commit messages (`#123`, `Closes #45`, GitLab `!67`). Fetch them the same way.
 3. A spec file under `docs/`, `specs/`, or `.scratch/` that matches the branch name or the feature.
 4. If you find nothing, ask the user where the spec is. If they say there is no spec, the **Spec** subagent skips its review and reports "no spec available".
 
