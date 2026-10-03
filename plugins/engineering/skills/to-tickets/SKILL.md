@@ -68,7 +68,7 @@ Publish the approved tickets. The method depends on the tracker that `/setup-bui
 
 Work the **frontier**: any ticket whose blockers are all done. In a linear chain, that means top to bottom.
 
-Do NOT close the parent issue. If it carries the label for the `ready-for-agent` role (see `docs/agents/triage-labels.md`), remove that label, so that agents pick up the tickets and not the whole spec. Make no other change to the parent.
+Do NOT close the parent issue. If it carries the label for the `ready-for-agent` role (see `docs/agents/triage-labels.md`), remove that label, so that agents pick up the tickets and not the whole spec. Then post a comment on the parent that starts with "Split into tickets:" and lists the tickets. `triage` reads that comment and keeps the parent out of its unlabeled group. Make no other change to the parent.
 
 <local-ticket-template>
 
