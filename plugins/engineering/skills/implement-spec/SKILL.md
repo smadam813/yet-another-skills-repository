@@ -16,20 +16,22 @@ Keep communication to and from subagents sparse. Communicate through **context p
 
 Run **implementer subagents** in the background where you can, for maximum concurrency.
 
+Caution: on the local-markdown tracker, the spec and the tickets live in the main working tree. Read and edit them there. Give each subagent those paths, not copies in its worktree.
+
 ## Steps
 
 1. Read the spec and the tickets to learn the task graph.
 
 2. (Optional) Use an **exploration subagent** for any exploration the tickets need: codebase files or external docs. The exploration subagent saves its Markdown notes in a directory outside the repo that every later subagent can read. The implementer subagents can then focus on implementation, not exploration.
 
-3. Create the integration branch, and record its base commit (`git rev-parse HEAD`). This is the fixed point for the review in step 7. If a PR closes tickets on this tracker, or the user asks for a PR, open a draft PR after the first merge in step 5. You cannot open a PR from a branch with no commits ahead of main. If a PR closes tickets, end the PR body with a closing reference for the spec and for each ticket.
+3. Create the integration branch, and record its base commit (`git rev-parse HEAD`). This is the fixed point for the review in step 7. If a PR closes tickets on this tracker, or the user asks for a PR, push the integration branch and open a draft PR after the first merge in step 5. You cannot open a PR from a branch with no commits ahead of main. If a PR closes tickets, end the PR body with a closing reference for the spec and for each ticket.
 
 4. Use **implementer subagents** to implement each ticket, each in its own worktree on its own branch. Each implementer subagent:
    - checks that its worktree starts from the integration branch, and resets onto it if not;
    - calls the Skill tool with "tdd" to build the ticket at the seams the ticket records. If the ticket records "None (no tests)", it builds the ticket without "tdd" and writes no tests. If the ticket has no seams field, it uses the spec's seams. If the spec has none either, it picks its own seams and names them in its report;
    - merges the integration branch tip into its own branch before it reports done.
 
-5. When an implementer subagent completes, merge its work into the integration branch with a **merger subagent**. Run one merger at a time, in the integration branch's worktree.
+5. When an implementer subagent completes, merge its work into the integration branch with a **merger subagent**. Run one merger at a time, in the integration branch's worktree. If a draft PR exists, push the integration branch after each merge.
 
 6. If the merge changes the frontier, start more implementer subagents on the new tickets.
 
