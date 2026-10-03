@@ -11,7 +11,7 @@ Skills for software engineering workflows.
 - [`diagnosing-bugs`](skills/diagnosing-bugs/SKILL.md) — run a diagnosis loop for hard bugs
   and performance regressions.
 - [`domain-modeling`](skills/domain-modeling/SKILL.md) — build and sharpen a project's
-  domain model in `CONTEXT.md` and ADRs.
+  domain model in `GLOSSARY.md` and ADRs.
 - [`grill-with-docs`](skills/grill-with-docs/SKILL.md) — sharpen a plan in a relentless
   interview, and write ADRs and glossary entries as each decision settles.
 - [`implement`](skills/implement/SKILL.md) — implement a piece of work from a spec or a set

@@ -38,7 +38,7 @@ Uses the default five triage role names as label strings. See `docs/agents/triag
 
 ### Domain docs
 
-Single-context: one `CONTEXT.md` and one `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+Single-context: one `GLOSSARY.md` and one `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
 ## What this repo is
 

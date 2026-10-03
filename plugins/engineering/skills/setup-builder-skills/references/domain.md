@@ -4,8 +4,8 @@ How the engineering skills read this repo's domain documentation when they explo
 
 ## Before exploring, read these
 
-- **`CONTEXT.md`** at the repo root, or
-- **`CONTEXT-MAP.md`** at the repo root if it exists: it points at one `CONTEXT.md` per context. Read each one that is relevant to the topic.
+- **`GLOSSARY.md`** at the repo root, or
+- **`GLOSSARY-MAP.md`** at the repo root if it exists: it points at one `GLOSSARY.md` per context. Read each one that is relevant to the topic.
 - **`docs/adr/`**: read the ADRs that touch the area you are about to work in. In multi-context repos, also check `src/<context>/docs/adr/` for context-scoped decisions.
 
 If one of these files does not exist, **continue without comment**. Do not report that it is missing. Do not suggest that the user create it. The `/domain-modeling` skill, which `/grill-with-docs` and `/improve-codebase-architecture` call, creates these files when the project resolves a term or a decision.
@@ -16,31 +16,31 @@ Single-context repo (most repos):
 
 ```
 /
-├── CONTEXT.md
+├── GLOSSARY.md
 ├── docs/adr/
 │   ├── 0001-event-sourced-orders.md
 │   └── 0002-postgres-for-write-model.md
 └── src/
 ```
 
-Multi-context repo (a `CONTEXT-MAP.md` is present at the root):
+Multi-context repo (a `GLOSSARY-MAP.md` is present at the root):
 
 ```
 /
-├── CONTEXT-MAP.md
+├── GLOSSARY-MAP.md
 ├── docs/adr/                          ← system-wide decisions
 └── src/
     ├── ordering/
-    │   ├── CONTEXT.md
+    │   ├── GLOSSARY.md
     │   └── docs/adr/                  ← context-specific decisions
     └── billing/
-        ├── CONTEXT.md
+        ├── GLOSSARY.md
         └── docs/adr/
 ```
 
 ## Use the glossary's terms
 
-When your output names a domain concept, in an issue title, a refactor proposal, a hypothesis, or a test name, use the term as `CONTEXT.md` defines it. Do not use a synonym that the glossary rejects.
+When your output names a domain concept, in an issue title, a refactor proposal, a hypothesis, or a test name, use the term as `GLOSSARY.md` defines it. Do not use a synonym that the glossary rejects.
 
 If the glossary does not contain the concept you need, there are two possible causes. Either you are inventing language that the project does not use, and you must reconsider the term, or the glossary has a real gap, and you must note it for `/domain-modeling`.
 

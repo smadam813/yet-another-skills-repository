@@ -5,7 +5,7 @@ description: Test-driven development. Use when the user wants to build features 
 
 TDD is the red → green → refactor loop. This skill covers what makes that loop produce tests worth keeping: what a good test is, where tests go, the anti-patterns, and the rules of the loop. Every section applies on every cycle. Read them before and during the loop, not after.
 
-When you explore the codebase, read `CONTEXT.md` if it exists, so that test names and interface vocabulary match the project's domain language. Respect the ADRs in the area you touch.
+When you explore the codebase, read `GLOSSARY.md` if it exists, so that test names and interface vocabulary match the project's domain language. Respect the ADRs in the area you touch.
 
 ## What a good test is
 
