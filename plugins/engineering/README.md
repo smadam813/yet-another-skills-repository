@@ -6,8 +6,6 @@ Skills for software engineering workflows.
 
 - [`ask-builder`](skills/ask-builder/SKILL.md) — route to the skill or flow that fits your
   situation.
-- [`code-deslop`](skills/code-deslop/SKILL.md) — remove AI-generated code slop and clean up
-  code style.
 - [`codebase-design`](skills/codebase-design/SKILL.md) — design deep modules with a shared
   vocabulary for interfaces, seams, and testability.
 - [`diagnosing-bugs`](skills/diagnosing-bugs/SKILL.md) — run a diagnosis loop for hard bugs
